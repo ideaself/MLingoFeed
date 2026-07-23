@@ -195,6 +195,8 @@ fun prepareTranslationParagraphs(webView: WebView?, onDone: ((Int) -> Unit)? = n
         (function() {
             var existing = document.querySelectorAll('.__wr-translation');
             existing.forEach(function(el) { el.remove(); });
+            window.__wrTexts = [];
+            window.__wrCount = 0;
 
             var contentTags = 'p, li, dd, dt, blockquote, pre, h1, h2, h3, h4, h5, h6, figcaption, td, th, summary';
             var allElements = document.querySelectorAll(contentTags);
@@ -220,7 +222,8 @@ fun prepareTranslationParagraphs(webView: WebView?, onDone: ((Int) -> Unit)? = n
                 var next = el.nextElementSibling;
                 if (next && next.classList.contains('__wr-translation')) return;
 
-                el.setAttribute('data-wr-para', count);
+                if (text.length > 2000) text = text.substring(0, 2000);
+                window.__wrTexts[count] = text;
 
                 var transDiv = document.createElement('div');
                 transDiv.className = '__wr-translation __wr-translation-loading';
@@ -235,7 +238,7 @@ fun prepareTranslationParagraphs(webView: WebView?, onDone: ((Int) -> Unit)? = n
 
                 count++;
             });
-
+            window.__wrCount = count;
             return '' + count;
         })();
         """.trimIndent()
@@ -270,6 +273,8 @@ fun clearPageTranslations(webView: WebView?) {
         (function() {
             var existing = document.querySelectorAll('.__wr-translation');
             existing.forEach(function(el) { el.remove(); });
+            window.__wrTexts = [];
+            window.__wrCount = 0;
         })();
         """.trimIndent(),
         null

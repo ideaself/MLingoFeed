@@ -318,13 +318,17 @@ private suspend fun getNextParagraph(webView: WebView?): JSONObject? {
                     }
                 }
                 if (!sel) return null;
-                var p = sel.previousElementSibling;
-                while (p && p.classList.contains('__wr-translation')) {
-                    p = p.previousElementSibling;
+                var texts = window.__wrTexts || [];
+                var text = texts[selIdx];
+                if (!text) {
+                    var p = sel.previousElementSibling;
+                    while (p && p.classList.contains('__wr-translation')) {
+                        p = p.previousElementSibling;
+                    }
+                    text = p ? p.textContent.trim() : '';
                 }
-                if (!p) return JSON.stringify({ index: selIdx, text: '(no text)' });
-                var text = p.textContent.trim();
                 if (text.length > 2000) text = text.substring(0, 2000);
+                if (!text || text.length === 0) return null;
                 return JSON.stringify({ index: selIdx, text: text });
             })();
             """.trimIndent()
