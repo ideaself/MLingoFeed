@@ -2,6 +2,7 @@ package com.webreader.ui.screens
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -57,7 +58,10 @@ fun BookmarksScreen(onNavigateToReader: (String) -> Unit) {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Bookmarks") })
+            TopAppBar(
+                title = { Text("Bookmarks") },
+                windowInsets = WindowInsets(0.dp)
+            )
         },
         floatingActionButton = {
             FloatingActionButton(onClick = { showAddDialog = true }) {

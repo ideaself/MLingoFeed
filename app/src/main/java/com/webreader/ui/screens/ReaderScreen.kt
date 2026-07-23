@@ -30,6 +30,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.viewinterop.AndroidView
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
@@ -38,6 +39,7 @@ import com.webreader.ui.components.DictionaryPopup
 import com.webreader.ui.components.TranslationPopup
 import com.webreader.webview.createReaderWebView
 import com.webreader.webview.clearPageTranslations
+import com.webreader.webview.injectSelectionScript
 import com.webreader.webview.injectTranslationStyles
 import com.webreader.webview.prepareTranslationParagraphs
 import com.webreader.webview.updateParagraphTranslation
@@ -115,6 +117,14 @@ fun ReaderScreen(
 
             if (paraCount == 0 || !isTranslating) {
                 isTranslating = false
+                withContext(Dispatchers.Main) {
+                    webView?.evaluateJavascript("""
+                        (function() {
+                            var loadings = document.querySelectorAll('.__wr-translation-loading');
+                            loadings.forEach(function(el) { el.remove(); });
+                        })();
+                    """.trimIndent(), null)
+                }
                 translateProgress = ""
                 if (paraCount == 0) {
                     translateProgress = "No content to translate"
@@ -124,25 +134,21 @@ fun ReaderScreen(
                 return@launch
             }
 
-            var stuckCount = 0
+            var currentIndex = 0
+            var totalToProcess = paraCount
 
-            while (isTranslating && isActive) {
-                val paragraphData = withContext(Dispatchers.Main) {
-                    getNextParagraph(webView)
+            while (isTranslating && isActive && currentIndex < totalToProcess) {
+                val result = withContext(Dispatchers.Main) {
+                    getTextByIndex(webView, currentIndex)
                 }
 
-                if (paragraphData == null) {
-                    stuckCount++
-                    if (stuckCount > 10) break
-                    delay(300)
+                if (result == null) {
+                    currentIndex++
                     continue
                 }
 
-                stuckCount = 0
-                val index = paragraphData.getInt("index")
-                val text = paragraphData.getString("text")
-
-                translateProgress = "Translating..."
+                val text = result
+                translateProgress = "Translating ${currentIndex + 1}/$totalToProcess..."
 
                 val translation = withContext(Dispatchers.IO) {
                     try {
@@ -154,16 +160,27 @@ fun ReaderScreen(
                             model = model
                         )
                     } catch (e: Exception) {
-                        "Translation error"
+                        "Translation error: ${e.message}"
                     }
                 }
 
                 withContext(Dispatchers.Main) {
-                    updateParagraphTranslation(webView, index, translation)
+                    updateParagraphTranslation(webView, currentIndex, translation)
                 }
+
+                currentIndex++
+                delay(50)
             }
 
             isTranslating = false
+            withContext(Dispatchers.Main) {
+                webView?.evaluateJavascript("""
+                    (function() {
+                        var loadings = document.querySelectorAll('.__wr-translation-loading');
+                        loadings.forEach(function(el) { el.remove(); });
+                    })();
+                """.trimIndent(), null)
+            }
             translateProgress = ""
         }
     }
@@ -230,7 +247,8 @@ fun ReaderScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    )
+                    ),
+                    windowInsets = WindowInsets(0.dp)
                 )
                 if (isLoading) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
@@ -259,6 +277,7 @@ fun ReaderScreen(
                             isTranslating = false
                             translateProgress = ""
                         }
+                        injectSelectionScript(webView)
                     }
                 ).also { wv ->
                     webView = wv
@@ -301,43 +320,25 @@ fun ReaderScreen(
     }
 }
 
-private suspend fun getNextParagraph(webView: WebView?): JSONObject? {
+private suspend fun getTextByIndex(webView: WebView?, index: Int): String? {
     if (webView == null) return null
     return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
         webView.evaluateJavascript(
             """
             (function() {
-                var loadings = document.querySelectorAll('.__wr-translation-loading');
-                if (loadings.length === 0) return null;
-                var sel = null, selIdx = -1;
-                for (var i = 0; i < loadings.length; i++) {
-                    var idx = parseInt(loadings[i].getAttribute('data-paragraph-index'));
-                    if (selIdx === -1 || idx < selIdx) {
-                        selIdx = idx;
-                        sel = loadings[i];
-                    }
-                }
-                if (!sel) return null;
                 var texts = window.__wrTexts || [];
-                var text = texts[selIdx];
-                if (!text) {
-                    var p = sel.previousElementSibling;
-                    while (p && p.classList.contains('__wr-translation')) {
-                        p = p.previousElementSibling;
-                    }
-                    text = p ? p.textContent.trim() : '';
-                }
-                if (text.length > 2000) text = text.substring(0, 2000);
+                var text = texts[${index}];
                 if (!text || text.length === 0) return null;
-                return JSON.stringify({ index: selIdx, text: text });
+                if (text.length > 2000) text = text.substring(0, 2000);
+                return JSON.stringify(text);
             })();
             """.trimIndent()
         ) { value ->
+            if (!continuation.isActive) return@evaluateJavascript
             if (value != null && value != "null") {
                 try {
                     val cleaned = value.trim('"').replace("\\\"", "\"").replace("\\n", "\n")
-                    val json = JSONObject(cleaned)
-                    continuation.resume(json) {}
+                    continuation.resume(cleaned) {}
                 } catch (e: Exception) {
                     continuation.resume(null) {}
                 }
@@ -347,7 +348,3 @@ private suspend fun getNextParagraph(webView: WebView?): JSONObject? {
         }
     }
 }
-
-
-
-

@@ -5,6 +5,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -112,7 +113,10 @@ fun SettingsScreen() {
 
     Scaffold(
         topBar = {
-            TopAppBar(title = { Text("Settings") })
+            TopAppBar(
+                title = { Text("Settings") },
+                windowInsets = WindowInsets(0.dp)
+            )
         },
         floatingActionButton = {
             FloatingActionButton(
