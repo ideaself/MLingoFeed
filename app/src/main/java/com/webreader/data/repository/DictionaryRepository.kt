@@ -1,10 +1,10 @@
 package com.webreader.data.repository
 
-import com.webreader.data.api.DictionaryApi
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.json.JSONObject
-import retrofit2.Retrofit
+import org.jsoup.Jsoup
+import java.net.URLEncoder
 import java.util.concurrent.TimeUnit
 
 class DictionaryRepository {
@@ -14,28 +14,77 @@ class DictionaryRepository {
         .readTimeout(15, TimeUnit.SECONDS)
         .build()
 
-    private val retrofit = Retrofit.Builder()
-        .baseUrl("https://example.com/")
-        .client(okHttpClient)
-        .build()
-
-    private val api = retrofit.create(DictionaryApi::class.java)
-
-    suspend fun lookupWord(dictionaryUrl: String, word: String): String {
+    suspend fun lookupWord(urlTemplate: String, cssSelector: String, word: String): String {
         return try {
+            val encodedWord = URLEncoder.encode(word, "UTF-8")
+            val url = urlTemplate.replace("{word}", encodedWord)
+
             val request = Request.Builder()
-                .url("$dictionaryUrl$word")
+                .url(url)
                 .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) Mobile Safari/537.36")
+                .header("Accept", "text/html,application/xhtml+xml,application/json,*/*")
+                .header("Accept-Language", "en-US,en;q=0.9")
                 .build()
 
             okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return "Lookup failed: ${response.code}"
+                if (!response.isSuccessful) return "Error: HTTP ${response.code}"
+
                 val body = response.body?.string() ?: return "No result"
-                parseYoudaoResponse(body)
+
+                if (cssSelector.isNotEmpty()) {
+                    parseHtmlResult(body, cssSelector, urlTemplate)
+                } else {
+                    parseDefaultResult(body, urlTemplate)
+                }
             }
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
+    }
+
+    private fun parseHtmlResult(html: String, cssSelector: String, urlTemplate: String): String {
+        return try {
+            val doc = Jsoup.parse(html)
+            val elements = doc.select(cssSelector)
+
+            if (elements.isEmpty()) {
+                return "No content found with selector: $cssSelector"
+            }
+
+            val sb = StringBuilder()
+            elements.forEachIndexed { index, element ->
+                val text = element.text().trim()
+                if (text.isNotEmpty()) {
+                    if (index > 0) sb.appendLine()
+                    sb.appendLine(text)
+                }
+            }
+
+            if (sb.isEmpty()) {
+                "No readable content found"
+            } else {
+                sb.toString().trim()
+            }
+        } catch (e: Exception) {
+            "Parse error: ${e.message}"
+        }
+    }
+
+    private fun parseDefaultResult(json: String, urlTemplate: String): String {
+        if (urlTemplate.contains("youdao.com/jsonapi") || urlTemplate.contains("jsonversion")) {
+            return parseYoudaoResponse(json)
+        }
+
+        if (json.startsWith("{") || json.startsWith("[")) {
+            return try {
+                val obj = JSONObject(json)
+                prettyPrintJson(obj)
+            } catch (e: Exception) {
+                json
+            }
+        }
+
+        return json.take(2000)
     }
 
     private fun parseYoudaoResponse(json: String): String {
@@ -111,5 +160,44 @@ class DictionaryRepository {
         } catch (e: Exception) {
             "Parse error: ${e.message}"
         }
+    }
+
+    private fun prettyPrintJson(obj: JSONObject, indent: String = ""): String {
+        val sb = StringBuilder()
+        val keys = obj.keys()
+        var first = true
+        while (keys.hasNext()) {
+            if (!first) sb.appendLine()
+            first = false
+            val key = keys.next()
+            val value = obj.get(key)
+            sb.append("$indent\"$key\": ")
+            when (value) {
+                is JSONObject -> sb.append(prettyPrintJson(value, "$indent  "))
+                is org.json.JSONArray -> sb.append(prettyPrintArray(value, "$indent  "))
+                is String -> sb.append("\"$value\"")
+                else -> sb.append(value.toString())
+            }
+        }
+        return sb.toString()
+    }
+
+    private fun prettyPrintArray(array: org.json.JSONArray, indent: String): String {
+        val sb = StringBuilder()
+        sb.appendLine("[")
+        for (i in 0 until array.length()) {
+            val value = array.get(i)
+            sb.append("$indent  ")
+            when (value) {
+                is JSONObject -> sb.append(prettyPrintJson(value, "$indent  "))
+                is org.json.JSONArray -> sb.append(prettyPrintArray(value, "$indent  "))
+                is String -> sb.append("\"$value\"")
+                else -> sb.append(value.toString())
+            }
+            if (i < array.length() - 1) sb.append(",")
+            sb.appendLine()
+        }
+        sb.append("$indent]")
+        return sb.toString()
     }
 }

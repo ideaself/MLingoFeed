@@ -5,7 +5,6 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -16,28 +15,30 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ExposedDropdownMenuBox
-import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -55,6 +56,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.webreader.WebReaderApp
 import com.webreader.data.export.ExportManager
+import com.webreader.data.settings.DictionaryConfig
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
@@ -66,24 +68,22 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
-    val dictionaryUrl by app.settingsManager.dictionaryUrl.collectAsState(initial = "")
-    val dictionaryName by app.settingsManager.dictionaryName.collectAsState(initial = "")
+    val dictionaries by app.settingsManager.dictionaries.collectAsState(initial = emptyList())
     val aiApiUrl by app.settingsManager.aiApiUrl.collectAsState(initial = "")
     val aiApiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
     val aiModel by app.settingsManager.aiModel.collectAsState(initial = "")
     val targetLang by app.settingsManager.translateTargetLang.collectAsState(initial = "")
 
-    var dictUrlInput by remember(dictionaryUrl) { mutableStateOf(dictionaryUrl) }
-    var dictNameInput by remember(dictionaryName) { mutableStateOf(dictionaryName) }
     var aiUrlInput by remember(aiApiUrl) { mutableStateOf(aiApiUrl) }
     var aiKeyInput by remember(aiApiKey) { mutableStateOf(aiApiKey) }
     var aiModelInput by remember(aiModel) { mutableStateOf(aiModel) }
     var targetLangInput by remember(targetLang) { mutableStateOf(targetLang) }
 
-    var showPresetDropdown by remember { mutableStateOf(false) }
-
     var showImportConfirm by remember { mutableStateOf(false) }
     var pendingImportData by remember { mutableStateOf<com.webreader.data.export.ExportData?>(null) }
+
+    var editingDict by remember { mutableStateOf<DictionaryConfig?>(null) }
+    var showAddDict by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -130,12 +130,11 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
             FloatingActionButton(
                 onClick = {
                     scope.launch {
-                        app.settingsManager.setDictionaryUrl(dictUrlInput)
-                        app.settingsManager.setDictionaryName(dictNameInput)
                         app.settingsManager.setAiApiUrl(aiUrlInput)
                         app.settingsManager.setAiApiKey(aiKeyInput)
                         app.settingsManager.setAiModel(aiModelInput)
                         app.settingsManager.setTranslateTargetLang(targetLangInput)
+                        Toast.makeText(context, "Settings saved", Toast.LENGTH_SHORT).show()
                     }
                 }
             ) {
@@ -163,78 +162,66 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                 elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = dictNameInput,
-                        onValueChange = { dictNameInput = it },
-                        label = { Text("Dictionary Name") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    ExposedDropdownMenuBox(
-                        expanded = showPresetDropdown,
-                        onExpandedChange = { showPresetDropdown = !showPresetDropdown }
-                    ) {
-                        OutlinedTextField(
-                            value = "Presets",
-                            onValueChange = {},
-                            readOnly = true,
-                            label = { Text("Quick Setup") },
-                            trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = showPresetDropdown) },
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .menuAnchor()
+                    dictionaries.forEachIndexed { index, dict ->
+                        DictionaryItem(
+                            dictionary = dict,
+                            onToggle = { enabled ->
+                                scope.launch {
+                                    val updated = dictionaries.toMutableList()
+                                    updated[index] = dict.copy(isEnabled = enabled)
+                                    app.settingsManager.setDictionaries(updated)
+                                }
+                            },
+                            onEdit = { editingDict = dict },
+                            onDelete = {
+                                scope.launch {
+                                    val updated = dictionaries.toMutableList()
+                                    updated.removeAt(index)
+                                    app.settingsManager.setDictionaries(updated)
+                                }
+                            },
+                            onMoveUp = {
+                                if (index > 0) {
+                                    scope.launch {
+                                        val updated = dictionaries.toMutableList()
+                                        val temp = updated[index]
+                                        updated[index] = updated[index - 1]
+                                        updated[index - 1] = temp
+                                        app.settingsManager.setDictionaries(updated)
+                                    }
+                                }
+                            },
+                            onMoveDown = {
+                                if (index < dictionaries.size - 1) {
+                                    scope.launch {
+                                        val updated = dictionaries.toMutableList()
+                                        val temp = updated[index]
+                                        updated[index] = updated[index + 1]
+                                        updated[index + 1] = temp
+                                        app.settingsManager.setDictionaries(updated)
+                                    }
+                                }
+                            },
+                            canMoveUp = index > 0,
+                            canMoveDown = index < dictionaries.size - 1
                         )
-
-                        ExposedDropdownMenu(
-                            expanded = showPresetDropdown,
-                            onDismissRequest = { showPresetDropdown = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Youdao") },
-                                onClick = {
-                                    dictUrlInput = "https://dict.youdao.com/jsonapi?jsonversion=2&client=mobile&dicts=%7B%22count%22%3A99%2C%22dicts%22%3A%5B%5B%22ec%22%2C%22ce%22%2C%22newcj%22%2C%22newjc%22%2C%22kc%22%2C%22ck%22%2C%22fc%22%2C%22cf%22%2C%22multle%22%2C%22jtj%22%2C%22pic_dict%22%2C%22tc%22%2C%22ce_new%22%2C%22ec_new%22%2C%22kbbig%22%2C%22simple%22%2C%22wordform%22%2C%22wikipedia_digest%22%2C%22ee%22%2C%22phrs%22%2C%22syno%22%2C%22collins%22%2C%22wordvideo%22%2C%22en2en%22%2C%22etym%22%2C%22uling%22%2C%22blng_sents_part%22%2C%22hh%22%2C%22rel_word%22%2C%22special%22%2C%22langs%22%2C%22web_trans%22%2C%22fanyi%22%2C%22sgthree%22%2C%22auth_dict%22%2C%22ned%22%2C%22quiz_dict%22%2C%22meikao%22%2C%22bcc%22%2C%22longman%22%2C%22oxford%22%2C%22pukao%22%2C%22webster%22%2C%22eepc%22%2C%22cet4%22%2C%22cet6%22%2C%22ee_exp%22%2C%22xc%22%2C%22ja2zh%22%2C%22jc2zh%22%2C%22jp2zh%22%2C%22kc2zh%22%5D%5D%7D&q="
-                                    dictNameInput = "Youdao"
-                                    showPresetDropdown = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Merriam-Webster") },
-                                onClick = {
-                                    dictUrlInput = "https://www.merriam-webster.com/dictionary/"
-                                    dictNameInput = "Merriam-Webster"
-                                    showPresetDropdown = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Cambridge") },
-                                onClick = {
-                                    dictUrlInput = "https://dictionary.cambridge.org/dictionary/english/"
-                                    dictNameInput = "Cambridge"
-                                    showPresetDropdown = false
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Custom") },
-                                onClick = {
-                                    showPresetDropdown = false
-                                }
-                            )
+                        if (index < dictionaries.size - 1) {
+                            Spacer(modifier = Modifier.height(8.dp))
                         }
                     }
 
                     Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = dictUrlInput,
-                        onValueChange = { dictUrlInput = it },
-                        label = { Text("Dictionary API URL") },
+                    Row(
                         modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text("Use {word} as placeholder or append word directly") }
-                    )
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        TextButton(onClick = { showAddDict = true }) {
+                            Icon(Icons.Default.Add, contentDescription = null)
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("Add Dictionary")
+                        }
+                    }
                 }
             }
 
@@ -386,6 +373,43 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
         }
     }
 
+    if (editingDict != null) {
+        EditDictionaryDialog(
+            dictionary = editingDict!!,
+            onConfirm = { updated ->
+                scope.launch {
+                    val index = dictionaries.indexOfFirst { it.id == updated.id }
+                    if (index >= 0) {
+                        val updatedList = dictionaries.toMutableList()
+                        updatedList[index] = updated
+                        app.settingsManager.setDictionaries(updatedList)
+                    }
+                }
+                editingDict = null
+            },
+            onDismiss = { editingDict = null }
+        )
+    }
+
+    if (showAddDict) {
+        EditDictionaryDialog(
+            dictionary = DictionaryConfig(
+                id = java.util.UUID.randomUUID().toString(),
+                name = "",
+                urlTemplate = "",
+                cssSelector = "",
+                isEnabled = true
+            ),
+            onConfirm = { newDict ->
+                scope.launch {
+                    app.settingsManager.setDictionaries(dictionaries + newDict)
+                }
+                showAddDict = false
+            },
+            onDismiss = { showAddDict = false }
+        )
+    }
+
     if (showImportConfirm && pendingImportData != null) {
         val data = pendingImportData!!
         AlertDialog(
@@ -426,4 +450,129 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
             }
         )
     }
+}
+
+@Composable
+private fun DictionaryItem(
+    dictionary: DictionaryConfig,
+    onToggle: (Boolean) -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit,
+    onMoveUp: () -> Unit,
+    onMoveDown: () -> Unit,
+    canMoveUp: Boolean,
+    canMoveDown: Boolean
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    text = dictionary.name.ifEmpty { "Unnamed" },
+                    style = MaterialTheme.typography.titleSmall
+                )
+                if (!dictionary.isEnabled) {
+                    Text(
+                        text = " (disabled)",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
+            Text(
+                text = dictionary.urlTemplate.take(50) + if (dictionary.urlTemplate.length > 50) "..." else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        Switch(
+            checked = dictionary.isEnabled,
+            onCheckedChange = onToggle
+        )
+        IconButton(onClick = onMoveUp, enabled = canMoveUp) {
+            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
+        }
+        IconButton(onClick = onMoveDown, enabled = canMoveDown) {
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
+        }
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Default.Add, contentDescription = "Edit")
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = "Delete",
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
+private fun EditDictionaryDialog(
+    dictionary: DictionaryConfig,
+    onConfirm: (DictionaryConfig) -> Unit,
+    onDismiss: () -> Unit
+) {
+    var name by remember { mutableStateOf(dictionary.name) }
+    var urlTemplate by remember { mutableStateOf(dictionary.urlTemplate) }
+    var cssSelector by remember { mutableStateOf(dictionary.cssSelector) }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(if (dictionary.name.isEmpty()) "Add Dictionary" else "Edit Dictionary") },
+        text = {
+            Column {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text("Name") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text("e.g., Youdao, Cambridge") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = urlTemplate,
+                    onValueChange = { urlTemplate = it },
+                    label = { Text("URL Template") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("Use {word} as placeholder, e.g., https://dict.youdao.com/result?word={word}&lang=en") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = cssSelector,
+                    onValueChange = { cssSelector = it },
+                    label = { Text("CSS Selector (optional)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("e.g., .trans-container, #content") }
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    if (name.isNotBlank() && urlTemplate.isNotBlank()) {
+                        onConfirm(dictionary.copy(
+                            name = name.trim(),
+                            urlTemplate = urlTemplate.trim(),
+                            cssSelector = cssSelector.trim()
+                        ))
+                    }
+                },
+                enabled = name.isNotBlank() && urlTemplate.isNotBlank()
+            ) {
+                Text("Save")
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
 }

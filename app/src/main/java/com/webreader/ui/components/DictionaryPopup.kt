@@ -1,5 +1,6 @@
 package com.webreader.ui.components
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,16 +16,22 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Chat
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.ExpandLess
+import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Tab
+import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -39,7 +46,15 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.webreader.WebReaderApp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+
+data class DictionaryResult(
+    val name: String,
+    val definition: String,
+    val isLoading: Boolean = false,
+    val error: String? = null
+)
 
 @Composable
 fun DictionaryPopup(
@@ -52,24 +67,44 @@ fun DictionaryPopup(
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
-    var definition by remember(word) { mutableStateOf("") }
-    var isLoading by remember(word) { mutableStateOf(true) }
+    val dictionaries by app.settingsManager.dictionaries.collectAsState(initial = emptyList())
+    val enabledDicts = dictionaries.filter { it.isEnabled }
 
-    val dictionaryUrl by app.settingsManager.dictionaryUrl.collectAsState(initial = "")
-    val dictionaryName by app.settingsManager.dictionaryName.collectAsState(initial = "Dictionary")
+    var results by remember(word) { mutableStateOf<List<DictionaryResult>>(emptyList()) }
+    var selectedTab by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(word, dictionaryUrl) {
-        if (dictionaryUrl.isBlank()) {
-            definition = "Please configure dictionary URL in Settings"
-            isLoading = false
+    LaunchedEffect(word, enabledDicts) {
+        if (enabledDicts.isEmpty()) {
+            results = listOf(DictionaryResult(
+                name = "No Dictionary",
+                definition = "Please configure at least one dictionary in Settings",
+                isLoading = false
+            ))
             return@LaunchedEffect
         }
-        isLoading = true
-        withContext(Dispatchers.IO) {
-            definition = app.dictionaryRepository.lookupWord(dictionaryUrl, word)
+
+        results = enabledDicts.map { dict ->
+            DictionaryResult(name = dict.name, definition = "", isLoading = true)
         }
-        isLoading = false
+
+        withContext(Dispatchers.IO) {
+            results = enabledDicts.mapIndexed { index, dict ->
+                val definition = app.dictionaryRepository.lookupWord(
+                    dict.urlTemplate,
+                    dict.cssSelector,
+                    word
+                )
+                DictionaryResult(
+                    name = dict.name,
+                    definition = definition,
+                    isLoading = false,
+                    error = if (definition.startsWith("Error:") || definition.startsWith("No result")) definition else null
+                )
+            }
+        }
     }
+
+    val hasMultipleDicts = results.size > 1
 
     Dialog(
         onDismissRequest = onDismiss,
@@ -77,8 +112,8 @@ fun DictionaryPopup(
     ) {
         Card(
             modifier = Modifier
-                .fillMaxWidth(0.9f)
-                .heightIn(max = androidx.compose.ui.unit.Dp(400f))
+                .fillMaxWidth(0.95f)
+                .heightIn(max = 500.dp)
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
                 Row(
@@ -92,16 +127,17 @@ fun DictionaryPopup(
                             style = MaterialTheme.typography.headlineSmall
                         )
                         Text(
-                            text = dictionaryName,
+                            text = if (hasMultipleDicts) "${results.size} dictionaries" else results.firstOrNull()?.name ?: "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                     Row {
                         IconButton(onClick = {
-                            clipboardManager.setText(AnnotatedString(definition))
+                            val allText = results.joinToString("\n\n") { "${it.name}:\n${it.definition}" }
+                            clipboardManager.setText(AnnotatedString(allText))
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
                         }
                         IconButton(onClick = onOpenChat) {
                             Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat")
@@ -114,26 +150,81 @@ fun DictionaryPopup(
 
                 Spacer(modifier = Modifier.height(12.dp))
 
-                if (isLoading) {
+                if (results.isEmpty() || (results.size == 1 && results[0].isLoading)) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
                         horizontalArrangement = Arrangement.Center
                     ) {
                         CircularProgressIndicator()
                     }
-                } else {
-                    Column(
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .verticalScroll(rememberScrollState())
-                    ) {
-                        Text(
-                            text = definition,
-                            style = MaterialTheme.typography.bodyMedium
-                        )
+                } else if (hasMultipleDicts) {
+                    TabRow(selectedTabIndex = selectedTab) {
+                        results.forEachIndexed { index, result ->
+                            Tab(
+                                selected = selectedTab == index,
+                                onClick = { selectedTab = index },
+                                text = {
+                                    Text(
+                                        text = result.name,
+                                        maxLines = 1
+                                    )
+                                }
+                            )
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                }
+
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .weight(1f)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (hasMultipleDicts) {
+                        ResultContent(result = results.getOrNull(selectedTab))
+                    } else {
+                        results.firstOrNull()?.let { ResultContent(result = it) }
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun ResultContent(result: DictionaryResult?) {
+    when {
+        result == null -> {
+            Text("No result", style = MaterialTheme.typography.bodyMedium)
+        }
+        result.isLoading -> {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.Center
+            ) {
+                CircularProgressIndicator(modifier = Modifier.height(24.dp).width(24.dp))
+            }
+        }
+        result.error != null -> {
+            Text(
+                text = result.error,
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.error
+            )
+        }
+        result.definition.isNotEmpty() -> {
+            Text(
+                text = result.definition,
+                style = MaterialTheme.typography.bodyMedium
+            )
+        }
+        else -> {
+            Text(
+                text = "No definition found",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
         }
     }
 }
