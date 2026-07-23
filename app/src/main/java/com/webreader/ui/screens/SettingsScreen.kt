@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.FileDownload
@@ -59,7 +60,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen() {
+fun SettingsScreen(onBack: () -> Unit = {}) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val scope = rememberCoroutineScope()
@@ -115,7 +116,14 @@ fun SettingsScreen() {
         topBar = {
             TopAppBar(
                 title = { Text("Settings") },
-                windowInsets = WindowInsets(0.dp)
+                navigationIcon = {
+                    IconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = Icons.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                }
             )
         },
         floatingActionButton = {

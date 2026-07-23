@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.viewinterop.AndroidView
 import com.webreader.WebReaderApp
@@ -186,7 +185,6 @@ fun ReaderScreen(
     }
 
     Scaffold(
-        contentWindowInsets = WindowInsets(0.dp),
         topBar = {
             Column {
                 TopAppBar(
@@ -247,8 +245,7 @@ fun ReaderScreen(
                     },
                     colors = TopAppBarDefaults.topAppBarColors(
                         containerColor = MaterialTheme.colorScheme.surface
-                    ),
-                    windowInsets = WindowInsets(0.dp)
+                    )
                 )
                 if (isLoading) {
                     LinearProgressIndicator(modifier = Modifier.fillMaxWidth())

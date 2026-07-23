@@ -9,5 +9,6 @@ data class Bookmark(
     val id: Long = 0,
     val title: String,
     val url: String,
+    val position: Int = 0,
     val createdAt: Long = System.currentTimeMillis()
 )

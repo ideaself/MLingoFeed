@@ -15,11 +15,21 @@ class BookmarkRepository(private val bookmarkDao: BookmarkDao) {
         return bookmarkDao.insert(bookmark)
     }
 
+    suspend fun update(bookmark: Bookmark) {
+        bookmarkDao.update(bookmark)
+    }
+
     suspend fun delete(bookmark: Bookmark) {
         bookmarkDao.delete(bookmark)
     }
 
     suspend fun deleteByUrl(url: String) {
         bookmarkDao.deleteByUrl(url)
+    }
+
+    suspend fun updatePositions(bookmarks: List<Bookmark>) {
+        bookmarks.forEachIndexed { index, bookmark ->
+            bookmarkDao.updatePosition(bookmark.id, index)
+        }
     }
 }
