@@ -1,19 +1,30 @@
 package com.webreader.ui.screens
 
+import android.widget.Toast
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.ContentCopy
+import androidx.compose.material.icons.filled.FileDownload
+import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -41,6 +52,8 @@ import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.webreader.WebReaderApp
+import com.webreader.data.export.ExportManager
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -66,6 +79,36 @@ fun SettingsScreen() {
     var targetLangInput by remember(targetLang) { mutableStateOf(targetLang) }
 
     var showPresetDropdown by remember { mutableStateOf(false) }
+
+    var showImportConfirm by remember { mutableStateOf(false) }
+    var pendingImportData by remember { mutableStateOf<com.webreader.data.export.ExportData?>(null) }
+
+    val exportLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.CreateDocument("application/json")
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val bookmarks = app.bookmarkRepository.allBookmarks.first()
+            val settings = app.settingsManager.getAllSettings()
+            val ok = ExportManager.exportToJson(context, uri, bookmarks, settings)
+            Toast.makeText(context, if (ok) "Export successful" else "Export failed", Toast.LENGTH_SHORT).show()
+        }
+    }
+
+    val importLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri == null) return@rememberLauncherForActivityResult
+        scope.launch {
+            val data = ExportManager.importFromJson(context, uri)
+            if (data == null) {
+                Toast.makeText(context, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
+                return@launch
+            }
+            pendingImportData = data
+            showImportConfirm = true
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -251,6 +294,52 @@ fun SettingsScreen() {
             Spacer(modifier = Modifier.height(24.dp))
 
             Text(
+                text = "Data Management",
+                style = MaterialTheme.typography.titleMedium,
+                fontWeight = FontWeight.Bold
+            )
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "Export bookmarks and settings as a backup file.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    Row(modifier = Modifier.fillMaxWidth()) {
+                        Button(
+                            onClick = { exportLauncher.launch("web-reader-backup.json") },
+                            modifier = Modifier.weight(1f)
+                        ) {
+                            Icon(Icons.Default.FileDownload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Export")
+                        }
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Button(
+                            onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                            modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = MaterialTheme.colorScheme.secondary
+                            )
+                        ) {
+                            Icon(Icons.Default.FileUpload, contentDescription = null)
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("Import")
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(24.dp))
+
+            Text(
                 text = "About",
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold
@@ -283,5 +372,46 @@ fun SettingsScreen() {
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
+
+    if (showImportConfirm && pendingImportData != null) {
+        val data = pendingImportData!!
+        AlertDialog(
+            onDismissRequest = {
+                showImportConfirm = false
+                pendingImportData = null
+            },
+            title = { Text("Import Data") },
+            text = {
+                Text("This will replace all current bookmarks and settings with the imported data.\n\n" +
+                     "Bookmarks: ${data.bookmarks.size}\n" +
+                     "Settings: ${data.settings.size} items")
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch {
+                        val repo = app.bookmarkRepository
+                        repo.allBookmarks.first().forEach { repo.delete(it) }
+                        data.bookmarks.forEach { repo.insert(it) }
+                        if (data.settings.isNotEmpty()) {
+                            app.settingsManager.importSettings(data.settings)
+                        }
+                        Toast.makeText(context, "Import successful", Toast.LENGTH_SHORT).show()
+                    }
+                    showImportConfirm = false
+                    pendingImportData = null
+                }) {
+                    Text("Import")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    showImportConfirm = false
+                    pendingImportData = null
+                }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }

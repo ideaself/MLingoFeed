@@ -11,7 +11,8 @@ fun createReaderWebView(
     context: Context,
     onWordTapped: (String) -> Unit,
     onSentenceLongPressed: (String) -> Unit,
-    onPageFinished: (String?) -> Unit
+    onPageFinished: (String?) -> Unit,
+    onPageStarted: () -> Unit = {}
 ): WebView {
     return WebView(context).apply {
         settings.javaScriptEnabled = true
@@ -27,6 +28,11 @@ fun createReaderWebView(
         )
 
         webViewClient = object : WebViewClient() {
+            override fun onPageStarted(view: WebView?, url: String?, favicon: android.graphics.Bitmap?) {
+                super.onPageStarted(view, url, favicon)
+                onPageStarted()
+            }
+
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 injectSelectionScript(view)
@@ -183,32 +189,44 @@ fun injectTranslationStyles(webView: WebView?) {
     )
 }
 
-fun prepareTranslationParagraphs(webView: WebView?) {
+fun prepareTranslationParagraphs(webView: WebView?, onDone: ((Int) -> Unit)? = null) {
     webView?.evaluateJavascript(
         """
         (function() {
-            // Remove any existing translations first
             var existing = document.querySelectorAll('.__wr-translation');
             existing.forEach(function(el) { el.remove(); });
 
-            // Find all paragraph-like elements
-            var selectors = 'p, li, td, th, blockquote, pre, h1, h2, h3, h4, h5, h6';
-            var elements = document.querySelectorAll(selectors);
+            var contentTags = 'p, li, dd, dt, blockquote, pre, h1, h2, h3, h4, h5, h6, figcaption, td, th, summary';
+            var allElements = document.querySelectorAll(contentTags);
 
             var count = 0;
-            elements.forEach(function(el) {
-                var text = el.textContent.trim();
-                // Only translate paragraphs with meaningful content
-                if (text.length < 10) return;
-                if (!/[a-zA-Z]{3,}/.test(text)) return;
+            allElements.forEach(function(el) {
+                if (el.tagName === 'SCRIPT' || el.tagName === 'STYLE' || el.tagName === 'NOSCRIPT') return;
+                if (el.closest('.__wr-translation')) return;
 
-                // Create translation container
+                var rect = el.getBoundingClientRect();
+                if (rect.height === 0 || rect.width === 0) return;
+
+                var computed = window.getComputedStyle(el);
+                if (computed.display === 'none' || computed.visibility === 'hidden') return;
+
+                var text = el.textContent.trim();
+                if (text.length < 15) return;
+                if (!/[a-zA-Z]{3,}/.test(text)) return;
+                var letterCount = text.match(/[a-zA-Z]/g);
+                if (!letterCount || letterCount.length < 8) return;
+                if (text.length > 3000) return;
+
+                var next = el.nextElementSibling;
+                if (next && next.classList.contains('__wr-translation')) return;
+
+                el.setAttribute('data-wr-para', count);
+
                 var transDiv = document.createElement('div');
                 transDiv.className = '__wr-translation __wr-translation-loading';
                 transDiv.setAttribute('data-paragraph-index', count);
                 transDiv.textContent = 'Translating...';
 
-                // Insert after the element
                 if (el.nextSibling) {
                     el.parentNode.insertBefore(transDiv, el.nextSibling);
                 } else {
@@ -218,40 +236,17 @@ fun prepareTranslationParagraphs(webView: WebView?) {
                 count++;
             });
 
-            return count;
-        })();
-        """.trimIndent(),
-        null
-    )
-}
-
-fun getParagraphText(webView: WebView?, index: Int, callback: (String?) -> Unit) {
-    webView?.evaluateJavascript(
-        """
-        (function() {
-            var el = document.querySelector('[data-paragraph-index="${index}"]');
-            if (!el) return null;
-            var prev = el.previousElementSibling;
-            if (!prev) return null;
-            return prev.textContent.trim();
+            return '' + count;
         })();
         """.trimIndent()
     ) { value ->
-        val result = if (value != null && value != "null") {
-            value.trim('"').replace("\\n", "\n").replace("\\\"", "\"").replace("\\t", "\t")
-        } else {
-            null
-        }
-        callback(result)
+        val count = value?.trim('"')?.toIntOrNull() ?: 0
+        onDone?.invoke(count)
     }
 }
 
 fun updateParagraphTranslation(webView: WebView?, index: Int, translation: String) {
-    val escapedTranslation = translation
-        .replace("\\", "\\\\")
-            .replace("`", "\\`")
-            .replace("$", "\\$")
-            .replace("\n", "\\n")
+    val quoted = org.json.JSONObject.quote(translation)
 
     webView?.evaluateJavascript(
         """
@@ -259,7 +254,9 @@ fun updateParagraphTranslation(webView: WebView?, index: Int, translation: Strin
             var el = document.querySelector('[data-paragraph-index="${index}"]');
             if (el) {
                 el.className = '__wr-translation';
-                el.textContent = `${escapedTranslation}`;
+                el.textContent = '';
+                var t = document.createTextNode(${quoted});
+                el.appendChild(t);
             }
         })();
         """.trimIndent(),

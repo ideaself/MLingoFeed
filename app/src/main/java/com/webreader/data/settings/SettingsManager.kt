@@ -7,6 +7,7 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 
 val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
@@ -68,5 +69,28 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setTranslateTargetLang(lang: String) {
         context.dataStore.edit { prefs -> prefs[TRANSLATE_TARGET_LANG] = lang }
+    }
+
+    suspend fun getAllSettings(): Map<String, String> {
+        val prefs = context.dataStore.data.first()
+        return mapOf(
+            "dictionary_url" to (prefs[DICTIONARY_URL] ?: "https://dict.youdao.com/jsonapi?jsonversion=2&client=mobile&dicts=%7B%22count%22%3A99%2C%22dicts%22%3A%5B%5B%22ec%22%2C%22ce%22%2C%22newcj%22%2C%22newjc%22%2C%22kc%22%2C%22ck%22%2C%22fc%22%2C%22cf%22%2C%22multle%22%2C%22jtj%22%2C%22pic_dict%22%2C%22tc%22%2C%22ce_new%22%2C%22ec_new%22%2C%22kbbig%22%2C%22simple%22%2C%22wordform%22%2C%22wikipedia_digest%22%2C%22ee%22%2C%22phrs%22%2C%22syno%22%2C%22collins%22%2C%22wordvideo%22%2C%22en2en%22%2C%22etym%22%2C%22uling%22%2C%22blng_sents_part%22%2C%22hh%22%2C%22rel_word%22%2C%22special%22%2C%22langs%22%2C%22web_trans%22%2C%22fanyi%22%2C%22sgthree%22%2C%22auth_dict%22%2C%22ned%22%2C%22quiz_dict%22%2C%22meikao%22%2C%22bcc%22%2C%22longman%22%2C%22oxford%22%2C%22pukao%22%2C%22webster%22%2C%22eepc%22%2C%22cet4%22%2C%22cet6%22%2C%22ee_exp%22%2C%22xc%22%2C%22ja2zh%22%2C%22jc2zh%22%2C%22jp2zh%22%2C%22kc2zh%22%5D%5D%7D&q="),
+            "dictionary_name" to (prefs[DICTIONARY_NAME] ?: "Youdao"),
+            "ai_api_url" to (prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"),
+            "ai_api_key" to (prefs[AI_API_KEY] ?: ""),
+            "ai_model" to (prefs[AI_MODEL] ?: "deepseek-chat"),
+            "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese")
+        )
+    }
+
+    suspend fun importSettings(settings: Map<String, String>) {
+        context.dataStore.edit { prefs ->
+            settings["dictionary_url"]?.let { prefs[DICTIONARY_URL] = it }
+            settings["dictionary_name"]?.let { prefs[DICTIONARY_NAME] = it }
+            settings["ai_api_url"]?.let { prefs[AI_API_URL] = it }
+            settings["ai_api_key"]?.let { prefs[AI_API_KEY] = it }
+            settings["ai_model"]?.let { prefs[AI_MODEL] = it }
+            settings["translate_target_lang"]?.let { prefs[TRANSLATE_TARGET_LANG] = it }
+        }
     }
 }

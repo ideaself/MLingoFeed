@@ -4,16 +4,18 @@ import android.webkit.WebView
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -27,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.ui.viewinterop.AndroidView
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
@@ -35,16 +38,17 @@ import com.webreader.ui.components.DictionaryPopup
 import com.webreader.ui.components.TranslationPopup
 import com.webreader.webview.createReaderWebView
 import com.webreader.webview.clearPageTranslations
-import com.webreader.webview.getParagraphText
 import com.webreader.webview.injectTranslationStyles
 import com.webreader.webview.prepareTranslationParagraphs
 import com.webreader.webview.updateParagraphTranslation
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONObject
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,8 +91,6 @@ fun ReaderScreen(
 
     fun startTranslation() {
         if (isTranslating) {
-            // If already translating, clear translations
-            clearPageTranslations(webView)
             isTranslating = false
             translateProgress = ""
             return
@@ -100,42 +102,65 @@ fun ReaderScreen(
         translateProgress = "Preparing..."
 
         scope.launch {
-            withContext(Dispatchers.Main) {
+            val paraCount = withContext(Dispatchers.Main) {
                 injectTranslationStyles(webView)
-                prepareTranslationParagraphs(webView)
-            }
-
-            delay(300)
-
-            var index = 0
-            while (isTranslating) {
-                val text = withContext(Dispatchers.Main) {
-                    suspendCancellableCoroutine<String?> { continuation ->
-                        getParagraphText(webView, index) { result ->
-                            continuation.resume(result) {}
-                        }
+                val wv = webView
+                if (wv == null) 0
+                else suspendCancellableCoroutine<Int> { cont ->
+                    prepareTranslationParagraphs(wv) { count ->
+                        if (cont.isActive) cont.resume(count) {}
                     }
                 }
+            }
 
-                if (text.isNullOrBlank()) break
+            if (paraCount == 0 || !isTranslating) {
+                isTranslating = false
+                translateProgress = ""
+                if (paraCount == 0) {
+                    translateProgress = "No content to translate"
+                    delay(1500)
+                    translateProgress = ""
+                }
+                return@launch
+            }
 
-                translateProgress = "Translating ${index + 1}..."
+            var stuckCount = 0
+
+            while (isTranslating && isActive) {
+                val paragraphData = withContext(Dispatchers.Main) {
+                    getNextParagraph(webView)
+                }
+
+                if (paragraphData == null) {
+                    stuckCount++
+                    if (stuckCount > 10) break
+                    delay(300)
+                    continue
+                }
+
+                stuckCount = 0
+                val index = paragraphData.getInt("index")
+                val text = paragraphData.getString("text")
+
+                translateProgress = "Translating..."
 
                 val translation = withContext(Dispatchers.IO) {
-                    app.chatRepository.translate(
-                        text = text,
-                        targetLang = targetLang,
-                        apiUrl = apiUrl,
-                        apiKey = apiKey,
-                        model = model
-                    )
+                    try {
+                        app.chatRepository.translate(
+                            text = text,
+                            targetLang = targetLang,
+                            apiUrl = apiUrl,
+                            apiKey = apiKey,
+                            model = model
+                        )
+                    } catch (e: Exception) {
+                        "Translation error"
+                    }
                 }
 
                 withContext(Dispatchers.Main) {
                     updateParagraphTranslation(webView, index, translation)
                 }
-
-                index++
             }
 
             isTranslating = false
@@ -143,93 +168,106 @@ fun ReaderScreen(
         }
     }
 
-    Column(modifier = Modifier.fillMaxSize()) {
-        TopAppBar(
-            title = {
-                Column {
-                    Text(
-                        text = pageTitle,
-                        maxLines = 1
-                    )
-                    if (isTranslating && translateProgress.isNotEmpty()) {
-                        Text(
-                            text = translateProgress
-                        )
-                    }
-                }
-            },
-            navigationIcon = {
-                IconButton(onClick = {
-                    if (webView?.canGoBack() == true) {
-                        webView?.goBack()
-                    } else {
-                        onBack()
-                    }
-                }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-            },
-            actions = {
-                IconButton(
-                    onClick = { startTranslation() },
-                    enabled = !isTranslating || true
-                ) {
-                    Text(
-                        text = if (isTranslating) "⏹" else "译",
-                        modifier = Modifier
-                    )
-                }
-                IconButton(onClick = {
-                    scope.launch {
-                        if (isBookmarked) {
-                            app.bookmarkRepository.deleteByUrl(currentUrl)
-                            isBookmarked = false
-                        } else {
-                            app.bookmarkRepository.insert(
-                                Bookmark(title = pageTitle, url = currentUrl)
+    Scaffold(
+        contentWindowInsets = WindowInsets(0.dp),
+        topBar = {
+            Column {
+                TopAppBar(
+                    title = {
+                        Column {
+                            Text(
+                                text = pageTitle,
+                                maxLines = 1
                             )
-                            isBookmarked = true
+                            if (isTranslating && translateProgress.isNotEmpty()) {
+                                Text(
+                                    text = translateProgress,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                                )
+                            }
                         }
-                    }
-                }) {
-                    Icon(
-                        if (isBookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                        contentDescription = "Bookmark"
+                    },
+                    navigationIcon = {
+                        androidx.compose.material3.IconButton(onClick = {
+                            if (webView?.canGoBack() == true) {
+                                webView?.goBack()
+                            } else {
+                                onBack()
+                            }
+                        }) {
+                            androidx.compose.material3.Icon(
+                                androidx.compose.material.icons.Icons.AutoMirrored.Filled.ArrowBack,
+                                contentDescription = "Back"
+                            )
+                        }
+                    },
+                    actions = {
+                        androidx.compose.material3.IconButton(
+                            onClick = { startTranslation() }
+                        ) {
+                            Text(text = if (isTranslating) "⏹" else "译")
+                        }
+                        androidx.compose.material3.IconButton(onClick = {
+                            scope.launch {
+                                if (isBookmarked) {
+                                    app.bookmarkRepository.deleteByUrl(currentUrl)
+                                    isBookmarked = false
+                                } else {
+                                    app.bookmarkRepository.insert(
+                                        Bookmark(title = pageTitle, url = currentUrl)
+                                    )
+                                    isBookmarked = true
+                                }
+                            }
+                        }) {
+                            androidx.compose.material3.Icon(
+                                if (isBookmarked) androidx.compose.material.icons.Icons.Filled.Bookmark
+                                else androidx.compose.material.icons.Icons.Filled.BookmarkBorder,
+                                contentDescription = "Bookmark"
+                            )
+                        }
+                    },
+                    colors = TopAppBarDefaults.topAppBarColors(
+                        containerColor = MaterialTheme.colorScheme.surface
                     )
+                )
+                if (isLoading) {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
                 }
             }
-        )
-
-        if (isLoading) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
         }
-
+    ) { innerPadding ->
         AndroidView(
             factory = { ctx ->
                 createReaderWebView(
                     context = ctx,
                     onWordTapped = { word ->
-                        if (!isTranslating) {
-                            selectedWord = word
-                            showDictionary = true
-                        }
+                        selectedWord = word
+                        showDictionary = true
                     },
                     onSentenceLongPressed = { sentence ->
-                        if (!isTranslating) {
-                            selectedSentence = sentence
-                            showTranslation = true
-                        }
+                        selectedSentence = sentence
+                        showTranslation = true
                     },
                     onPageFinished = { title ->
                         title?.let { pageTitle = it }
                         isLoading = false
+                    },
+                    onPageStarted = {
+                        if (isTranslating) {
+                            isTranslating = false
+                            translateProgress = ""
+                        }
                     }
                 ).also { wv ->
                     webView = wv
                     wv.loadUrl(url)
                 }
             },
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
         )
     }
 
@@ -262,3 +300,50 @@ fun ReaderScreen(
         )
     }
 }
+
+private suspend fun getNextParagraph(webView: WebView?): JSONObject? {
+    if (webView == null) return null
+    return kotlinx.coroutines.suspendCancellableCoroutine { continuation ->
+        webView.evaluateJavascript(
+            """
+            (function() {
+                var loadings = document.querySelectorAll('.__wr-translation-loading');
+                if (loadings.length === 0) return null;
+                var sel = null, selIdx = -1;
+                for (var i = 0; i < loadings.length; i++) {
+                    var idx = parseInt(loadings[i].getAttribute('data-paragraph-index'));
+                    if (selIdx === -1 || idx < selIdx) {
+                        selIdx = idx;
+                        sel = loadings[i];
+                    }
+                }
+                if (!sel) return null;
+                var p = sel.previousElementSibling;
+                while (p && p.classList.contains('__wr-translation')) {
+                    p = p.previousElementSibling;
+                }
+                if (!p) return JSON.stringify({ index: selIdx, text: '(no text)' });
+                var text = p.textContent.trim();
+                if (text.length > 2000) text = text.substring(0, 2000);
+                return JSON.stringify({ index: selIdx, text: text });
+            })();
+            """.trimIndent()
+        ) { value ->
+            if (value != null && value != "null") {
+                try {
+                    val cleaned = value.trim('"').replace("\\\"", "\"").replace("\\n", "\n")
+                    val json = JSONObject(cleaned)
+                    continuation.resume(json) {}
+                } catch (e: Exception) {
+                    continuation.resume(null) {}
+                }
+            } else {
+                continuation.resume(null) {}
+            }
+        }
+    }
+}
+
+
+
+
