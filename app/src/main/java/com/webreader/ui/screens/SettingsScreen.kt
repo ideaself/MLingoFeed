@@ -3,6 +3,7 @@ package com.webreader.ui.screens
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -13,6 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
@@ -35,7 +38,9 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -51,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -78,6 +84,10 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
     var aiKeyInput by remember(aiApiKey) { mutableStateOf(aiApiKey) }
     var aiModelInput by remember(aiModel) { mutableStateOf(aiModel) }
     var targetLangInput by remember(targetLang) { mutableStateOf(targetLang) }
+
+    val fontSize by app.settingsManager.fontSize.collectAsState(initial = 100)
+    val themeMode by app.settingsManager.themeMode.collectAsState(initial = "system")
+    val readingTimeSeconds by app.settingsManager.readingTimeSeconds.collectAsState(initial = 0L)
 
     var showImportConfirm by remember { mutableStateOf(false) }
     var pendingImportData by remember { mutableStateOf<com.webreader.data.export.ExportData?>(null) }
@@ -142,227 +152,267 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
             }
         }
     ) { padding ->
+        var expandedSection by remember { mutableStateOf<String?>(null) }
+        val readingSessions by app.settingsManager.readingSessions.collectAsState(initial = emptyList())
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
                 .verticalScroll(rememberScrollState())
         ) {
-            Text(
-                text = "Dictionary Settings",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            SettingsSection(
+                title = "Theme",
+                icon = "🎨",
+                expanded = expandedSection == "theme",
+                onToggle = { expandedSection = if (expandedSection == "theme") null else "theme" }
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    dictionaries.forEachIndexed { index, dict ->
-                        DictionaryItem(
-                            dictionary = dict,
-                            onToggle = { enabled ->
-                                scope.launch {
-                                    val updated = dictionaries.toMutableList()
-                                    updated[index] = dict.copy(isEnabled = enabled)
-                                    app.settingsManager.setDictionaries(updated)
-                                }
-                            },
-                            onEdit = { editingDict = dict },
-                            onDelete = {
-                                scope.launch {
-                                    val updated = dictionaries.toMutableList()
-                                    updated.removeAt(index)
-                                    app.settingsManager.setDictionaries(updated)
-                                }
-                            },
-                            onMoveUp = {
-                                if (index > 0) {
-                                    scope.launch {
-                                        val updated = dictionaries.toMutableList()
-                                        val temp = updated[index]
-                                        updated[index] = updated[index - 1]
-                                        updated[index - 1] = temp
-                                        app.settingsManager.setDictionaries(updated)
-                                    }
-                                }
-                            },
-                            onMoveDown = {
-                                if (index < dictionaries.size - 1) {
-                                    scope.launch {
-                                        val updated = dictionaries.toMutableList()
-                                        val temp = updated[index]
-                                        updated[index] = updated[index + 1]
-                                        updated[index + 1] = temp
-                                        app.settingsManager.setDictionaries(updated)
-                                    }
-                                }
-                            },
-                            canMoveUp = index > 0,
-                            canMoveDown = index < dictionaries.size - 1
-                        )
-                        if (index < dictionaries.size - 1) {
-                            Spacer(modifier = Modifier.height(8.dp))
-                        }
+                Column(modifier = Modifier.selectableGroup()) {
+                    ThemeRadioOption("Follow System", themeMode == "system") {
+                        scope.launch { app.settingsManager.setThemeMode("system") }
                     }
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        TextButton(onClick = { showAddDict = true }) {
-                            Icon(Icons.Default.Add, contentDescription = null)
-                            Spacer(modifier = Modifier.width(4.dp))
-                            Text("Add Dictionary")
-                        }
+                    ThemeRadioOption("Light", themeMode == "light") {
+                        scope.launch { app.settingsManager.setThemeMode("light") }
+                    }
+                    ThemeRadioOption("Dark", themeMode == "dark") {
+                        scope.launch { app.settingsManager.setThemeMode("dark") }
+                    }
+                    ThemeRadioOption("Eye Care", themeMode == "eyecare") {
+                        scope.launch { app.settingsManager.setThemeMode("eyecare") }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "AI / Translation Settings",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            SettingsSection(
+                title = "Reading Time",
+                icon = "⏱",
+                expanded = expandedSection == "reading_time",
+                onToggle = { expandedSection = if (expandedSection == "reading_time") null else "reading_time" },
+                summary = formatReadingTime(readingTimeSeconds)
+            ) {
+                val totalSessions = readingSessions.size
+                val avgDuration = if (totalSessions > 0) readingTimeSeconds / totalSessions else 0L
+                val longestSession = readingSessions.maxOfOrNull { it.second } ?: 0L
+                val todaySeconds = readingSessions.filter {
+                    isToday(it.first)
+                }.sumOf { it.second }
+
+                StatRow("Total", formatReadingTime(readingTimeSeconds))
+                StatRow("Sessions", "$totalSessions")
+                StatRow("Today", formatReadingTime(todaySeconds))
+                StatRow("Average", formatReadingTime(avgDuration))
+                StatRow("Longest", formatReadingTime(longestSession))
+
+                Spacer(modifier = Modifier.height(12.dp))
+                TextButton(onClick = {
+                    scope.launch {
+                        app.settingsManager.resetReadingTime()
+                        Toast.makeText(context, "Reading time reset", Toast.LENGTH_SHORT).show()
+                    }
+                }) {
+                    Text("Reset")
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+            SettingsSection(
+                title = "Font Size",
+                icon = "🔤",
+                expanded = expandedSection == "font_size",
+                onToggle = { expandedSection = if (expandedSection == "font_size") null else "font_size" },
+                summary = "${fontSize}%"
             ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    OutlinedTextField(
-                        value = aiUrlInput,
-                        onValueChange = { aiUrlInput = it },
-                        label = { Text("AI API URL") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text("DeepSeek: https://api.deepseek.com/chat/completions") }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("A", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
+                    Slider(
+                        value = fontSize.toFloat(),
+                        onValueChange = { scope.launch { app.settingsManager.setFontSize(it.toInt()) } },
+                        valueRange = 60f..180f,
+                        steps = 5,
+                        modifier = Modifier.weight(1f)
                     )
+                    Text("A", style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(32.dp))
+                }
+                Text(
+                    text = "${fontSize}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
 
-                    Spacer(modifier = Modifier.height(8.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-                    OutlinedTextField(
-                        value = aiKeyInput,
-                        onValueChange = { aiKeyInput = it },
-                        label = { Text("API Key") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        trailingIcon = {
-                            IconButton(onClick = {
-                                clipboardManager.setText(AnnotatedString(aiKeyInput))
-                            }) {
-                                Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+            SettingsSection(
+                title = "Dictionaries",
+                icon = "📖",
+                expanded = expandedSection == "dictionaries",
+                onToggle = { expandedSection = if (expandedSection == "dictionaries") null else "dictionaries" },
+                summary = "${dictionaries.count { it.isEnabled }} / ${dictionaries.size} enabled"
+            ) {
+                dictionaries.forEachIndexed { index, dict ->
+                    DictionaryItem(
+                        dictionary = dict,
+                        onToggle = { enabled ->
+                            scope.launch {
+                                val updated = dictionaries.toMutableList()
+                                updated[index] = dict.copy(isEnabled = enabled)
+                                app.settingsManager.setDictionaries(updated)
                             }
-                        }
+                        },
+                        onEdit = { editingDict = dict },
+                        onDelete = {
+                            scope.launch {
+                                val updated = dictionaries.toMutableList()
+                                updated.removeAt(index)
+                                app.settingsManager.setDictionaries(updated)
+                            }
+                        },
+                        onMoveUp = {
+                            if (index > 0) {
+                                scope.launch {
+                                    val updated = dictionaries.toMutableList()
+                                    val temp = updated[index]
+                                    updated[index] = updated[index - 1]
+                                    updated[index - 1] = temp
+                                    app.settingsManager.setDictionaries(updated)
+                                }
+                            }
+                        },
+                        onMoveDown = {
+                            if (index < dictionaries.size - 1) {
+                                scope.launch {
+                                    val updated = dictionaries.toMutableList()
+                                    val temp = updated[index]
+                                    updated[index] = updated[index + 1]
+                                    updated[index + 1] = temp
+                                    app.settingsManager.setDictionaries(updated)
+                                }
+                            }
+                        },
+                        canMoveUp = index > 0,
+                        canMoveDown = index < dictionaries.size - 1
                     )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = aiModelInput,
-                        onValueChange = { aiModelInput = it },
-                        label = { Text("Model") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text("DeepSeek: deepseek-chat") }
-                    )
-
-                    Spacer(modifier = Modifier.height(8.dp))
-
-                    OutlinedTextField(
-                        value = targetLangInput,
-                        onValueChange = { targetLangInput = it },
-                        label = { Text("Target Language") },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        supportingText = { Text("e.g., Chinese, Japanese, Spanish") }
-                    )
+                    if (index < dictionaries.size - 1) {
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
                 }
-            }
-
-            Spacer(modifier = Modifier.height(24.dp))
-
-            Text(
-                text = "Data Management",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
-
-            Spacer(modifier = Modifier.height(8.dp))
-
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
-            ) {
-                Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Export bookmarks and settings as a backup file.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    Spacer(modifier = Modifier.height(12.dp))
-                    Row(modifier = Modifier.fillMaxWidth()) {
-                        Button(
-                            onClick = { exportLauncher.launch("web-reader-backup.json") },
-                            modifier = Modifier.weight(1f)
-                        ) {
-                            Icon(Icons.Default.FileDownload, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Export")
-                        }
-                        Spacer(modifier = Modifier.width(12.dp))
-                        Button(
-                            onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
-                            modifier = Modifier.weight(1f),
-                            colors = ButtonDefaults.buttonColors(
-                                containerColor = MaterialTheme.colorScheme.secondary
-                            )
-                        ) {
-                            Icon(Icons.Default.FileUpload, contentDescription = null)
-                            Spacer(modifier = Modifier.width(8.dp))
-                            Text("Import")
-                        }
+                Spacer(modifier = Modifier.height(8.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(onClick = { showAddDict = true }) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("Add Dictionary")
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(24.dp))
+            Spacer(modifier = Modifier.height(8.dp))
 
-            Text(
-                text = "About",
-                style = MaterialTheme.typography.titleMedium,
-                fontWeight = FontWeight.Bold
-            )
+            SettingsSection(
+                title = "AI / Translation",
+                icon = "🤖",
+                expanded = expandedSection == "ai",
+                onToggle = { expandedSection = if (expandedSection == "ai") null else "ai" }
+            ) {
+                OutlinedTextField(
+                    value = aiUrlInput,
+                    onValueChange = { aiUrlInput = it },
+                    label = { Text("AI API URL") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("DeepSeek: https://api.deepseek.com/chat/completions") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = aiKeyInput,
+                    onValueChange = { aiKeyInput = it },
+                    label = { Text("API Key") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { clipboardManager.setText(AnnotatedString(aiKeyInput)) }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = aiModelInput,
+                    onValueChange = { aiModelInput = it },
+                    label = { Text("Model") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("DeepSeek: deepseek-chat") }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = targetLangInput,
+                    onValueChange = { targetLangInput = it },
+                    label = { Text("Target Language") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text("e.g., Chinese, Japanese, Spanish") }
+                )
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SettingsSection(
+                title = "Data Management",
+                icon = "💾",
+                expanded = expandedSection == "data",
+                onToggle = { expandedSection = if (expandedSection == "data") null else "data" }
+            ) {
+                Text(
+                    text = "Export bookmarks and settings as a backup file.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                Row(modifier = Modifier.fillMaxWidth()) {
+                    Button(
+                        onClick = { exportLauncher.launch("web-reader-backup.json") },
+                        modifier = Modifier.weight(1f)
+                    ) {
+                        Icon(Icons.Default.FileDownload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Export")
+                    }
+                    Spacer(modifier = Modifier.width(12.dp))
+                    Button(
+                        onClick = { importLauncher.launch(arrayOf("application/json", "*/*")) },
+                        modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
+                    ) {
+                        Icon(Icons.Default.FileUpload, contentDescription = null)
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text("Import")
+                    }
+                }
+            }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             Card(
                 modifier = Modifier.fillMaxWidth(),
-                elevation = CardDefaults.cardElevation(defaultElevation = 2.dp)
+                elevation = CardDefaults.cardElevation(defaultElevation = 1.dp)
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
-                    Text(
-                        text = "Web Reader",
-                        style = MaterialTheme.typography.titleSmall
-                    )
-                    Text(
-                        text = "Version 1.0",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
+                    Text("Web Reader", style = MaterialTheme.typography.titleSmall)
+                    Text("Version 1.0", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        text = "A web reading app with dictionary lookup, translation, and AI chat.",
+                        "A web reading app with dictionary lookup, translation, and AI chat.",
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -508,6 +558,106 @@ private fun DictionaryItem(
             )
         }
     }
+}
+
+@Composable
+private fun SettingsSection(
+    title: String,
+    icon: String,
+    expanded: Boolean,
+    onToggle: () -> Unit,
+    summary: String? = null,
+    content: @Composable () -> Unit
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        elevation = CardDefaults.cardElevation(defaultElevation = if (expanded) 4.dp else 1.dp)
+    ) {
+        Column {
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .clickable(onClick = onToggle)
+                    .padding(horizontal = 16.dp, vertical = 14.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(text = icon, modifier = Modifier.padding(end = 12.dp))
+                Column(modifier = Modifier.weight(1f)) {
+                    Text(text = title, style = MaterialTheme.typography.titleSmall)
+                    if (summary != null && !expanded) {
+                        Text(
+                            text = summary,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+                Icon(
+                    imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
+                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            if (expanded) {
+                Column(modifier = Modifier.padding(start = 16.dp, end = 16.dp, bottom = 16.dp)) {
+                    content()
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StatRow(label: String, value: String) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(text = label, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text(text = value, style = MaterialTheme.typography.bodyMedium, fontWeight = FontWeight.Medium)
+    }
+}
+
+@Composable
+private fun ThemeRadioOption(
+    label: String,
+    selected: Boolean,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .selectable(
+                selected = selected,
+                onClick = onClick,
+                role = Role.RadioButton
+            )
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(selected = selected, onClick = null)
+        Spacer(modifier = Modifier.width(8.dp))
+        Text(text = label, style = MaterialTheme.typography.bodyMedium)
+    }
+}
+
+private fun formatReadingTime(totalSeconds: Long): String {
+    val hours = totalSeconds / 3600
+    val minutes = (totalSeconds % 3600) / 60
+    val seconds = totalSeconds % 60
+    return when {
+        hours > 0 -> String.format("%dh %dm %ds", hours, minutes, seconds)
+        minutes > 0 -> String.format("%dm %ds", minutes, seconds)
+        else -> String.format("%ds", seconds)
+    }
+}
+
+private fun isToday(timestampMillis: Long): Boolean {
+    val now = System.currentTimeMillis()
+    val dayMillis = 24L * 60 * 60 * 1000
+    return (now - timestampMillis) < dayMillis && (now - timestampMillis) >= 0
 }
 
 @Composable

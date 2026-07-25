@@ -71,5 +71,6 @@ dependencies {
     implementation(libs.coroutines.android)
     implementation(libs.jsoup)
     implementation(libs.reorderable)
+    implementation(libs.coil.compose)
     debugImplementation(libs.androidx.ui.tooling)
 }

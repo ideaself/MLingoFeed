@@ -9,6 +9,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -28,9 +29,11 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
 import com.webreader.ui.components.ChatDialog
@@ -78,6 +81,7 @@ fun ReaderScreen(
     val apiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
     val model by app.settingsManager.aiModel.collectAsState(initial = "")
     val targetLang by app.settingsManager.translateTargetLang.collectAsState(initial = "Chinese")
+    val fontSize by app.settingsManager.fontSize.collectAsState(initial = 100)
 
     LaunchedEffect(url) {
         val bookmark = app.bookmarkRepository.getBookmarkByUrl(url)
@@ -88,6 +92,45 @@ fun ReaderScreen(
         onDispose {
             webView?.destroy()
         }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var accumulatedSeconds = 0L
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    scope.launch {
+                        while (isActive) {
+                            delay(1000)
+                            accumulatedSeconds++
+                            if (accumulatedSeconds % 5 == 0L) {
+                                app.settingsManager.addReadingSession(accumulatedSeconds)
+                                accumulatedSeconds = 0L
+                            }
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    if (accumulatedSeconds > 0) {
+                        scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
+                        accumulatedSeconds = 0L
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (accumulatedSeconds > 0) {
+                scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
+            }
+        }
+    }
+
+    LaunchedEffect(fontSize) {
+        webView?.settings?.textZoom = fontSize
     }
 
     fun startTranslation() {
@@ -345,3 +388,4 @@ private suspend fun getTextByIndex(webView: WebView?, index: Int): String? {
         }
     }
 }
+

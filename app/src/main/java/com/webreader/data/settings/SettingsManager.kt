@@ -30,6 +30,10 @@ class SettingsManager(private val context: Context) {
         val AI_API_KEY = stringPreferencesKey("ai_api_key")
         val AI_MODEL = stringPreferencesKey("ai_model")
         val TRANSLATE_TARGET_LANG = stringPreferencesKey("translate_target_lang")
+        val FONT_SIZE = stringPreferencesKey("font_size")
+        val THEME_MODE = stringPreferencesKey("theme_mode")
+        val READING_TIME_SECONDS = stringPreferencesKey("reading_time_seconds")
+        val READING_SESSIONS = stringPreferencesKey("reading_sessions")
 
         private fun defaultDictionaries(): String {
             val list = JSONArray()
@@ -99,6 +103,18 @@ class SettingsManager(private val context: Context) {
         prefs[TRANSLATE_TARGET_LANG] ?: "Chinese"
     }
 
+    val fontSize: Flow<Int> = context.dataStore.data.map { prefs ->
+        prefs[FONT_SIZE]?.toIntOrNull() ?: 100
+    }
+
+    val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[THEME_MODE] ?: "system"
+    }
+
+    val readingTimeSeconds: Flow<Long> = context.dataStore.data.map { prefs ->
+        prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
+    }
+
     suspend fun setDictionaries(dicts: List<DictionaryConfig>) {
         context.dataStore.edit { prefs ->
             prefs[DICTIONARIES] = dictionariesToJson(dicts)
@@ -121,6 +137,65 @@ class SettingsManager(private val context: Context) {
         context.dataStore.edit { prefs -> prefs[TRANSLATE_TARGET_LANG] = lang }
     }
 
+    suspend fun setFontSize(size: Int) {
+        context.dataStore.edit { prefs -> prefs[FONT_SIZE] = size.toString() }
+    }
+
+    suspend fun setThemeMode(mode: String) {
+        context.dataStore.edit { prefs -> prefs[THEME_MODE] = mode }
+    }
+
+    suspend fun addReadingTime(seconds: Long) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
+            prefs[READING_TIME_SECONDS] = (current + seconds).toString()
+        }
+    }
+
+    suspend fun resetReadingTime() {
+        context.dataStore.edit { prefs ->
+            prefs[READING_TIME_SECONDS] = "0"
+            prefs[READING_SESSIONS] = "[]"
+        }
+    }
+
+    suspend fun addReadingSession(durationSeconds: Long) {
+        context.dataStore.edit { prefs ->
+            val current = prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
+            prefs[READING_TIME_SECONDS] = (current + durationSeconds).toString()
+            val json = prefs[READING_SESSIONS] ?: "[]"
+            val array = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
+            if (array.length() >= 50) {
+                val newArray = JSONArray()
+                for (i in 1 until array.length()) {
+                    newArray.put(array.get(i))
+                }
+                array.put(System.currentTimeMillis().toString() + ":" + durationSeconds)
+                var trimmed = JSONArray()
+                for (i in 0 until newArray.length()) {
+                    trimmed.put(newArray.get(i))
+                }
+                prefs[READING_SESSIONS] = trimmed.toString()
+            } else {
+                array.put("${System.currentTimeMillis()}:$durationSeconds")
+                prefs[READING_SESSIONS] = array.toString()
+            }
+        }
+    }
+
+    val readingSessions: Flow<List<Pair<Long, Long>>> = context.dataStore.data.map { prefs ->
+        val json = prefs[READING_SESSIONS] ?: "[]"
+        try {
+            val array = JSONArray(json)
+            (0 until array.length()).map { i ->
+                val parts = array.getString(i).split(":")
+                Pair(parts[0].toLong(), parts[1].toLong())
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
     suspend fun getAllSettings(): Map<String, String> {
         val prefs = context.dataStore.data.first()
         return mapOf(
@@ -128,7 +203,10 @@ class SettingsManager(private val context: Context) {
             "ai_api_url" to (prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"),
             "ai_api_key" to (prefs[AI_API_KEY] ?: ""),
             "ai_model" to (prefs[AI_MODEL] ?: "deepseek-chat"),
-            "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese")
+            "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese"),
+            "font_size" to (prefs[FONT_SIZE]?.toString() ?: "100"),
+            "theme_mode" to (prefs[THEME_MODE] ?: "system"),
+            "reading_time_seconds" to (prefs[READING_TIME_SECONDS]?.toString() ?: "0")
         )
     }
 
@@ -139,6 +217,9 @@ class SettingsManager(private val context: Context) {
             settings["ai_api_key"]?.let { prefs[AI_API_KEY] = it }
             settings["ai_model"]?.let { prefs[AI_MODEL] = it }
             settings["translate_target_lang"]?.let { prefs[TRANSLATE_TARGET_LANG] = it }
+            settings["font_size"]?.let { prefs[FONT_SIZE] = it }
+            settings["theme_mode"]?.let { prefs[THEME_MODE] = it }
+            settings["reading_time_seconds"]?.let { prefs[READING_TIME_SECONDS] = it }
         }
     }
 }
