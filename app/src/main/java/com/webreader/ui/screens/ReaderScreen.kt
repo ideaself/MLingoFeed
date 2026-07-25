@@ -48,17 +48,22 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalLifecycleOwner
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
 import com.webreader.ui.components.ChatDialog
 import com.webreader.ui.components.DictionaryPopup
+import com.webreader.ui.components.DifficultyDialog
 import com.webreader.ui.components.TranslationPopup
 import com.webreader.webview.ReaderTab
 import com.webreader.webview.createReaderWebView
 import com.webreader.webview.injectSelectionScript
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -77,6 +82,9 @@ fun ReaderScreen(
     var showDictionary by remember { mutableStateOf(false) }
     var showTranslation by remember { mutableStateOf(false) }
     var showChat by remember { mutableStateOf(false) }
+    var showDifficulty by remember { mutableStateOf(false) }
+    var difficultyLoading by remember { mutableStateOf(false) }
+    var difficultyResult by remember { mutableStateOf<String?>(null) }
     var selectedWord by remember { mutableStateOf("") }
     var selectedSentence by remember { mutableStateOf("") }
 
@@ -118,6 +126,12 @@ fun ReaderScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = {
+                            showDifficulty = true
+                            difficultyResult = null
+                        }) {
+                            Text("D", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        }
                         IconButton(onClick = {
                             scope.launch {
                                 val tab = currentTab ?: return@launch
@@ -210,6 +224,48 @@ fun ReaderScreen(
     if (showChat) {
         ChatDialog(initialContext = selectedSentence.ifEmpty { selectedWord }, onDismiss = { showChat = false })
     }
+    if (showDifficulty) {
+        DifficultyDialog(
+            isLoading = difficultyLoading,
+            result = difficultyResult,
+            onDismiss = { showDifficulty = false },
+            onAnalyze = {
+                difficultyLoading = true
+                scope.launch {
+                    val tab = currentTab ?: run {
+                        difficultyLoading = false
+                        return@launch
+                    }
+                    val wv = tab.webView
+                    if (wv == null) {
+                        difficultyLoading = false
+                        return@launch
+                    }
+                    wv.evaluateJavascript("document.body.innerText") { text ->
+                        if (text == null || text.length < 50) {
+                            difficultyLoading = false
+                            difficultyResult = "Error: No readable content found"
+                            return@evaluateJavascript
+                        }
+                        val cleanText = text.removeSurrounding("\"").replace("\\n", "\n").replace("\\\"", "\"")
+                        scope.launch {
+                            val apiUrl = app.settingsManager.aiApiUrl.first()
+                            val apiKey = app.settingsManager.aiApiKey.first()
+                            val model = app.settingsManager.aiModel.first()
+                            if (apiKey.isBlank()) {
+                                difficultyResult = "Error: Please configure AI API key in Settings"
+                                difficultyLoading = false
+                                return@launch
+                            }
+                            val result = app.chatRepository.analyzeDifficulty(cleanText, apiUrl, apiKey, model)
+                            difficultyResult = result
+                            difficultyLoading = false
+                        }
+                    }
+                }
+            }
+        )
+    }
 }
 
 @Composable
@@ -262,6 +318,41 @@ private fun WebViewContent(
                 val scrollY = wv.scrollY
                 if (scrollY > 0) { scope.launch { app.bookmarkRepository.updateScrollPosition(url, scrollY) } }
                 wv.destroy()
+            }
+        }
+    }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        var accumulatedSeconds = 0L
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_RESUME -> {
+                    scope.launch {
+                        while (true) {
+                            kotlinx.coroutines.delay(1000)
+                            accumulatedSeconds++
+                            if (accumulatedSeconds % 5 == 0L) {
+                                app.settingsManager.addReadingSession(accumulatedSeconds)
+                                accumulatedSeconds = 0L
+                            }
+                        }
+                    }
+                }
+                Lifecycle.Event.ON_PAUSE -> {
+                    if (accumulatedSeconds > 0) {
+                        scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
+                        accumulatedSeconds = 0L
+                    }
+                }
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            if (accumulatedSeconds > 0) {
+                scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
             }
         }
     }

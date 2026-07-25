@@ -13,8 +13,10 @@ import com.webreader.ui.screens.HistoryScreen
 import com.webreader.ui.screens.HomeScreen
 import com.webreader.ui.screens.RssArticlesScreen
 import com.webreader.ui.screens.ReaderScreen
+import com.webreader.ui.screens.ReadingStatsScreen
 import com.webreader.ui.screens.RssSubscriptionsScreen
 import com.webreader.ui.screens.SettingsScreen
+import com.webreader.ui.screens.WordBookScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -23,6 +25,8 @@ sealed class Screen(val route: String) {
     data object Home : Screen("home")
     data object Settings : Screen("settings")
     data object History : Screen("history")
+    data object WordBook : Screen("wordbook")
+    data object ReadingStats : Screen("readingstats")
     data object RssSubscriptions : Screen("rss")
     data object RssArticles : Screen("rss/{subscriptionId}/{title}") {
         fun createRoute(subscriptionId: Long, title: String): String {
@@ -62,13 +66,19 @@ fun WebReaderNavHost(initialUrl: String? = null) {
                 onNavigateToRss = {
                     navController.navigate(Screen.RssSubscriptions.route)
                 },
+                onNavigateToWordBook = {
+                    navController.navigate(Screen.WordBook.route)
+                },
                 sharedUrl = sharedUrlState,
                 onSharedUrlConsumed = { sharedUrlState = null }
             )
         }
         composable(Screen.Settings.route) {
             SettingsScreen(
-                onBack = { navController.popBackStack() }
+                onBack = { navController.popBackStack() },
+                onNavigateToReadingStats = {
+                    navController.navigate(Screen.ReadingStats.route)
+                }
             )
         }
         composable(Screen.History.route) {
@@ -77,6 +87,16 @@ fun WebReaderNavHost(initialUrl: String? = null) {
                 onNavigateToReader = { url ->
                     navController.navigate(Screen.Reader.createRoute(url))
                 }
+            )
+        }
+        composable(Screen.WordBook.route) {
+            WordBookScreen(
+                onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.ReadingStats.route) {
+            ReadingStatsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(Screen.RssSubscriptions.route) {

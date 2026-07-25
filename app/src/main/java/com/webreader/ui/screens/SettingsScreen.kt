@@ -35,6 +35,7 @@ import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material.icons.filled.Language
 import androidx.compose.material.icons.filled.Storage
+import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -77,7 +78,7 @@ import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onBack: () -> Unit = {}) {
+fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit = {}) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val scope = rememberCoroutineScope()
@@ -103,6 +104,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
     var editingDict by remember { mutableStateOf<DictionaryConfig?>(null) }
     var showAddDict by remember { mutableStateOf(false) }
+    var showPresetDicts by remember { mutableStateOf(false) }
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -216,13 +218,19 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                 StatRow("Longest", formatReadingTime(longestSession))
 
                 Spacer(modifier = Modifier.height(12.dp))
-                TextButton(onClick = {
-                    scope.launch {
-                        app.settingsManager.resetReadingTime()
-                        Toast.makeText(context, "Reading time reset", Toast.LENGTH_SHORT).show()
+                Row {
+                    TextButton(onClick = onNavigateToReadingStats) {
+                        Text("View Details")
                     }
-                }) {
-                    Text("Reset")
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(onClick = {
+                        scope.launch {
+                            app.settingsManager.resetReadingTime()
+                            Toast.makeText(context, "Reading time reset", Toast.LENGTH_SHORT).show()
+                        }
+                    }) {
+                        Text("Reset")
+                    }
                 }
             }
 
@@ -317,6 +325,12 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.Center
                 ) {
+                    TextButton(onClick = { showPresetDicts = true }) {
+                        Icon(Icons.Default.Star, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text("From Preset")
+                    }
+                    Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = { showAddDict = true }) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
@@ -525,6 +539,18 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                 showAddDict = false
             },
             onDismiss = { showAddDict = false }
+        )
+    }
+
+    if (showPresetDicts) {
+        PresetDictionaryDialog(
+            existingIds = dictionaries.map { it.id },
+            onAdd = { preset ->
+                scope.launch {
+                    app.settingsManager.setDictionaries(dictionaries + preset)
+                }
+            },
+            onDismiss = { showPresetDicts = false }
         )
     }
 
@@ -795,6 +821,102 @@ private fun EditDictionaryDialog(
         dismissButton = {
             TextButton(onClick = onDismiss) {
                 Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun PresetDictionaryDialog(
+    existingIds: List<String>,
+    onAdd: (DictionaryConfig) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val presets = listOf(
+        DictionaryConfig(
+            id = "oxford",
+            name = "Oxford Learner's Dictionaries",
+            urlTemplate = "https://www.oxfordlearnersdictionaries.com/definition/english/{word}",
+            cssSelector = ".webtop, .responsive_entry_center_wrap",
+            isEnabled = true
+        ),
+        DictionaryConfig(
+            id = "longman",
+            name = "Longman Dictionary",
+            urlTemplate = "https://www.ldoceonline.com/dictionary/{word}",
+            cssSelector = ".dictentry, .Head",
+            isEnabled = true
+        ),
+        DictionaryConfig(
+            id = "collins",
+            name = "Collins Dictionary",
+            urlTemplate = "https://www.collinsdictionary.com/dictionary/english/{word}",
+            cssSelector = ".content, .dictentry",
+            isEnabled = true
+        ),
+        DictionaryConfig(
+            id = "cambridge",
+            name = "Cambridge Dictionary",
+            urlTemplate = "https://dictionary.cambridge.org/dictionary/english/{word}",
+            cssSelector = ".entry-body__el, .hw",
+            isEnabled = true
+        ),
+        DictionaryConfig(
+            id = "merriam",
+            name = "Merriam-Webster",
+            urlTemplate = "https://www.merriam-webster.com/dictionary/{word}",
+            cssSelector = "#dictionary-entry-1, .word-syllables",
+            isEnabled = true
+        )
+    )
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Preset Dictionaries") },
+        text = {
+            Column {
+                Text(
+                    "Select dictionaries to add:",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(12.dp))
+                presets.forEach { preset ->
+                    val alreadyAdded = existingIds.contains(preset.id)
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Column(modifier = Modifier.weight(1f)) {
+                            Text(
+                                text = preset.name,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = if (alreadyAdded) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.onSurface
+                            )
+                            Text(
+                                text = preset.urlTemplate.take(50) + "...",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1
+                            )
+                        }
+                        if (alreadyAdded) {
+                            Text("Added", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                        } else {
+                            TextButton(onClick = { onAdd(preset) }) {
+                                Text("Add")
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Close")
             }
         }
     )

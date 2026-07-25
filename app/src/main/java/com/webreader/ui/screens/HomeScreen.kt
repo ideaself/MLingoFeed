@@ -34,6 +34,7 @@ import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
+import androidx.compose.material.icons.filled.MenuBook
 import androidx.compose.material3.AlertDialog
 
 import androidx.compose.material3.Card
@@ -85,6 +86,7 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
     onNavigateToRss: () -> Unit = {},
+    onNavigateToWordBook: () -> Unit = {},
     sharedUrl: String? = null,
     onSharedUrlConsumed: () -> Unit = {}
 ) {
@@ -144,6 +146,9 @@ fun HomeScreen(
                 }
                 IconButton(onClick = onNavigateToRss) {
                     Icon(Icons.Default.RssFeed, contentDescription = "RSS")
+                }
+                IconButton(onClick = onNavigateToWordBook) {
+                    Icon(Icons.Default.MenuBook, contentDescription = "Word Book")
                 }
                 IconButton(onClick = onNavigateToHistory) {
                     Icon(Icons.Default.History, contentDescription = "History")

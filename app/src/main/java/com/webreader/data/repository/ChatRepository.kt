@@ -103,4 +103,50 @@ class ChatRepository {
             throw Exception("Error: ${e.message}")
         }
     }
+
+    suspend fun analyzeDifficulty(
+        text: String,
+        apiUrl: String,
+        apiKey: String,
+        model: String
+    ): String {
+        val truncatedText = if (text.length > 3000) text.substring(0, 3000) else text
+        val messages = listOf(
+            ChatMessage(
+                role = "system",
+                content = """You are an English language learning assistant. Analyze the following English text and return a JSON object with these fields:
+- "cefrLevel": CEFR level (A1, A2, B1, B2, C1, or C2)
+- "difficulty": difficulty description in Chinese (简单/中等/困难/非常困难)
+- "wordCount": approximate word count
+- "avgSentenceLength": average words per sentence
+- "suggestions": array of 2-3 learning suggestions in Chinese
+- "keyVocabulary": array of 3-5 advanced words with brief definitions in Chinese
+
+Return ONLY the JSON object, no other text."""
+            ),
+            ChatMessage(
+                role = "user",
+                content = truncatedText
+            )
+        )
+
+        val request = ChatRequest(
+            model = model,
+            messages = messages,
+            stream = false,
+            temperature = 0.3
+        )
+
+        return try {
+            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            response.choices?.firstOrNull()?.message?.content ?: "{}"
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
 }

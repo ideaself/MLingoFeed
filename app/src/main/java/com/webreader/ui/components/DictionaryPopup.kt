@@ -31,6 +31,8 @@ import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material.icons.filled.Favorite
+import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -79,6 +81,11 @@ fun DictionaryPopup(
     var searchWord by remember(word) { mutableStateOf(word) }
     var results by remember(searchWord) { mutableStateOf<List<DictionaryResult>>(emptyList()) }
     var selectedTab by remember { mutableIntStateOf(0) }
+    var isSaved by remember { mutableStateOf(false) }
+
+    LaunchedEffect(searchWord) {
+        isSaved = app.wordBookRepository.isWordSaved(searchWord)
+    }
 
     fun lookup(w: String) {
         searchWord = w
@@ -159,7 +166,28 @@ fun DictionaryPopup(
                         IconButton(onClick = {
                             clipboardManager.setText(AnnotatedString(searchWord))
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
+                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                        }
+                        IconButton(onClick = {
+                            scope.launch {
+                                if (isSaved) {
+                                    app.wordBookRepository.deleteWord(searchWord)
+                                    isSaved = false
+                                } else {
+                                    val def = results.firstOrNull()?.definition ?: ""
+                                    app.wordBookRepository.addWord(
+                                        word = searchWord,
+                                        definition = def
+                                    )
+                                    isSaved = true
+                                }
+                            }
+                        }) {
+                            Icon(
+                                if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                contentDescription = if (isSaved) "Remove from word book" else "Save to word book",
+                                tint = if (isSaved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         IconButton(onClick = onOpenChat) {
                             Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat")
