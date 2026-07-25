@@ -32,7 +32,7 @@ class DictionaryRepository {
                 val body = response.body?.string() ?: return "No result"
 
                 if (cssSelector.isNotEmpty()) {
-                    parseHtmlResult(body, cssSelector, urlTemplate)
+                    parseHtmlResult(body, cssSelector)
                 } else {
                     parseDefaultResult(body, urlTemplate)
                 }
@@ -42,9 +42,10 @@ class DictionaryRepository {
         }
     }
 
-    private fun parseHtmlResult(html: String, cssSelector: String, urlTemplate: String): String {
+    private fun parseHtmlResult(html: String, cssSelector: String): String {
         return try {
             val doc = Jsoup.parse(html)
+            doc.select("noscript, script, style, audio, video, source, iframe, object, embed").remove()
             val elements = doc.select(cssSelector)
 
             if (elements.isEmpty()) {
@@ -52,29 +53,34 @@ class DictionaryRepository {
             }
 
             val sb = StringBuilder()
-            elements.forEachIndexed { index, element ->
+            var count = 0
+            for (element in elements) {
                 val text = element.text().trim()
-                if (text.isNotEmpty()) {
-                    if (index > 0) sb.appendLine()
+                if (text.length > 10 && !isNoiseText(text)) {
+                    if (count > 0) sb.appendLine("\n")
                     sb.appendLine(text)
+                    count++
                 }
             }
 
-            if (sb.isEmpty()) {
-                "No readable content found"
-            } else {
-                sb.toString().trim()
-            }
+            if (sb.isEmpty()) "No readable content found" else sb.toString().trim()
         } catch (e: Exception) {
             "Parse error: ${e.message}"
         }
+    }
+
+    private fun isNoiseText(text: String): Boolean {
+        val lower = text.lowercase()
+        return lower.contains("doesn't support") || lower.contains("not supported") ||
+                lower.contains("please enable") || lower.contains("browser doesn't") ||
+                lower.contains("audio tag") || lower.contains("video tag") ||
+                lower.length < 15
     }
 
     private fun parseDefaultResult(json: String, urlTemplate: String): String {
         if (urlTemplate.contains("youdao.com/jsonapi") || urlTemplate.contains("jsonversion")) {
             return parseYoudaoResponse(json)
         }
-
         if (json.startsWith("{") || json.startsWith("[")) {
             return try {
                 val obj = JSONObject(json)
@@ -83,7 +89,6 @@ class DictionaryRepository {
                 json
             }
         }
-
         return json.take(2000)
     }
 
@@ -91,7 +96,6 @@ class DictionaryRepository {
         return try {
             val obj = JSONObject(json)
             val sb = StringBuilder()
-
             val simple = obj.optJSONObject("simple")
             if (simple != null) {
                 val wordArray = simple.optJSONArray("word")
@@ -103,7 +107,6 @@ class DictionaryRepository {
                     if (ukPhone.isNotEmpty()) sb.appendLine("UK: /$ukPhone/")
                 }
             }
-
             val ec = obj.optJSONObject("ec")
             if (ec != null) {
                 val wordArray = ec.optJSONArray("word")
@@ -114,7 +117,6 @@ class DictionaryRepository {
                         val ukPhone = wordObj.optString("ukphone", "")
                         if (usPhone.isNotEmpty()) sb.appendLine("US: /$usPhone/")
                         if (ukPhone.isNotEmpty()) sb.appendLine("UK: /$ukPhone/")
-
                         val trs = wordObj.optJSONArray("trs")
                         if (trs != null) {
                             for (j in 0 until trs.length()) {
@@ -139,7 +141,6 @@ class DictionaryRepository {
                     }
                 }
             }
-
             val blngSents = obj.optJSONObject("blng_sents_part")
             if (blngSents != null) {
                 val sentencePair = blngSents.optJSONArray("sentence-pair")
@@ -154,9 +155,7 @@ class DictionaryRepository {
                     }
                 }
             }
-
-            if (sb.isEmpty()) "No definition found"
-            else sb.toString().trim()
+            if (sb.isEmpty()) "No definition found" else sb.toString().trim()
         } catch (e: Exception) {
             "Parse error: ${e.message}"
         }

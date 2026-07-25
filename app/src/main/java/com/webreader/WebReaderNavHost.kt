@@ -112,8 +112,11 @@ fun WebReaderNavHost(initialUrl: String? = null) {
             val encodedUrl = backStackEntry.arguments?.getString("url") ?: ""
             val url = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.toString())
             ReaderScreen(
-                url = url,
-                onBack = { navController.popBackStack() }
+                initialUrl = url,
+                onBack = { navController.popBackStack() },
+                onOpenUrl = { newUrl ->
+                    navController.navigate(Screen.Reader.createRoute(newUrl))
+                }
             )
         }
     }

@@ -46,6 +46,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.webreader.WebReaderApp
@@ -156,8 +157,7 @@ fun DictionaryPopup(
                     }
                     Row {
                         IconButton(onClick = {
-                            val allText = results.joinToString("\n\n") { "${it.name}:\n${it.definition}" }
-                            clipboardManager.setText(AnnotatedString(allText))
+                            clipboardManager.setText(AnnotatedString(searchWord))
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy All")
                         }
@@ -236,10 +236,16 @@ private fun ResultContent(result: DictionaryResult?) {
             )
         }
         result.definition.isNotEmpty() -> {
-            Text(
-                text = result.definition,
-                style = MaterialTheme.typography.bodyMedium
-            )
+            val paragraphs = result.definition.split("\n").filter { it.isNotBlank() }
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                paragraphs.forEach { para ->
+                    Text(
+                        text = para.trim(),
+                        style = MaterialTheme.typography.bodyMedium,
+                        lineHeight = 22.sp
+                    )
+                }
+            }
         }
         else -> {
             Text(

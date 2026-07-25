@@ -97,7 +97,7 @@ fun TranslationPopup(
                     )
                     Row {
                         IconButton(onClick = {
-                            clipboardManager.setText(AnnotatedString(translation))
+                            clipboardManager.setText(AnnotatedString(text))
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
                         }
