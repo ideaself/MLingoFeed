@@ -4,6 +4,7 @@ import android.app.Application
 import com.webreader.data.database.AppDatabase
 import com.webreader.data.repository.BookmarkRepository
 import com.webreader.data.repository.ChatRepository
+import com.webreader.data.repository.HistoryRepository
 import com.webreader.data.repository.DictionaryRepository
 import com.webreader.data.settings.SettingsManager
 
@@ -12,5 +13,6 @@ class WebReaderApp : Application() {
     val bookmarkRepository by lazy { BookmarkRepository(database.bookmarkDao()) }
     val dictionaryRepository by lazy { DictionaryRepository() }
     val chatRepository by lazy { ChatRepository() }
+    val historyRepository: HistoryRepository by lazy { HistoryRepository(database.historyDao()) }
     val settingsManager by lazy { SettingsManager(this) }
 }

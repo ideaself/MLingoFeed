@@ -25,6 +25,7 @@ import coil.request.ImageRequest
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
+import androidx.compose.material.icons.filled.History
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -33,7 +34,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FloatingActionButton
+
 import androidx.compose.material3.Card
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.RadioButton
@@ -62,7 +63,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.webreader.WebReaderApp
@@ -82,6 +82,7 @@ import java.util.concurrent.TimeUnit
 fun HomeScreen(
     onNavigateToReader: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
+    onNavigateToHistory: () -> Unit = {},
     sharedUrl: String? = null,
     onSharedUrlConsumed: () -> Unit = {}
 ) {
@@ -136,6 +137,12 @@ fun HomeScreen(
                         Text("Save")
                     }
                 }
+                IconButton(onClick = { showAddDialog = true }) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Bookmark")
+                }
+                IconButton(onClick = onNavigateToHistory) {
+                    Icon(Icons.Default.History, contentDescription = "History")
+                }
                 IconButton(onClick = onNavigateToSettings) {
                     Icon(Icons.Default.Settings, contentDescription = "Settings")
                 }
@@ -175,27 +182,7 @@ fun HomeScreen(
                 selectedCategory.isEmpty() || it.category == selectedCategory
             }
 
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Text(
-                    text = "Bookmarks (${filteredBookmarks.size})",
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Medium
-                )
-                androidx.compose.material3.FloatingActionButton(
-                    onClick = { showAddDialog = true },
-                    containerColor = MaterialTheme.colorScheme.primary,
-                    contentColor = MaterialTheme.colorScheme.onPrimary,
-                    shape = RoundedCornerShape(16.dp)
-                ) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Bookmark")
-                }
-            }
-
-            Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(4.dp))
 
             LazyColumn(
                 state = lazyListState,

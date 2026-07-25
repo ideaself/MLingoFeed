@@ -88,6 +88,12 @@ fun ReaderScreen(
         isBookmarked = bookmark != null
     }
 
+    LaunchedEffect(pageTitle) {
+        if (pageTitle != "Loading..." && pageTitle.isNotBlank()) {
+            app.historyRepository.recordVisit(pageTitle, url)
+        }
+    }
+
     DisposableEffect(Unit) {
         onDispose {
             webView?.let { wv ->

@@ -9,6 +9,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
+import com.webreader.ui.screens.HistoryScreen
 import com.webreader.ui.screens.HomeScreen
 import com.webreader.ui.screens.ReaderScreen
 import com.webreader.ui.screens.SettingsScreen
@@ -19,6 +20,7 @@ import java.nio.charset.StandardCharsets
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
     data object Settings : Screen("settings")
+    data object History : Screen("history")
     data object Reader : Screen("reader/{url}") {
         fun createRoute(url: String): String {
             val encoded = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
@@ -45,6 +47,9 @@ fun WebReaderNavHost(initialUrl: String? = null) {
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
                 },
+                onNavigateToHistory = {
+                    navController.navigate(Screen.History.route)
+                },
                 sharedUrl = sharedUrlState,
                 onSharedUrlConsumed = { sharedUrlState = null }
             )
@@ -52,6 +57,14 @@ fun WebReaderNavHost(initialUrl: String? = null) {
         composable(Screen.Settings.route) {
             SettingsScreen(
                 onBack = { navController.popBackStack() }
+            )
+        }
+        composable(Screen.History.route) {
+            HistoryScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToReader = { url ->
+                    navController.navigate(Screen.Reader.createRoute(url))
+                }
             )
         }
         composable(
