@@ -26,6 +26,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.History
+import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
@@ -83,6 +84,7 @@ fun HomeScreen(
     onNavigateToReader: (String) -> Unit,
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
+    onNavigateToRss: () -> Unit = {},
     sharedUrl: String? = null,
     onSharedUrlConsumed: () -> Unit = {}
 ) {
@@ -139,6 +141,9 @@ fun HomeScreen(
                 }
                 IconButton(onClick = { showAddDialog = true }) {
                     Icon(Icons.Default.Add, contentDescription = "Add Bookmark")
+                }
+                IconButton(onClick = onNavigateToRss) {
+                    Icon(Icons.Default.RssFeed, contentDescription = "RSS")
                 }
                 IconButton(onClick = onNavigateToHistory) {
                     Icon(Icons.Default.History, contentDescription = "History")
