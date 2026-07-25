@@ -17,6 +17,7 @@ import com.webreader.ui.screens.ReadingStatsScreen
 import com.webreader.ui.screens.RssSubscriptionsScreen
 import com.webreader.ui.screens.SettingsScreen
 import com.webreader.ui.screens.WordBookScreen
+import com.webreader.ui.screens.WordQuizScreen
 import java.net.URLDecoder
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
@@ -26,6 +27,7 @@ sealed class Screen(val route: String) {
     data object Settings : Screen("settings")
     data object History : Screen("history")
     data object WordBook : Screen("wordbook")
+    data object WordQuiz : Screen("wordquiz")
     data object ReadingStats : Screen("readingstats")
     data object RssSubscriptions : Screen("rss")
     data object RssArticles : Screen("rss/{subscriptionId}/{title}") {
@@ -91,6 +93,14 @@ fun WebReaderNavHost(initialUrl: String? = null) {
         }
         composable(Screen.WordBook.route) {
             WordBookScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToQuiz = {
+                    navController.navigate(Screen.WordQuiz.route)
+                }
+            )
+        }
+        composable(Screen.WordQuiz.route) {
+            WordQuizScreen(
                 onBack = { navController.popBackStack() }
             )
         }

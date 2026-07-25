@@ -149,4 +149,51 @@ Return ONLY the JSON object, no other text."""
             "Error: ${e.message}"
         }
     }
+
+    suspend fun detectCollocations(
+        text: String,
+        apiUrl: String,
+        apiKey: String,
+        model: String
+    ): String {
+        val truncatedText = if (text.length > 3000) text.substring(0, 3000) else text
+        val messages = listOf(
+            ChatMessage(
+                role = "system",
+                content = """You are an English language teaching expert. Analyze the following English text and find collocations, idioms, phrasal verbs, and authentic expressions.
+
+Return a JSON array of objects, each with:
+- "phrase": the collocation/idiom/phrase
+- "type": one of "collocation", "idiom", "phrasal_verb", "expression", "fixed搭配"
+- "meaning": brief Chinese explanation
+- "example": the original sentence from the text containing this phrase
+- "similar": a similar alternative expression (optional)
+
+Find 5-10 items. Return ONLY the JSON array, no other text."""
+            ),
+            ChatMessage(
+                role = "user",
+                content = truncatedText
+            )
+        )
+
+        val request = ChatRequest(
+            model = model,
+            messages = messages,
+            stream = false,
+            temperature = 0.3
+        )
+
+        return try {
+            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            response.choices?.firstOrNull()?.message?.content ?: "[]"
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
 }

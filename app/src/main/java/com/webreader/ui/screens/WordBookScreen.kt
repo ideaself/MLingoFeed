@@ -22,10 +22,14 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -38,6 +42,7 @@ import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBar
@@ -69,7 +74,7 @@ import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun WordBookScreen(onBack: () -> Unit) {
+fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val scope = rememberCoroutineScope()
@@ -78,6 +83,7 @@ fun WordBookScreen(onBack: () -> Unit) {
     var selectedTab by remember { mutableIntStateOf(0) }
     var searchQuery by remember { mutableStateOf("") }
     var expandedWord by remember { mutableStateOf<String?>(null) }
+    var showExportDialog by remember { mutableStateOf(false) }
 
     val allWords by app.wordBookRepository.allWords.collectAsState(initial = emptyList())
     val dueWords by app.wordBookRepository.dueWords.collectAsState(initial = emptyList())
@@ -102,18 +108,10 @@ fun WordBookScreen(onBack: () -> Unit) {
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            val csv = StringBuilder("word,definition,phonetic,example,dateAdded\n")
-                            displayWords.forEach { w ->
-                                csv.appendLine("${w.word},\"${w.definition}\",${w.phonetic},\"${w.exampleSentence}\",${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(w.dateAdded))}")
-                            }
-                            val intent = Intent(Intent.ACTION_SEND).apply {
-                                type = "text/csv"
-                                putExtra(Intent.EXTRA_TEXT, csv.toString())
-                                putExtra(Intent.EXTRA_SUBJECT, "Word Book Export")
-                            }
-                            context.startActivity(Intent.createChooser(intent, "Export Words"))
-                        }) {
+                        IconButton(onClick = onNavigateToQuiz) {
+                            Icon(Icons.Default.Quiz, contentDescription = "Quiz")
+                        }
+                        IconButton(onClick = { showExportDialog = true }) {
                             Icon(Icons.Default.Share, contentDescription = "Export")
                         }
                     },
@@ -213,6 +211,110 @@ fun WordBookScreen(onBack: () -> Unit) {
                     }
                 }
             }
+        }
+    }
+
+    if (showExportDialog) {
+        ExportDialog(
+            words = displayWords,
+            onDismiss = { showExportDialog = false },
+            onExport = { content, type, subject ->
+                val intent = Intent(Intent.ACTION_SEND).apply {
+                    this.type = type
+                    putExtra(Intent.EXTRA_TEXT, content)
+                    putExtra(Intent.EXTRA_SUBJECT, subject)
+                }
+                context.startActivity(Intent.createChooser(intent, "Export Words"))
+                showExportDialog = false
+            }
+        )
+    }
+}
+
+@Composable
+private fun ExportDialog(
+    words: List<WordBookEntry>,
+    onDismiss: () -> Unit,
+    onExport: (String, String, String) -> Unit
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text("Export Words") },
+        text = {
+            Column {
+                Text("Choose export format:", style = MaterialTheme.typography.bodyMedium)
+                Spacer(modifier = Modifier.height(16.dp))
+
+                ExportOption(
+                    title = "CSV",
+                    description = "Compatible with Excel, Google Sheets",
+                    onClick = {
+                        val csv = StringBuilder("word,definition,phonetic,example,dateAdded\n")
+                        words.forEach { w ->
+                            csv.appendLine("${w.word},\"${w.definition}\",${w.phonetic},\"${w.exampleSentence}\",${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(w.dateAdded))}")
+                        }
+                        onExport(csv.toString(), "text/csv", "Word Book Export")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ExportOption(
+                    title = "Markdown",
+                    description = "Formatted text for note-taking apps",
+                    onClick = {
+                        val md = StringBuilder("# Word Book\n\n")
+                        md.appendLine("Exported: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())}\n")
+                        words.forEach { w ->
+                            md.appendLine("## ${w.word}")
+                            if (w.phonetic.isNotEmpty()) md.appendLine("*${w.phonetic}*")
+                            if (w.definition.isNotEmpty()) md.appendLine("\n${w.definition}")
+                            if (w.exampleSentence.isNotEmpty()) md.appendLine("\n> ${w.exampleSentence}")
+                            md.appendLine("\n---\n")
+                        }
+                        onExport(md.toString(), "text/markdown", "Word Book Export")
+                    }
+                )
+
+                Spacer(modifier = Modifier.height(8.dp))
+
+                ExportOption(
+                    title = "Anki Flashcards",
+                    description = "Tab-separated for Anki import",
+                    onClick = {
+                        val anki = StringBuilder()
+                        words.forEach { w ->
+                            val back = buildString {
+                                if (w.definition.isNotEmpty()) append(w.definition)
+                                if (w.phonetic.isNotEmpty()) append(" (${w.phonetic})")
+                                if (w.exampleSentence.isNotEmpty()) append("<br><br><i>${w.exampleSentence}</i>")
+                            }
+                            anki.appendLine("${w.word}\t$back")
+                        }
+                        onExport(anki.toString(), "text/plain", "Word Book Anki Import")
+                    }
+                )
+            }
+        },
+        confirmButton = {},
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text("Cancel")
+            }
+        }
+    )
+}
+
+@Composable
+private fun ExportOption(title: String, description: String, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Text(title, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(description, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
 }

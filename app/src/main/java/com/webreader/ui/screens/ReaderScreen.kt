@@ -57,11 +57,14 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
 import com.webreader.ui.components.ChatDialog
+import com.webreader.ui.components.CollocationDialog
 import com.webreader.ui.components.DictionaryPopup
 import com.webreader.ui.components.DifficultyDialog
 import com.webreader.ui.components.TranslationPopup
+import com.webreader.webview.ReaderParagraph
 import com.webreader.webview.ReaderTab
 import com.webreader.webview.createReaderWebView
+import com.webreader.webview.injectReaderMode
 import com.webreader.webview.injectSelectionScript
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -83,6 +86,13 @@ fun ReaderScreen(
     var showTranslation by remember { mutableStateOf(false) }
     var showChat by remember { mutableStateOf(false) }
     var showDifficulty by remember { mutableStateOf(false) }
+    var showCollocation by remember { mutableStateOf(false) }
+    var collocationLoading by remember { mutableStateOf(false) }
+    var collocationResult by remember { mutableStateOf<String?>(null) }
+    var showReaderMode by remember { mutableStateOf(false) }
+    var readerModeTitle by remember { mutableStateOf("") }
+    var readerModeParagraphs by remember { mutableStateOf<List<ReaderParagraph>>(emptyList()) }
+    var readerModeImages by remember { mutableStateOf<List<String>>(emptyList()) }
     var difficultyLoading by remember { mutableStateOf(false) }
     var difficultyResult by remember { mutableStateOf<String?>(null) }
     var selectedWord by remember { mutableStateOf("") }
@@ -126,6 +136,23 @@ fun ReaderScreen(
                         }
                     },
                     actions = {
+                        IconButton(onClick = {
+                            val wv = currentTab?.webView ?: return@IconButton
+                            injectReaderMode(wv) { t, p, img ->
+                                readerModeTitle = t
+                                readerModeParagraphs = p
+                                readerModeImages = img
+                                showReaderMode = true
+                            }
+                        }) {
+                            Text("R", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        }
+                        IconButton(onClick = {
+                            showCollocation = true
+                            collocationResult = null
+                        }) {
+                            Text("C", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        }
                         IconButton(onClick = {
                             showDifficulty = true
                             difficultyResult = null
@@ -263,6 +290,57 @@ fun ReaderScreen(
                         }
                     }
                 }
+            }
+        )
+    }
+    if (showCollocation) {
+        CollocationDialog(
+            isLoading = collocationLoading,
+            result = collocationResult,
+            onDismiss = { showCollocation = false },
+            onAnalyze = {
+                collocationLoading = true
+                scope.launch {
+                    val wv = currentTab?.webView
+                    if (wv == null) {
+                        collocationLoading = false
+                        return@launch
+                    }
+                    wv.evaluateJavascript("document.body.innerText") { text ->
+                        if (text == null || text.length < 50) {
+                            collocationLoading = false
+                            collocationResult = "Error: No readable content found"
+                            return@evaluateJavascript
+                        }
+                        val cleanText = text.removeSurrounding("\"").replace("\\n", "\n").replace("\\\"", "\"")
+                        scope.launch {
+                            val apiUrl = app.settingsManager.aiApiUrl.first()
+                            val apiKey = app.settingsManager.aiApiKey.first()
+                            val model = app.settingsManager.aiModel.first()
+                            if (apiKey.isBlank()) {
+                                collocationResult = "Error: Please configure AI API key in Settings"
+                                collocationLoading = false
+                                return@launch
+                            }
+                            val result = app.chatRepository.detectCollocations(cleanText, apiUrl, apiKey, model)
+                            collocationResult = result
+                            collocationLoading = false
+                        }
+                    }
+                }
+            }
+        )
+    }
+    if (showReaderMode) {
+        ReaderModeScreen(
+            title = readerModeTitle,
+            paragraphs = readerModeParagraphs,
+            images = readerModeImages,
+            onBack = { showReaderMode = false },
+            onOpenChat = { text ->
+                showReaderMode = false
+                selectedSentence = text
+                showChat = true
             }
         )
     }
