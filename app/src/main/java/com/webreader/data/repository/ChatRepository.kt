@@ -8,6 +8,8 @@ import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
+import retrofit2.HttpException
+import java.io.IOException
 
 class ChatRepository {
 
@@ -20,7 +22,7 @@ class ChatRepository {
         .build()
 
     private val retrofit = Retrofit.Builder()
-        .baseUrl("https://api.deepseek.com/")
+        .baseUrl("https://api.deepseek.com")
         .client(okHttpClient)
         .addConverterFactory(GsonConverterFactory.create())
         .build()
@@ -48,8 +50,13 @@ class ChatRepository {
         return try {
             val response = api.chat(apiUrl, request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "No translation available"
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
         } catch (e: Exception) {
-            "Translation error: ${e.message}"
+            "Error: ${e.message}"
         }
     }
 
@@ -68,8 +75,32 @@ class ChatRepository {
         return try {
             val response = api.chat(apiUrl, request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "No response"
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
         } catch (e: Exception) {
             "Error: ${e.message}"
+        }
+    }
+
+    suspend fun fetchModels(baseApiUrl: String, apiKey: String): List<String> {
+        val modelsUrl = if (baseApiUrl.contains("/chat/completions")) {
+            baseApiUrl.replace("/chat/completions", "/models")
+        } else {
+            "${baseApiUrl.trimEnd('/')}/models"
+        }
+        return try {
+            val response = api.getModels(modelsUrl, "Bearer $apiKey")
+            response.data?.map { it.id }?.sorted() ?: emptyList()
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            throw Exception("API Error ${e.code()}: $errorBody")
+        } catch (e: IOException) {
+            throw Exception("Network error: ${e.message}")
+        } catch (e: Exception) {
+            throw Exception("Error: ${e.message}")
         }
     }
 }

@@ -2,6 +2,7 @@ package com.webreader
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -27,9 +28,10 @@ sealed class Screen(val route: String) {
 }
 
 @Composable
-fun WebReaderNavHost() {
+fun WebReaderNavHost(initialUrl: String? = null) {
     val navController = rememberNavController()
     val navBackStackEntry by navController.currentBackStackEntryAsState()
+    var sharedUrlState by androidx.compose.runtime.mutableStateOf(initialUrl)
 
     NavHost(
         navController = navController,
@@ -42,7 +44,9 @@ fun WebReaderNavHost() {
                 },
                 onNavigateToSettings = {
                     navController.navigate(Screen.Settings.route)
-                }
+                },
+                sharedUrl = sharedUrlState,
+                onSharedUrlConsumed = { sharedUrlState = null }
             )
         }
         composable(Screen.Settings.route) {

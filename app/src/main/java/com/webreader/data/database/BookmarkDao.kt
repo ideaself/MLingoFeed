@@ -30,4 +30,10 @@ interface BookmarkDao {
 
     @Query("UPDATE bookmarks SET position = :position WHERE id = :id")
     suspend fun updatePosition(id: Long, position: Int)
+
+    @Query("UPDATE bookmarks SET scrollPosition = :scrollPosition WHERE url = :url")
+    suspend fun updateScrollPosition(url: String, scrollPosition: Int)
+
+    @Query("SELECT DISTINCT category FROM bookmarks WHERE category != '' ORDER BY category ASC")
+    fun getCategories(): Flow<List<String>>
 }

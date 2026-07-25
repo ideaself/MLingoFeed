@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -27,6 +28,7 @@ import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -38,6 +40,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
@@ -346,14 +349,73 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
                     }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
+                var modelList by remember { mutableStateOf<List<String>>(emptyList()) }
+                var isLoadingModels by remember { mutableStateOf(false) }
+                var showModelDropdown by remember { mutableStateOf(false) }
                 OutlinedTextField(
                     value = aiModelInput,
                     onValueChange = { aiModelInput = it },
                     label = { Text("Model") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    supportingText = { Text("DeepSeek: deepseek-chat") }
+                    readOnly = showModelDropdown && modelList.isNotEmpty(),
+                    supportingText = { Text("Click ↻ to auto-fetch models") },
+                    trailingIcon = {
+                        if (isLoadingModels) {
+                            androidx.compose.material3.CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            IconButton(onClick = {
+                                if (aiKeyInput.isNotBlank()) {
+                                    isLoadingModels = true
+                                    scope.launch {
+                                        try {
+                                            val models = app.chatRepository.fetchModels(aiUrlInput, aiKeyInput)
+                                            modelList = models
+                                            showModelDropdown = models.isNotEmpty()
+                                        } catch (e: Exception) {
+                                            Toast.makeText(context, e.message, Toast.LENGTH_SHORT).show()
+                                        }
+                                        isLoadingModels = false
+                                    }
+                                } else {
+                                    Toast.makeText(context, "Please enter API Key first", Toast.LENGTH_SHORT).show()
+                                }
+                            }) {
+                                    Icon(Icons.Default.Refresh, contentDescription = "Fetch Models")
+                            }
+                        }
+                    }
                 )
+                if (showModelDropdown && modelList.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(4.dp)) {
+                            modelList.take(10).forEach { model ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable {
+                                            aiModelInput = model
+                                            showModelDropdown = false
+                                        }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = model,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = targetLangInput,

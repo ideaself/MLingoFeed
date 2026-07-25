@@ -14,7 +14,9 @@ data class ChatMessage(
 data class ChatRequest(
     val model: String,
     val messages: List<ChatMessage>,
-    val stream: Boolean = false
+    val stream: Boolean = false,
+    val max_tokens: Int = 4096,
+    val temperature: Double = 0.3
 )
 
 data class ChatResponse(
@@ -25,6 +27,15 @@ data class ChatChoice(
     val message: ChatMessage?
 )
 
+data class ModelListResponse(
+    @SerializedName("data") val data: List<ModelInfo>?
+)
+
+data class ModelInfo(
+    val id: String,
+    @SerializedName("object") val objectType: String?
+)
+
 interface TranslationApi {
     @Headers("Content-Type: application/json")
     @POST
@@ -33,4 +44,10 @@ interface TranslationApi {
         @Body request: ChatRequest,
         @retrofit2.http.Header("Authorization") authorization: String
     ): ChatResponse
+
+    @retrofit2.http.GET
+    suspend fun getModels(
+        @Url url: String,
+        @retrofit2.http.Header("Authorization") authorization: String
+    ): ModelListResponse
 }

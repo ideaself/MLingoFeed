@@ -90,7 +90,21 @@ fun ReaderScreen(
 
     DisposableEffect(Unit) {
         onDispose {
-            webView?.destroy()
+            webView?.let { wv ->
+                val scrollY = wv.scrollY
+                if (scrollY > 0) {
+                    scope.launch { app.bookmarkRepository.updateScrollPosition(url, scrollY) }
+                }
+                wv.destroy()
+            }
+        }
+    }
+
+    LaunchedEffect(url) {
+        val bookmark = app.bookmarkRepository.getBookmarkByUrl(url)
+        if (bookmark != null && bookmark.scrollPosition > 0) {
+            kotlinx.coroutines.delay(500)
+            webView?.scrollTo(0, bookmark.scrollPosition)
         }
     }
 

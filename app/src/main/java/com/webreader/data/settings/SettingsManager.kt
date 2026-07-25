@@ -96,7 +96,7 @@ class SettingsManager(private val context: Context) {
     }
 
     val aiModel: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[AI_MODEL] ?: "deepseek-chat"
+        prefs[AI_MODEL] ?: "deepseek-v4-flash"
     }
 
     val translateTargetLang: Flow<String> = context.dataStore.data.map { prefs ->
@@ -202,7 +202,7 @@ class SettingsManager(private val context: Context) {
             "dictionaries" to (prefs[DICTIONARIES] ?: defaultDictionaries()),
             "ai_api_url" to (prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"),
             "ai_api_key" to (prefs[AI_API_KEY] ?: ""),
-            "ai_model" to (prefs[AI_MODEL] ?: "deepseek-chat"),
+            "ai_model" to (prefs[AI_MODEL] ?: "deepseek-v4-flash"),
             "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese"),
             "font_size" to (prefs[FONT_SIZE]?.toString() ?: "100"),
             "theme_mode" to (prefs[THEME_MODE] ?: "system"),
