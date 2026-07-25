@@ -29,6 +29,12 @@ import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.FormatPaint
+import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.FormatSize
+import androidx.compose.material.icons.filled.MenuBook
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -167,7 +173,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
         ) {
             SettingsSection(
                 title = "Theme",
-                icon = "🎨",
+                imageVector = Icons.Default.FormatPaint,
                 expanded = expandedSection == "theme",
                 onToggle = { expandedSection = if (expandedSection == "theme") null else "theme" }
             ) {
@@ -191,7 +197,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
             SettingsSection(
                 title = "Reading Time",
-                icon = "⏱",
+                imageVector = Icons.Default.Schedule,
                 expanded = expandedSection == "reading_time",
                 onToggle = { expandedSection = if (expandedSection == "reading_time") null else "reading_time" },
                 summary = formatReadingTime(readingTimeSeconds)
@@ -224,7 +230,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
             SettingsSection(
                 title = "Font Size",
-                icon = "🔤",
+                imageVector = Icons.Default.FormatSize,
                 expanded = expandedSection == "font_size",
                 onToggle = { expandedSection = if (expandedSection == "font_size") null else "font_size" },
                 summary = "${fontSize}%"
@@ -254,7 +260,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
             SettingsSection(
                 title = "Dictionaries",
-                icon = "📖",
+                imageVector = Icons.Default.MenuBook,
                 expanded = expandedSection == "dictionaries",
                 onToggle = { expandedSection = if (expandedSection == "dictionaries") null else "dictionaries" },
                 summary = "${dictionaries.count { it.isEnabled }} / ${dictionaries.size} enabled"
@@ -323,7 +329,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
             SettingsSection(
                 title = "AI / Translation",
-                icon = "🤖",
+                imageVector = Icons.Default.Language,
                 expanded = expandedSection == "ai",
                 onToggle = { expandedSection = if (expandedSection == "ai") null else "ai" }
             ) {
@@ -431,7 +437,7 @@ fun SettingsScreen(onBack: () -> Unit = {}) {
 
             SettingsSection(
                 title = "Data Management",
-                icon = "💾",
+                imageVector = Icons.Default.Storage,
                 expanded = expandedSection == "data",
                 onToggle = { expandedSection = if (expandedSection == "data") null else "data" }
             ) {
@@ -625,7 +631,7 @@ private fun DictionaryItem(
 @Composable
 private fun SettingsSection(
     title: String,
-    icon: String,
+    imageVector: androidx.compose.ui.graphics.vector.ImageVector,
     expanded: Boolean,
     onToggle: () -> Unit,
     summary: String? = null,
@@ -643,7 +649,12 @@ private fun SettingsSection(
                     .padding(horizontal = 16.dp, vertical = 14.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                Text(text = icon, modifier = Modifier.padding(end = 12.dp))
+                Icon(
+                    imageVector = imageVector,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                    modifier = Modifier.padding(end = 12.dp)
+                )
                 Column(modifier = Modifier.weight(1f)) {
                     Text(text = title, style = MaterialTheme.typography.titleSmall)
                     if (summary != null && !expanded) {

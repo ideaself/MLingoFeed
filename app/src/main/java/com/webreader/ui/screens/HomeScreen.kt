@@ -5,6 +5,7 @@ import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -28,10 +29,14 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DragHandle
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Card
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -57,6 +62,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.webreader.WebReaderApp
@@ -89,12 +95,8 @@ fun HomeScreen(
     val app = context.applicationContext as WebReaderApp
     val scope = rememberCoroutineScope()
 
-    var urlInput by remember { mutableStateOf("") }
-    var titleInput by remember { mutableStateOf("") }
     var showAddDialog by remember { mutableStateOf(false) }
-    var searchQuery by remember { mutableStateOf("") }
     var selectedCategory by remember { mutableStateOf("") }
-    var categoryInput by remember { mutableStateOf("") }
 
     val bookmarks by app.bookmarkRepository.allBookmarks.collectAsState(initial = emptyList())
     val categories: List<String> by app.bookmarkRepository.getCategories().collectAsState(initial = emptyList())
@@ -107,6 +109,7 @@ fun HomeScreen(
 
     var hasReordered by remember { mutableStateOf(false) }
     var bookmarkToDelete by remember { mutableStateOf<Bookmark?>(null) }
+    var bookmarkToCategoryChange by remember { mutableStateOf<Bookmark?>(null) }
 
     val lazyListState = remember { androidx.compose.foundation.lazy.LazyListState() }
     val reorderableState = rememberReorderableLazyListState(
@@ -142,47 +145,8 @@ fun HomeScreen(
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(16.dp)
+                .padding(horizontal = 16.dp, vertical = 8.dp)
         ) {
-            OutlinedTextField(
-                value = urlInput,
-                onValueChange = { urlInput = it },
-                label = { Text("Enter URL to read") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                trailingIcon = {
-                    IconButton(onClick = {
-                        var url = urlInput.trim()
-                        if (url.isNotEmpty() && !url.startsWith("http")) {
-                            url = "https://$url"
-                        }
-                        if (url.isNotEmpty()) {
-                            onNavigateToReader(url)
-                            urlInput = ""
-                        }
-                    }) {
-                        Icon(Icons.Default.Search, contentDescription = "Go")
-                    }
-                }
-            )
-
-            Spacer(modifier = Modifier.height(12.dp))
-
-            OutlinedTextField(
-                value = searchQuery,
-                onValueChange = { searchQuery = it },
-                label = { Text("Search bookmarks") },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = true,
-                trailingIcon = {
-                    if (searchQuery.isNotEmpty()) {
-                        IconButton(onClick = { searchQuery = "" }) {
-                            Icon(Icons.Default.Close, contentDescription = "Clear")
-                        }
-                    }
-                }
-            )
-
             if (categories.isNotEmpty()) {
                 Spacer(modifier = Modifier.height(8.dp))
                 LazyRow(
@@ -207,26 +171,31 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
+            val filteredBookmarks = orderedBookmarks.filter {
+                selectedCategory.isEmpty() || it.category == selectedCategory
+            }
+
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Bookmarks (${orderedBookmarks.size})",
-                    style = MaterialTheme.typography.titleMedium
+                    text = "Bookmarks (${filteredBookmarks.size})",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Medium
                 )
-                IconButton(onClick = { showAddDialog = true }) {
-                    Icon(Icons.Default.Bookmark, contentDescription = "Add Bookmark")
+                androidx.compose.material3.FloatingActionButton(
+                    onClick = { showAddDialog = true },
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary,
+                    shape = RoundedCornerShape(16.dp)
+                ) {
+                    Icon(Icons.Default.Add, contentDescription = "Add Bookmark")
                 }
             }
 
-            Spacer(modifier = Modifier.height(8.dp))
-
-            val filteredBookmarks = orderedBookmarks.filter {
-                (searchQuery.isEmpty() || it.title.contains(searchQuery, ignoreCase = true) || it.url.contains(searchQuery, ignoreCase = true)) &&
-                (selectedCategory.isEmpty() || it.category == selectedCategory)
-            }
+            Spacer(modifier = Modifier.height(12.dp))
 
             LazyColumn(
                 state = lazyListState,
@@ -288,8 +257,12 @@ fun HomeScreen(
                                             Modifier
                                         }
                                     ),
+                                shape = RoundedCornerShape(16.dp),
                                 elevation = CardDefaults.cardElevation(
-                                    defaultElevation = if (isDragging) 8.dp else 2.dp
+                                    defaultElevation = if (isDragging) 8.dp else 1.dp
+                                ),
+                                colors = CardDefaults.cardColors(
+                                    containerColor = MaterialTheme.colorScheme.surface
                                 )
                             ) {
                                 Row(
@@ -325,19 +298,48 @@ fun HomeScreen(
                                         )
                                     }
                                     Spacer(modifier = Modifier.width(4.dp))
-                                    IconButton(onClick = {
-                                        val shareIntent = Intent(Intent.ACTION_SEND).apply {
-                                            type = "text/plain"
-                                            putExtra(Intent.EXTRA_SUBJECT, bookmark.title)
-                                            putExtra(Intent.EXTRA_TEXT, bookmark.url)
+                                    Box {
+                                        var showMenu by remember { mutableStateOf(false) }
+                                        IconButton(onClick = { showMenu = true }) {
+                                            Text(
+                                                "⋮",
+                                                style = MaterialTheme.typography.titleLarge,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                                            )
                                         }
-                                        context.startActivity(Intent.createChooser(shareIntent, "Share via"))
-                                    }) {
-                                        Icon(
-                                            Icons.Default.Share,
-                                            contentDescription = "Share",
-                                            tint = MaterialTheme.colorScheme.onSurfaceVariant
-                                        )
+                                        androidx.compose.material3.DropdownMenu(
+                                            expanded = showMenu,
+                                            onDismissRequest = { showMenu = false }
+                                        ) {
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = { Text("Share") },
+                                                onClick = {
+                                                    showMenu = false
+                                                    val shareIntent = Intent(Intent.ACTION_SEND).apply {
+                                                        type = "text/plain"
+                                                        putExtra(Intent.EXTRA_SUBJECT, bookmark.title)
+                                                        putExtra(Intent.EXTRA_TEXT, bookmark.url)
+                                                    }
+                                                    context.startActivity(Intent.createChooser(shareIntent, "Share via"))
+                                                }
+                                            )
+                                            if (categories.isNotEmpty()) {
+                                                androidx.compose.material3.DropdownMenuItem(
+                                                    text = { Text("Move to category") },
+                                                    onClick = {
+                                                        showMenu = false
+                                                        bookmarkToCategoryChange = bookmark
+                                                    }
+                                                )
+                                            }
+                                            androidx.compose.material3.DropdownMenuItem(
+                                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    bookmarkToDelete = bookmark
+                                                }
+                                            )
+                                        }
                                     }
                                     Icon(
                                         Icons.Default.DragHandle,
@@ -376,45 +378,95 @@ fun HomeScreen(
         )
     }
 
-    if (showAddDialog) {
-        AddBookmarkDialog(
-            url = urlInput,
-            title = titleInput,
-            category = categoryInput,
-            onUrlChange = { urlInput = it },
-            onTitleChange = { titleInput = it },
-            onCategoryChange = { categoryInput = it },
-            onConfirm = {
-                var url = urlInput.trim()
-                if (url.isNotEmpty() && !url.startsWith("http")) {
-                    url = "https://$url"
-                }
-                if (url.isNotEmpty()) {
-                    val finalTitle = titleInput.trim().ifEmpty { url }
-                    val finalCategory = categoryInput.trim()
-                    scope.launch {
-                        val resolvedTitle = if (finalTitle == url) fetchPageTitle(url) else finalTitle
-                        app.bookmarkRepository.insert(
-                            Bookmark(
-                                title = resolvedTitle,
-                                url = url,
-                                position = orderedBookmarks.size,
-                                category = finalCategory
-                            )
+    bookmarkToCategoryChange?.let { bookmark ->
+        var selectedCat by remember { mutableStateOf(bookmark.category) }
+        var newCategoryInput by remember { mutableStateOf("") }
+        var showNewCategoryField by remember { mutableStateOf(false) }
+        AlertDialog(
+            onDismissRequest = { bookmarkToCategoryChange = null },
+            title = { Text("Change Category") },
+            text = {
+                Column {
+                    if (categories.isNotEmpty()) {
+                        categories.forEach { category ->
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable { selectedCat = category }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                RadioButton(selected = selectedCat == category, onClick = { selectedCat = category })
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text(category)
+                            }
+                        }
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable { selectedCat = "" }
+                                .padding(vertical = 8.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            RadioButton(selected = selectedCat == "", onClick = { selectedCat = "" })
+                            Spacer(modifier = Modifier.width(8.dp))
+                            Text("None")
+                        }
+                    } else {
+                        Text("No categories yet. Create one below.")
+                    }
+                    Spacer(modifier = Modifier.height(8.dp))
+                    if (showNewCategoryField) {
+                        OutlinedTextField(
+                            value = newCategoryInput,
+                            onValueChange = { newCategoryInput = it },
+                            label = { Text("New category") },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true
                         )
+                    } else {
+                        TextButton(onClick = { showNewCategoryField = true }) {
+                            Text("+ New category")
+                        }
                     }
                 }
-                urlInput = ""
-                titleInput = ""
-                categoryInput = ""
-                showAddDialog = false
             },
-            onDismiss = {
-                urlInput = ""
-                titleInput = ""
-                categoryInput = ""
-                showAddDialog = false
+            confirmButton = {
+                TextButton(onClick = {
+                    val cat = if (showNewCategoryField && newCategoryInput.isNotBlank()) newCategoryInput.trim() else selectedCat
+                    scope.launch {
+                        app.bookmarkRepository.update(bookmark.copy(category = cat))
+                    }
+                    bookmarkToCategoryChange = null
+                }) {
+                    Text("Save")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { bookmarkToCategoryChange = null }) {
+                    Text("Cancel")
+                }
             }
+        )
+    }
+
+    if (showAddDialog) {
+        AddBookmarkDialog(
+            onSave = { url, title, category ->
+                scope.launch {
+                    val finalTitle = title.ifBlank { url }
+                    val resolvedTitle = if (finalTitle.isBlank()) fetchPageTitle(url) else finalTitle
+                    app.bookmarkRepository.insert(
+                        Bookmark(
+                            title = resolvedTitle,
+                            url = url,
+                            position = orderedBookmarks.size,
+                            category = category
+                        )
+                    )
+                }
+            },
+            onDismiss = { showAddDialog = false }
         )
     }
 }
@@ -441,16 +493,12 @@ private suspend fun fetchPageTitle(pageUrl: String): String = withContext(Dispat
 
 @Composable
 fun AddBookmarkDialog(
-    url: String,
-    title: String,
-    category: String,
-    onUrlChange: (String) -> Unit,
-    onTitleChange: (String) -> Unit,
-    onCategoryChange: (String) -> Unit,
-    onConfirm: () -> Unit,
+    onSave: (url: String, title: String, category: String) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var isLoadingTitle by remember { mutableStateOf(false) }
+    var url by remember { mutableStateOf("") }
+    var title by remember { mutableStateOf("") }
+    var category by remember { mutableStateOf("") }
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
@@ -458,30 +506,24 @@ fun AddBookmarkDialog(
         text = {
             Column {
                 OutlinedTextField(
-                    value = title,
-                    onValueChange = onTitleChange,
-                    label = { Text("Title (auto-fetched if empty)") },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    enabled = !isLoadingTitle
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
                     value = url,
-                    onValueChange = {
-                        onUrlChange(it)
-                        if (title.isEmpty() && it.contains(".")) {
-                            isLoadingTitle = true
-                        }
-                    },
+                    onValueChange = { url = it },
                     label = { Text("URL") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
+                    value = title,
+                    onValueChange = { title = it },
+                    label = { Text("Title (auto-fetched if empty)") },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
                     value = category,
-                    onValueChange = onCategoryChange,
+                    onValueChange = { category = it },
                     label = { Text("Category (optional)") },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
@@ -489,8 +531,20 @@ fun AddBookmarkDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onConfirm, enabled = url.isNotBlank() && !isLoadingTitle) {
-                Text(if (isLoadingTitle) "Fetching..." else "Add")
+            TextButton(
+                onClick = {
+                    var finalUrl = url.trim()
+                    if (finalUrl.isNotEmpty() && !finalUrl.startsWith("http")) {
+                        finalUrl = "https://$finalUrl"
+                    }
+                    if (finalUrl.isNotEmpty()) {
+                        onSave(finalUrl, title.trim(), category.trim())
+                        onDismiss()
+                    }
+                },
+                enabled = url.isNotBlank()
+            ) {
+                Text("Add")
             }
         },
         dismissButton = {
