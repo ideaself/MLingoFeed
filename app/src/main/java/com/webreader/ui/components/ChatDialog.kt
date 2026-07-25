@@ -1,5 +1,6 @@
 package com.webreader.ui.components
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -10,8 +11,11 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -24,6 +28,7 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -55,6 +60,9 @@ data class ChatMessageItem(
     val content: String
 )
 
+data class PresetAction(val label: String, val prompt: String)
+
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 fun ChatDialog(
     initialContext: String,
@@ -71,6 +79,17 @@ fun ChatDialog(
     val apiUrl by app.settingsManager.aiApiUrl.collectAsState(initial = "")
     val apiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
     val model by app.settingsManager.aiModel.collectAsState(initial = "")
+
+    val presets = remember(initialContext) {
+        listOf(
+            PresetAction("分析句子", "请用中文分析这个句子的语法结构、含义和用法：\"$initialContext\""),
+            PresetAction("语法检查", "请用中文检查以下文本的语法错误并给出修改建议：\"$initialContext\""),
+            PresetAction("翻译解释", "请将以下内容翻译成中文并解释重点词汇：\"$initialContext\""),
+            PresetAction("单词解释", "请用中文简单解释 \"$initialContext\" 的含义和用法，并给出例句。"),
+            PresetAction("同义词", "请用中文给出 \"$initialContext\" 的同义词、反义词和常见搭配。"),
+            PresetAction("简化表达", "请用更简单的英语重写以下内容，并用中文解释：\"$initialContext\"")
+        )
+    }
 
     val listState = rememberLazyListState()
 
@@ -95,7 +114,7 @@ fun ChatDialog(
                     chatMessages.add(
                         ChatMessage(
                             role = "system",
-                            content = "The user is reading a web page. The following context may be relevant: \"$initialContext\". Help the user understand the content, answer questions, and provide explanations."
+                            content = "The user is reading a web page. The following context may be relevant: \"$initialContext\". Help the user understand the content, answer questions, and provide explanations. Always respond in Chinese (中文)."
                         )
                     )
                 }
@@ -199,6 +218,24 @@ fun ChatDialog(
                                     strokeWidth = 2.dp
                                 )
                             }
+                        }
+                    }
+                }
+
+                if (messages.isEmpty()) {
+                    Spacer(modifier = Modifier.height(8.dp))
+                    FlowRow(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        presets.forEach { preset ->
+                            AssistChip(
+                                onClick = {
+                                    inputText = preset.prompt
+                                    sendMessage()
+                                },
+                                label = { Text(preset.label) }
+                            )
                         }
                     }
                 }

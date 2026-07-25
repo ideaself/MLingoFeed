@@ -10,6 +10,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Tab
 import androidx.compose.material3.TabRow
 import androidx.compose.material3.Text
@@ -41,6 +44,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -70,10 +74,17 @@ fun DictionaryPopup(
     val dictionaries by app.settingsManager.dictionaries.collectAsState(initial = emptyList())
     val enabledDicts = dictionaries.filter { it.isEnabled }
 
-    var results by remember(word) { mutableStateOf<List<DictionaryResult>>(emptyList()) }
+    var editableWord by remember(word) { mutableStateOf(word) }
+    var searchWord by remember(word) { mutableStateOf(word) }
+    var results by remember(searchWord) { mutableStateOf<List<DictionaryResult>>(emptyList()) }
     var selectedTab by remember { mutableIntStateOf(0) }
 
-    LaunchedEffect(word, enabledDicts) {
+    fun lookup(w: String) {
+        searchWord = w
+        results = emptyList()
+    }
+
+    LaunchedEffect(searchWord, enabledDicts) {
         if (enabledDicts.isEmpty()) {
             results = listOf(DictionaryResult(
                 name = "No Dictionary",
@@ -92,7 +103,7 @@ fun DictionaryPopup(
                 val definition = app.dictionaryRepository.lookupWord(
                     dict.urlTemplate,
                     dict.cssSelector,
-                    word
+                    searchWord
                 )
                 DictionaryResult(
                     name = dict.name,
@@ -121,10 +132,21 @@ fun DictionaryPopup(
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Column {
-                        Text(
-                            text = word,
-                            style = MaterialTheme.typography.headlineSmall
+                    Column(modifier = Modifier.weight(1f)) {
+                        OutlinedTextField(
+                            value = editableWord,
+                            onValueChange = { editableWord = it },
+                            label = { Text("Word") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                            keyboardActions = KeyboardActions(
+                                onSearch = {
+                                    if (editableWord.isNotBlank() && editableWord != searchWord) {
+                                        lookup(editableWord.trim())
+                                    }
+                                }
+                            )
                         )
                         Text(
                             text = if (hasMultipleDicts) "${results.size} dictionaries" else results.firstOrNull()?.name ?: "",

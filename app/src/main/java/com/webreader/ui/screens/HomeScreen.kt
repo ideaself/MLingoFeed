@@ -195,16 +195,18 @@ fun HomeScreen(
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
                 itemsIndexed(filteredBookmarks, key = { _, item -> item.id }) { index, bookmark ->
+                    var dismissThresholdMet by remember { mutableStateOf(false) }
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = { value ->
-                            if (value == SwipeToDismissBoxValue.EndToStart) {
+                            if (value == SwipeToDismissBoxValue.EndToStart && dismissThresholdMet) {
                                 bookmarkToDelete = bookmark
-                                false
-                            } else {
-                                false
                             }
+                            false
                         }
                     )
+                    LaunchedEffect(dismissState.progress) {
+                        dismissThresholdMet = dismissState.progress > 0.3f
+                    }
 
                     SwipeToDismissBox(
                         state = dismissState,
