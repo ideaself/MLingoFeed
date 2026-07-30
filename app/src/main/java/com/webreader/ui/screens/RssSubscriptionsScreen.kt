@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import com.webreader.WebReaderApp
 import com.webreader.data.database.RssSubscription
 import com.webreader.data.repository.RssParser
-import com.webreader.data.repository.RssRepository
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -67,15 +66,9 @@ fun RssSubscriptionsScreen(
     var showAddDialog by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<RssSubscription?>(null) }
     var editingSub by remember { mutableStateOf<RssSubscription?>(null) }
-    var initDone by remember { mutableStateOf(false) }
-
-    LaunchedEffect(subscriptions.isEmpty()) {
-        if (subscriptions.isEmpty() && !initDone) {
-            initDone = true
-            RssRepository.DEFAULT_SUBSCRIPTIONS.forEach { (title, url, category) ->
-                app.rssRepository.addSubscription(title, url, category)
-            }
-        }
+    LaunchedEffect(Unit) {
+        app.rssRepository.cleanupDuplicates()
+        app.rssRepository.initDefaultSubscriptions()
     }
 
     Scaffold(
@@ -94,7 +87,6 @@ fun RssSubscriptionsScreen(
                     IconButton(onClick = {
                         scope.launch {
                             app.rssRepository.deleteAllSubscriptions()
-                            initDone = false
                         }
                     }) {
                         Icon(Icons.Default.DeleteSweep, contentDescription = "Reset")

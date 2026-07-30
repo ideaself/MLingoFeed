@@ -23,6 +23,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -57,17 +58,24 @@ import androidx.lifecycle.LifecycleEventObserver
 import com.webreader.WebReaderApp
 import com.webreader.data.database.Bookmark
 import com.webreader.ui.components.ChatDialog
-import com.webreader.ui.components.CollocationDialog
 import com.webreader.ui.components.DictionaryPopup
-import com.webreader.ui.components.DifficultyDialog
 import com.webreader.ui.components.TranslationPopup
 import com.webreader.webview.ReaderParagraph
 import com.webreader.webview.ReaderTab
 import com.webreader.webview.createReaderWebView
+import com.webreader.webview.clearPageTranslations
 import com.webreader.webview.injectReaderMode
 import com.webreader.webview.injectSelectionScript
+import com.webreader.webview.injectTranslationStyles
+import com.webreader.webview.prepareTranslationParagraphs
+import com.webreader.webview.updateParagraphTranslation
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import kotlin.coroutines.resume
+import kotlinx.coroutines.suspendCancellableCoroutine
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -85,20 +93,20 @@ fun ReaderScreen(
     var showDictionary by remember { mutableStateOf(false) }
     var showTranslation by remember { mutableStateOf(false) }
     var showChat by remember { mutableStateOf(false) }
-    var showDifficulty by remember { mutableStateOf(false) }
-    var showCollocation by remember { mutableStateOf(false) }
-    var collocationLoading by remember { mutableStateOf(false) }
-    var collocationResult by remember { mutableStateOf<String?>(null) }
+    var isTranslating by remember { mutableStateOf(false) }
+    var translateProgress by remember { mutableStateOf("") }
     var showReaderMode by remember { mutableStateOf(false) }
     var readerModeTitle by remember { mutableStateOf("") }
     var readerModeParagraphs by remember { mutableStateOf<List<ReaderParagraph>>(emptyList()) }
     var readerModeImages by remember { mutableStateOf<List<String>>(emptyList()) }
-    var difficultyLoading by remember { mutableStateOf(false) }
-    var difficultyResult by remember { mutableStateOf<String?>(null) }
     var selectedWord by remember { mutableStateOf("") }
     var selectedSentence by remember { mutableStateOf("") }
 
     val fontSize by app.settingsManager.fontSize.collectAsState(initial = 100)
+    val apiUrl by app.settingsManager.aiApiUrl.collectAsState(initial = "")
+    val apiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
+    val model by app.settingsManager.aiModel.collectAsState(initial = "")
+    val targetLang by app.settingsManager.translateTargetLang.collectAsState(initial = "Chinese")
 
     val currentTab = tabs.getOrNull(selectedIndex)
 
@@ -115,16 +123,96 @@ fun ReaderScreen(
         if (selectedIndex < 0) selectedIndex = 0
     }
 
+    fun startTranslation() {
+        if (isTranslating) {
+            isTranslating = false
+            translateProgress = ""
+            clearPageTranslations(currentTab?.webView)
+            return
+        }
+        if (apiKey.isBlank()) return
+        isTranslating = true
+        translateProgress = "Preparing..."
+
+        scope.launch {
+            val wv = currentTab?.webView
+            if (wv == null) {
+                isTranslating = false
+                translateProgress = ""
+                return@launch
+            }
+            val paraCount = withContext(Dispatchers.Main) {
+                injectTranslationStyles(wv)
+                suspendCancellableCoroutine<Int> { cont ->
+                    prepareTranslationParagraphs(wv) { count ->
+                        if (cont.isActive) cont.resume(count) {}
+                    }
+                }
+            }
+            if (paraCount == 0 || !isTranslating) {
+                isTranslating = false
+                withContext(Dispatchers.Main) {
+                    wv.evaluateJavascript("""
+                        (function() {
+                            var loadings = document.querySelectorAll('.__wr-translation-loading');
+                            loadings.forEach(function(el) { el.remove(); });
+                        })();
+                    """.trimIndent(), null)
+                }
+                translateProgress = ""
+                return@launch
+            }
+            var currentIndex = 0
+            while (isTranslating && isActive && currentIndex < paraCount) {
+                val text = withContext(Dispatchers.Main) {
+                    getTextByIndex(wv, currentIndex)
+                }
+                if (text == null) { currentIndex++; continue }
+                translateProgress = "Translating ${currentIndex + 1}/$paraCount..."
+                val translation = withContext(Dispatchers.IO) {
+                    try {
+                        app.chatRepository.translate(text, targetLang, apiUrl, apiKey, model)
+                    } catch (e: Exception) { "Error: ${e.message}" }
+                }
+                withContext(Dispatchers.Main) {
+                    updateParagraphTranslation(wv, currentIndex, translation)
+                }
+                currentIndex++
+                kotlinx.coroutines.delay(50)
+            }
+            isTranslating = false
+            withContext(Dispatchers.Main) {
+                wv.evaluateJavascript("""
+                    (function() {
+                        var loadings = document.querySelectorAll('.__wr-translation-loading');
+                        loadings.forEach(function(el) { el.remove(); });
+                    })();
+                """.trimIndent(), null)
+            }
+            translateProgress = ""
+        }
+    }
+
     Scaffold(
         topBar = {
             Column {
                 TopAppBar(
                     title = {
-                        Text(
-                            text = currentTab?.title ?: "Loading...",
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis
-                        )
+                        Column {
+                            Text(
+                                text = currentTab?.title ?: "Loading...",
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis
+                            )
+                            if (isTranslating && translateProgress.isNotEmpty()) {
+                                Text(
+                                    text = translateProgress,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1
+                                )
+                            }
+                        }
                     },
                     navigationIcon = {
                         IconButton(onClick = {
@@ -136,28 +224,12 @@ fun ReaderScreen(
                         }
                     },
                     actions = {
-                        IconButton(onClick = {
-                            val wv = currentTab?.webView ?: return@IconButton
-                            injectReaderMode(wv) { t, p, img ->
-                                readerModeTitle = t
-                                readerModeParagraphs = p
-                                readerModeImages = img
-                                showReaderMode = true
-                            }
-                        }) {
-                            Text("R", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        }
-                        IconButton(onClick = {
-                            showCollocation = true
-                            collocationResult = null
-                        }) {
-                            Text("C", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
-                        }
-                        IconButton(onClick = {
-                            showDifficulty = true
-                            difficultyResult = null
-                        }) {
-                            Text("D", style = MaterialTheme.typography.titleMedium, fontWeight = androidx.compose.ui.text.font.FontWeight.Bold)
+                        IconButton(onClick = { startTranslation() }) {
+                            Text(
+                                text = if (isTranslating) "\u23F9" else "\u8BD1",
+                                style = MaterialTheme.typography.titleMedium,
+                                fontWeight = androidx.compose.ui.text.font.FontWeight.Bold
+                            )
                         }
                         IconButton(onClick = {
                             scope.launch {
@@ -251,86 +323,6 @@ fun ReaderScreen(
     if (showChat) {
         ChatDialog(initialContext = selectedSentence.ifEmpty { selectedWord }, onDismiss = { showChat = false })
     }
-    if (showDifficulty) {
-        DifficultyDialog(
-            isLoading = difficultyLoading,
-            result = difficultyResult,
-            onDismiss = { showDifficulty = false },
-            onAnalyze = {
-                difficultyLoading = true
-                scope.launch {
-                    val tab = currentTab ?: run {
-                        difficultyLoading = false
-                        return@launch
-                    }
-                    val wv = tab.webView
-                    if (wv == null) {
-                        difficultyLoading = false
-                        return@launch
-                    }
-                    wv.evaluateJavascript("document.body.innerText") { text ->
-                        if (text == null || text.length < 50) {
-                            difficultyLoading = false
-                            difficultyResult = "Error: No readable content found"
-                            return@evaluateJavascript
-                        }
-                        val cleanText = text.removeSurrounding("\"").replace("\\n", "\n").replace("\\\"", "\"")
-                        scope.launch {
-                            val apiUrl = app.settingsManager.aiApiUrl.first()
-                            val apiKey = app.settingsManager.aiApiKey.first()
-                            val model = app.settingsManager.aiModel.first()
-                            if (apiKey.isBlank()) {
-                                difficultyResult = "Error: Please configure AI API key in Settings"
-                                difficultyLoading = false
-                                return@launch
-                            }
-                            val result = app.chatRepository.analyzeDifficulty(cleanText, apiUrl, apiKey, model)
-                            difficultyResult = result
-                            difficultyLoading = false
-                        }
-                    }
-                }
-            }
-        )
-    }
-    if (showCollocation) {
-        CollocationDialog(
-            isLoading = collocationLoading,
-            result = collocationResult,
-            onDismiss = { showCollocation = false },
-            onAnalyze = {
-                collocationLoading = true
-                scope.launch {
-                    val wv = currentTab?.webView
-                    if (wv == null) {
-                        collocationLoading = false
-                        return@launch
-                    }
-                    wv.evaluateJavascript("document.body.innerText") { text ->
-                        if (text == null || text.length < 50) {
-                            collocationLoading = false
-                            collocationResult = "Error: No readable content found"
-                            return@evaluateJavascript
-                        }
-                        val cleanText = text.removeSurrounding("\"").replace("\\n", "\n").replace("\\\"", "\"")
-                        scope.launch {
-                            val apiUrl = app.settingsManager.aiApiUrl.first()
-                            val apiKey = app.settingsManager.aiApiKey.first()
-                            val model = app.settingsManager.aiModel.first()
-                            if (apiKey.isBlank()) {
-                                collocationResult = "Error: Please configure AI API key in Settings"
-                                collocationLoading = false
-                                return@launch
-                            }
-                            val result = app.chatRepository.detectCollocations(cleanText, apiUrl, apiKey, model)
-                            collocationResult = result
-                            collocationLoading = false
-                        }
-                    }
-                }
-            }
-        )
-    }
     if (showReaderMode) {
         ReaderModeScreen(
             title = readerModeTitle,
@@ -343,6 +335,35 @@ fun ReaderScreen(
                 showChat = true
             }
         )
+    }
+}
+
+private suspend fun getTextByIndex(webView: WebView?, index: Int): String? {
+    if (webView == null) return null
+    return suspendCancellableCoroutine { cont ->
+        webView.evaluateJavascript(
+            """
+            (function() {
+                var texts = window.__wrTexts || [];
+                var text = texts[${index}];
+                if (!text || text.length === 0) return null;
+                if (text.length > 2000) text = text.substring(0, 2000);
+                return JSON.stringify(text);
+            })();
+            """.trimIndent()
+        ) { value ->
+            if (!cont.isActive) return@evaluateJavascript
+            if (value != null && value != "null") {
+                try {
+                    val cleaned = value.trim('"').replace("\\\"", "\"").replace("\\n", "\n")
+                    cont.resume(cleaned) {}
+                } catch (_: Exception) {
+                    cont.resume(null) {}
+                }
+            } else {
+                cont.resume(null) {}
+            }
+        }
     }
 }
 

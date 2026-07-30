@@ -4,24 +4,95 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Globe outline -->
+
+    <!-- Left book page -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,26c-15.5,0 -28,12.5 -28,28s12.5,28 28,28 28,-12.5 28,-28 -12.5,-28 -28,-28zM54,30c13.3,0 24,10.7 24,24s-10.7,24 -24,24 -24,-10.7 -24,-24 10.7,-24 24,-24z" />
-    <!-- Vertical meridian -->
+        android:pathData="M54,32 L30,32 C28,32 26,34 26,36 L26,72 C26,74 28,76 30,76 L54,76 Z" />
+
+    <!-- Right book page -->
     <path
         android:fillColor="#FFFFFF"
-        android:pathData="M54,30c-2,0 -3.5,6 -3.5,24s1.5,24 3.5,24 3.5,-6 3.5,-24 -1.5,-24 -3.5,-24z" />
-    <!-- Horizontal equator -->
+        android:pathData="M54,32 L78,32 C80,32 82,34 82,36 L82,72 C82,74 80,76 78,76 L54,76 Z" />
+
+    <!-- Book spine shadow -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M30,54h48v4h-48z" />
-    <!-- Left curve meridian -->
+        android:fillColor="#00000000"
+        android:pathData="M54,32 L54,76"
+        android:strokeColor="#6650a4"
+        android:strokeWidth="1.5" />
+
+    <!-- Left page lines (text) -->
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,40c5,5 12,8 20,8s15,-3 20,-8c-5,-5 -12,-8 -20,-8s-15,3 -20,8z" />
-    <!-- Right curve meridian -->
+        android:pathData="M32,42 L50,42"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
     <path
-        android:fillColor="#FFFFFF"
-        android:pathData="M34,68c5,-5 12,-8 20,-8s15,3 20,8c-5,5 -12,8 -20,8s-15,-3 -20,-8z" />
+        android:pathData="M32,48 L48,48"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32,54 L50,54"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32,60 L46,60"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M32,66 L44,66"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- Right page lines (text) -->
+    <path
+        android:pathData="M58,42 L76,42"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M58,48 L74,48"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M58,54 L76,54"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M58,60 L72,60"
+        android:strokeColor="#FFB300"
+        android:strokeWidth="2"
+        android:strokeLineCap="round" />
+
+    <!-- Small globe on right page -->
+    <path
+        android:fillColor="#6650a4"
+        android:pathData="M70,68 m-5,0 a5,5 0,1 1,10 0 a5,5 0,1 1,-10 0" />
+    <path
+        android:pathData="M70,63 v10 M65,68 h10"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="0.8"
+        android:strokeLineCap="round" />
+
+    <!-- WiFi/signal waves above book (web concept) -->
+    <path
+        android:pathData="M44,28 Q54,22 64,28"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+    <path
+        android:pathData="M48,31 Q54,27 60,31"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="1.8"
+        android:strokeLineCap="round"
+        android:fillColor="#00000000" />
+
 </vector>

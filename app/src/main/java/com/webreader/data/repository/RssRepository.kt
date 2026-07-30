@@ -51,18 +51,37 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun initDefaultSubscriptions() {
-        val existing = rssDao.getAllSubscriptions()
-        // Only init if empty - we check by querying once
+        val existingUrls = rssDao.getAllUrls().toSet()
+        DEFAULT_SUBSCRIPTIONS.forEach { (title, url, category) ->
+            if (url !in existingUrls) {
+                rssDao.insertSubscription(
+                    RssSubscription(title = title, url = url, category = category)
+                )
+            }
+        }
+    }
+
+    suspend fun cleanupDuplicates() {
+        val allSubs = rssDao.getAllSubscriptionsSync()
+        val seen = mutableSetOf<String>()
+        for (sub in allSubs) {
+            if (sub.url in seen) {
+                rssDao.deleteArticlesBySubscription(sub.id)
+                rssDao.deleteSubscription(sub.id)
+            } else {
+                seen.add(sub.url)
+            }
+        }
     }
 
     companion object {
         val DEFAULT_SUBSCRIPTIONS = listOf(
             Triple("BBC Learning English", "https://feeds.bbci.co.uk/learningenglish/english/features/6-minute-english/rss.xml", "English"),
-            Triple("VOA Learning English", "https://learningenglish.voanews.com/api/zkqxyipq-$", "English"),
-            Triple("CNN Top Stories", "http://rss.cnn.com/rss/edition.rss", "English"),
+            Triple("VOA Learning English", "https://learningenglish.voanews.com/api/zkqiq-ev-ei", "English"),
+            Triple("CNN Top Stories", "https://rss.cnn.com/rss/edition.rss", "English"),
             Triple("NY Times", "https://rss.nytimes.com/services/xml/rss/nyt/HomePage.xml", "English"),
-            Triple("Reuters", "https://www.rss.reuters.com/news/world", "English"),
-            Triple("The Guardian", "https://www.theguardian.com/world/rss", "English"),
+            Triple("Reuters World", "https://www.reutersagency.com/feed/?taxonomy=best-sectors&post_type=best", "English"),
+            Triple("The Guardian World", "https://www.theguardian.com/world/rss", "English"),
             Triple("NPR News", "https://feeds.npr.org/1001/rss.xml", "English"),
             Triple("TIME", "https://time.com/feed/", "English")
         )

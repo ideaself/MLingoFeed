@@ -12,6 +12,9 @@ interface RssDao {
     @Query("SELECT * FROM rss_subscriptions ORDER BY createdAt ASC")
     fun getAllSubscriptions(): Flow<List<RssSubscription>>
 
+    @Query("SELECT * FROM rss_subscriptions ORDER BY createdAt ASC")
+    suspend fun getAllSubscriptionsSync(): List<RssSubscription>
+
     @Query("SELECT * FROM rss_subscriptions WHERE id = :id LIMIT 1")
     suspend fun getSubscriptionById(id: Long): RssSubscription?
 
@@ -44,4 +47,10 @@ interface RssDao {
 
     @Query("DELETE FROM rss_subscriptions")
     suspend fun deleteAllSubscriptions()
+
+    @Query("SELECT COUNT(*) FROM rss_subscriptions")
+    suspend fun getSubscriptionCount(): Int
+
+    @Query("SELECT url FROM rss_subscriptions")
+    suspend fun getAllUrls(): List<String>
 }
