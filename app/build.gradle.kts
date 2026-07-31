@@ -72,5 +72,6 @@ dependencies {
     implementation(libs.jsoup)
     implementation(libs.reorderable)
     implementation(libs.coil.compose)
+    implementation(libs.work.runtime.ktx)
     debugImplementation(libs.androidx.ui.tooling)
 }

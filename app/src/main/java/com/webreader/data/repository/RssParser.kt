@@ -6,13 +6,14 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
+import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
 import java.util.concurrent.TimeUnit
 
 object RssParser {
     private val client = OkHttpClient.Builder()
         .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
+        .readTimeout(20, TimeUnit.SECONDS)
         .followRedirects(true)
         .build()
 
@@ -30,10 +31,8 @@ object RssParser {
 
             val articles = mutableListOf<RssArticle>()
 
-            // RSS 2.0 <item>
             var items = doc.select("item")
             if (items.isEmpty()) {
-                // Atom <entry>
                 items = doc.select("entry")
             }
 
@@ -70,7 +69,80 @@ object RssParser {
         }
     }
 
-    private fun extractLink(item: org.jsoup.nodes.Element): String {
+    suspend fun fetchFullContent(articleUrl: String): String = withContext(Dispatchers.IO) {
+        try {
+            val request = Request.Builder()
+                .url(articleUrl)
+                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .build()
+            val response = client.newCall(request).execute()
+            val body = response.body?.string() ?: return@withContext ""
+            val doc = Jsoup.parse(body)
+
+            doc.select("script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, .comments, noscript").remove()
+
+            val content = extractMainContent(doc)
+            if (content.length > 200) {
+                return@withContext content
+            }
+
+            doc.body()?.text() ?: ""
+        } catch (e: Exception) {
+            ""
+        }
+    }
+
+    private fun extractMainContent(doc: org.jsoup.nodes.Document): String {
+        val selectors = listOf(
+            "article",
+            "[role='main']",
+            "main",
+            ".post-content",
+            ".article-content",
+            ".entry-content",
+            ".content-body",
+            ".story-body",
+            "#content-body",
+            ".post-body",
+            ".article-body",
+            ".story-content"
+        )
+
+        for (selector in selectors) {
+            val element = doc.selectFirst(selector)
+            if (element != null && element.text().length > 200) {
+                return cleanExtractedText(element)
+            }
+        }
+
+        var bestElement: Element? = null
+        var maxTextLength = 0
+        val paragraphs = doc.select("p")
+        for (p in paragraphs) {
+            val parent = p.parent() ?: continue
+            val textLength = parent.text().length
+            if (textLength > maxTextLength && textLength > 200) {
+                maxTextLength = textLength
+                bestElement = parent
+            }
+        }
+
+        if (bestElement != null) {
+            return cleanExtractedText(bestElement)
+        }
+
+        return doc.select("p").joinToString("\n\n") { it.text() }
+    }
+
+    private fun cleanExtractedText(element: Element): String {
+        element.select("script, style, iframe, .ad, .advertisement, .social-share, .related-articles, .newsletter-signup, noscript").remove()
+        return element.select("p, h1, h2, h3, h4, li")
+            .joinToString("\n\n") { it.text() }
+            .replace(Regex("\\n{3,}"), "\n\n")
+            .trim()
+    }
+
+    private fun extractLink(item: Element): String {
         val linkEl = item.selectFirst("link")
         val href = linkEl?.attr("href")
         if (!href.isNullOrBlank()) return href

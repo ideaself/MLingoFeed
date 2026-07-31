@@ -112,8 +112,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
         if (uri == null) return@rememberLauncherForActivityResult
         scope.launch {
             val bookmarks = app.bookmarkRepository.allBookmarks.first()
+            val subscriptions = app.rssRepository.allSubscriptions.first()
             val settings = app.settingsManager.getAllSettings()
-            val ok = ExportManager.exportToJson(context, uri, bookmarks, settings)
+            val ok = ExportManager.exportToJson(context, uri, bookmarks, settings, subscriptions)
             Toast.makeText(context, if (ok) "Export successful" else "Export failed", Toast.LENGTH_SHORT).show()
         }
     }
@@ -565,6 +566,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             text = {
                 Text("This will replace all current bookmarks and settings with the imported data.\n\n" +
                      "Bookmarks: ${data.bookmarks.size}\n" +
+                     "RSS Subscriptions: ${data.subscriptions.size}\n" +
                      "Settings: ${data.settings.size} items")
             },
             confirmButton = {
@@ -573,6 +575,13 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                         val repo = app.bookmarkRepository
                         repo.allBookmarks.first().forEach { repo.delete(it) }
                         data.bookmarks.forEach { repo.insert(it) }
+                        if (data.subscriptions.isNotEmpty()) {
+                            val rss = app.rssRepository
+                            val existingUrls = rss.allSubscriptions.first().map { it.url }
+                            data.subscriptions
+                                .filter { it.url !in existingUrls && it.title.isNotBlank() }
+                                .forEach { rss.addSubscription(it.title, it.url) }
+                        }
                         if (data.settings.isNotEmpty()) {
                             app.settingsManager.importSettings(data.settings)
                         }

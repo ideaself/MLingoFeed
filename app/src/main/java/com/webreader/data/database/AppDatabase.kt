@@ -6,8 +6,18 @@ import androidx.room.Room
 import androidx.room.RoomDatabase
 
 @Database(
-    entities = [Bookmark::class, History::class, RssSubscription::class, RssArticle::class, WordBookEntry::class],
-    version = 6,
+    entities = [
+        Bookmark::class,
+        History::class,
+        RssFolder::class,
+        RssSubscription::class,
+        RssArticle::class,
+        RssTag::class,
+        RssArticleTag::class,
+        RssRule::class,
+        WordBookEntry::class
+    ],
+    version = 7,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

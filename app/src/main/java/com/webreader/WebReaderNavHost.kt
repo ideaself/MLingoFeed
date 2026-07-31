@@ -11,10 +11,15 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.webreader.ui.screens.HistoryScreen
 import com.webreader.ui.screens.HomeScreen
-import com.webreader.ui.screens.RssArticlesScreen
 import com.webreader.ui.screens.ReaderScreen
 import com.webreader.ui.screens.ReadingStatsScreen
+import com.webreader.ui.screens.RssArticleDetailScreen
+import com.webreader.ui.screens.RssArticlesScreen
+import com.webreader.ui.screens.RssFavoritesScreen
+import com.webreader.ui.screens.RssSearchScreen
+import com.webreader.ui.screens.RssSettingsScreen
 import com.webreader.ui.screens.RssSubscriptionsScreen
+import com.webreader.ui.screens.RssUnreadScreen
 import com.webreader.ui.screens.SettingsScreen
 import com.webreader.ui.screens.WordBookScreen
 import com.webreader.ui.screens.WordQuizScreen
@@ -36,6 +41,13 @@ sealed class Screen(val route: String) {
             return "rss/$subscriptionId/$encodedTitle"
         }
     }
+    data object RssArticleDetail : Screen("rss/article/{articleId}") {
+        fun createRoute(articleId: Long): String = "rss/article/$articleId"
+    }
+    data object RssSearch : Screen("rss/search")
+    data object RssFavorites : Screen("rss/favorites")
+    data object RssUnread : Screen("rss/unread")
+    data object RssSettings : Screen("rss/settings")
     data object Reader : Screen("reader/{url}") {
         fun createRoute(url: String): String {
             val encoded = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
@@ -114,6 +126,18 @@ fun WebReaderNavHost(initialUrl: String? = null) {
                 onBack = { navController.popBackStack() },
                 onNavigateToArticles = { id, title ->
                     navController.navigate(Screen.RssArticles.createRoute(id, title))
+                },
+                onNavigateToSearch = {
+                    navController.navigate(Screen.RssSearch.route)
+                },
+                onNavigateToFavorites = {
+                    navController.navigate(Screen.RssFavorites.route)
+                },
+                onNavigateToUnread = {
+                    navController.navigate(Screen.RssUnread.route)
+                },
+                onNavigateToRssSettings = {
+                    navController.navigate(Screen.RssSettings.route)
                 }
             )
         }
@@ -130,9 +154,54 @@ fun WebReaderNavHost(initialUrl: String? = null) {
                 subscriptionId = subscriptionId,
                 subscriptionTitle = title,
                 onBack = { navController.popBackStack() },
+                onNavigateToArticle = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                },
                 onNavigateToReader = { url ->
                     navController.navigate(Screen.Reader.createRoute(url))
                 }
+            )
+        }
+        composable(
+            route = Screen.RssArticleDetail.route,
+            arguments = listOf(navArgument("articleId") { type = NavType.LongType })
+        ) { backStackEntry ->
+            val articleId = backStackEntry.arguments?.getLong("articleId") ?: 0L
+            RssArticleDetailScreen(
+                articleId = articleId,
+                onBack = { navController.popBackStack() },
+                onOpenExternal = { url ->
+                    navController.navigate(Screen.Reader.createRoute(url))
+                }
+            )
+        }
+        composable(Screen.RssSearch.route) {
+            RssSearchScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToArticle = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                }
+            )
+        }
+        composable(Screen.RssFavorites.route) {
+            RssFavoritesScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToArticle = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                }
+            )
+        }
+        composable(Screen.RssUnread.route) {
+            RssUnreadScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToArticle = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                }
+            )
+        }
+        composable(Screen.RssSettings.route) {
+            RssSettingsScreen(
+                onBack = { navController.popBackStack() }
             )
         }
         composable(

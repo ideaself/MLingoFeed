@@ -3,19 +3,27 @@ package com.webreader.data.export
 import android.content.Context
 import android.net.Uri
 import com.webreader.data.database.Bookmark
+import com.webreader.data.database.RssSubscription
 import org.json.JSONArray
 import org.json.JSONObject
 
 data class ExportData(
     val bookmarks: List<Bookmark>,
-    val settings: Map<String, String>
+    val settings: Map<String, String>,
+    val subscriptions: List<RssSubscription> = emptyList()
 )
 
 object ExportManager {
 
-    private const val CURRENT_VERSION = 1
+    private const val CURRENT_VERSION = 2
 
-    fun exportToJson(context: Context, uri: Uri, bookmarks: List<Bookmark>, settings: Map<String, String>): Boolean {
+    fun exportToJson(
+        context: Context,
+        uri: Uri,
+        bookmarks: List<Bookmark>,
+        settings: Map<String, String>,
+        subscriptions: List<RssSubscription> = emptyList()
+    ): Boolean {
         return try {
             val root = JSONObject().apply {
                 put("version", CURRENT_VERSION)
@@ -30,6 +38,15 @@ object ExportManager {
                     })
                 }
                 put("bookmarks", bmArray)
+
+                val subArray = JSONArray()
+                subscriptions.forEach { sub ->
+                    subArray.put(JSONObject().apply {
+                        put("title", sub.title)
+                        put("url", sub.url)
+                    })
+                }
+                put("rssSubscriptions", subArray)
 
                 put("settings", JSONObject(settings))
             }
@@ -74,7 +91,21 @@ object ExportManager {
                 }
             }
 
-            ExportData(bookmarks = bookmarks, settings = settingsMap)
+            val subscriptions = mutableListOf<RssSubscription>()
+            val subArray = root.optJSONArray("rssSubscriptions")
+            if (subArray != null) {
+                for (i in 0 until subArray.length()) {
+                    val obj = subArray.getJSONObject(i)
+                    subscriptions.add(
+                        RssSubscription(
+                            title = obj.optString("title", ""),
+                            url = obj.optString("url", "")
+                        )
+                    )
+                }
+            }
+
+            ExportData(bookmarks = bookmarks, settings = settingsMap, subscriptions = subscriptions)
         } catch (e: Exception) {
             null
         }
