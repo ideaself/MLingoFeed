@@ -36,7 +36,7 @@
 ## 构建运行
 
 ```bash
-git clone https://github.com/ideaself/web-reader.git
+git clone https://github.com/ideaself/MLingoFeed.git
 cd web-reader
 ```
 
