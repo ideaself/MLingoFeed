@@ -362,7 +362,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 Spacer(modifier = Modifier.height(12.dp))
                 Row(modifier = Modifier.fillMaxWidth()) {
                     Button(
-                        onClick = { exportLauncher.launch("web-reader-backup.json") },
+                        onClick = { exportLauncher.launch("MLingoFeed-backup.json") },
                         modifier = Modifier.weight(1f)
                     ) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
