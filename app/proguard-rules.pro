@@ -1,3 +1,3 @@
 # Add project specific ProGuard rules here.
--keep class com.webreader.data.database.** { *; }
--keep class com.webreader.data.api.** { *; }
+-keep class com.mlingofeed.data.database.** { *; }
+-keep class com.mlingofeed.data.api.** { *; }

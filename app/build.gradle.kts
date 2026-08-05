@@ -1,3 +1,5 @@
+import java.util.Properties
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -5,22 +7,36 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
+val localProps = Properties().apply {
+    val f = rootProject.file("local.properties")
+    if (f.exists()) f.inputStream().use { load(it) }
+}
+
 android {
-    namespace = "com.webreader"
+    namespace = "com.mlingofeed"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.webreader"
+        applicationId = "com.mlingofeed"
         minSdk = 26
         targetSdk = 35
         versionCode = 1
-        versionName = "1.0"
+        versionName = "1.0.0"
+    }
+
+    signingConfigs {
+        create("release") {
+            storeFile = file("release.jks")
+            storePassword = localProps.getProperty("MLINGOFEED_STORE_PASSWORD")
+            keyAlias = localProps.getProperty("MLINGOFEED_KEY_ALIAS", "mlingofeed")
+            keyPassword = localProps.getProperty("MLINGOFEED_KEY_PASSWORD")
+        }
     }
 
     buildTypes {
         release {
             isMinifyEnabled = false
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
             ndk { debugSymbolLevel = "NONE" }
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
@@ -29,6 +45,12 @@ android {
         }
         debug {
             isMinifyEnabled = false
+        }
+    }
+    applicationVariants.all {
+        outputs.all {
+            val output = this as com.android.build.gradle.internal.api.BaseVariantOutputImpl
+            output.outputFileName = "MLingoFeed-${name}.apk"
         }
     }
     packaging {
@@ -45,6 +67,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 
@@ -52,6 +75,7 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
     implementation(libs.androidx.lifecycle.viewmodel.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.androidx.activity.compose)
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.ui)

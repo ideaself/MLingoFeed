@@ -2,6 +2,7 @@
 .gradle/
 build/
 local.properties
+.kotlin/
 
 # Android Studio
 .idea/
@@ -12,7 +13,6 @@ local.properties
 
 # Build outputs
 /app/build/
-/app-debug.apk
 
 # NDK
 obj/
