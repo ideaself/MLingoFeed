@@ -20,6 +20,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     val dictionaries = app.settingsManager.dictionaries.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 100)
+    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 17f)
     val themeMode = app.settingsManager.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, "system")
     val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
     val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -123,6 +124,10 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun setFontSize(size: Int) {
         viewModelScope.launch { app.settingsManager.setFontSize(size) }
+    }
+
+    fun setRssFontSize(size: Float) {
+        viewModelScope.launch { app.settingsManager.setRssFontSize(size) }
     }
 
     fun resetReadingTime() {

@@ -77,6 +77,7 @@ fun RssArticleDetailScreen(
     remember(articleId) { vm.ensureLoaded(articleId) }
 
     val subscriptions by vm.subscriptions.collectAsState()
+    val rssFontSize by vm.rssFontSize.collectAsState()
 
     val paragraphs = remember(vm.fullContent) {
         if (vm.fullContent.isNullOrBlank()) emptyList()
@@ -174,7 +175,7 @@ fun RssArticleDetailScreen(
                 Text(
                     articleData.title,
                     style = MaterialTheme.typography.headlineSmall,
-                    fontSize = (vm.fontSize + 4).sp,
+                    fontSize = (rssFontSize + 4).sp,
                     modifier = Modifier.padding(vertical = 12.dp)
                 )
 
@@ -194,17 +195,6 @@ fun RssArticleDetailScreen(
                     }
                 }
 
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Icon(Icons.Default.Translate, contentDescription = null, modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Slider(value = vm.fontSize, onValueChange = { vm.updateFontSize(it) }, valueRange = 13f..24f, modifier = Modifier.weight(1f))
-                    Spacer(modifier = Modifier.width(8.dp))
-                    Text("${vm.fontSize.toInt()}sp", style = MaterialTheme.typography.labelSmall)
-                }
-
                 Spacer(modifier = Modifier.height(4.dp))
 
                 if (vm.isLoadingContent) {
@@ -221,7 +211,7 @@ fun RssArticleDetailScreen(
                             ParagraphBlock(
                                 index = index,
                                 text = paragraph.trim(),
-                                fontSize = vm.fontSize,
+                                fontSize = rssFontSize,
                                 isTranslating = vm.translatingParagraphs[index] == true,
                                 translation = vm.translatedParagraphs[index],
                                 onWordTap = { word ->
@@ -242,7 +232,7 @@ fun RssArticleDetailScreen(
                 } else if (articleData.description.isNotBlank()) {
                     ParagraphText(
                         text = articleData.description.trim(),
-                        fontSize = vm.fontSize,
+                        fontSize = rssFontSize,
                         onWordTap = { word ->
                             val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
                             if (clean.length >= 2) {

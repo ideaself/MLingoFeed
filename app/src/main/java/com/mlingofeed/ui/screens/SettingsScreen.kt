@@ -86,6 +86,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
 
     val dictionaries by vm.dictionaries.collectAsState()
     val fontSize by vm.fontSize.collectAsState()
+    val rssFontSize by vm.rssFontSize.collectAsState()
     val themeMode by vm.themeMode.collectAsState()
     val readingTimeSeconds by vm.readingTimeSeconds.collectAsState()
     val readingSessions by vm.readingSessions.collectAsState()
@@ -194,8 +195,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 imageVector = Icons.Default.FormatSize,
                 expanded = vm.expandedSection == "font_size",
                 onToggle = { vm.toggleSection("font_size") },
-                summary = "${fontSize}%"
+                summary = "Web ${fontSize}% · RSS ${rssFontSize.toInt()}sp"
             ) {
+                Text("Web Reader Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -212,6 +214,29 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 }
                 Text(
                     text = "${fontSize}%",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                Text("RSS Article Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("A", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
+                    Slider(
+                        value = rssFontSize,
+                        onValueChange = { vm.setRssFontSize(it) },
+                        valueRange = 13f..24f,
+                        steps = 10,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text("A", style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(32.dp))
+                }
+                Text(
+                    text = "${rssFontSize.toInt()}sp",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

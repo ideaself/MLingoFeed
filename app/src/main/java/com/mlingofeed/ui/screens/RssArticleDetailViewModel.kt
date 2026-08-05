@@ -1,7 +1,6 @@
 package com.mlingofeed.ui.screens
 
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -54,8 +53,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     val translatedParagraphs = mutableStateMapOf<Int, String>()
     val translatingParagraphs = mutableStateMapOf<Int, Boolean>()
 
-    var fontSize by mutableFloatStateOf(17f)
-        private set
+    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 17f)
 
     private var initializedArticleId: Long? = null
 
@@ -79,10 +77,6 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 fullContent = loaded.content
             }
         }
-    }
-
-    fun updateFontSize(value: Float) {
-        fontSize = value
     }
 
     fun openDictionary(word: String) {

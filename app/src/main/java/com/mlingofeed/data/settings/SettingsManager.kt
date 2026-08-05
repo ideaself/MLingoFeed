@@ -31,6 +31,7 @@ class SettingsManager(private val context: Context) {
         val AI_MODEL = stringPreferencesKey("ai_model")
         val TRANSLATE_TARGET_LANG = stringPreferencesKey("translate_target_lang")
         val FONT_SIZE = stringPreferencesKey("font_size")
+        val RSS_FONT_SIZE = stringPreferencesKey("rss_font_size")
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val READING_TIME_SECONDS = stringPreferencesKey("reading_time_seconds")
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
@@ -107,6 +108,10 @@ class SettingsManager(private val context: Context) {
         prefs[FONT_SIZE]?.toIntOrNull() ?: 100
     }
 
+    val rssFontSize: Flow<Float> = context.dataStore.data.map { prefs ->
+        prefs[RSS_FONT_SIZE]?.toFloatOrNull() ?: 17f
+    }
+
     val themeMode: Flow<String> = context.dataStore.data.map { prefs ->
         prefs[THEME_MODE] ?: "system"
     }
@@ -139,6 +144,10 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setFontSize(size: Int) {
         context.dataStore.edit { prefs -> prefs[FONT_SIZE] = size.toString() }
+    }
+
+    suspend fun setRssFontSize(size: Float) {
+        context.dataStore.edit { prefs -> prefs[RSS_FONT_SIZE] = size.toString() }
     }
 
     suspend fun setThemeMode(mode: String) {
@@ -195,6 +204,7 @@ class SettingsManager(private val context: Context) {
             "ai_model" to (prefs[AI_MODEL] ?: "deepseek-v4-flash"),
             "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese"),
             "font_size" to (prefs[FONT_SIZE]?.toString() ?: "100"),
+            "rss_font_size" to (prefs[RSS_FONT_SIZE]?.toString() ?: "17"),
             "theme_mode" to (prefs[THEME_MODE] ?: "system"),
             "reading_time_seconds" to (prefs[READING_TIME_SECONDS]?.toString() ?: "0")
         )
@@ -208,6 +218,7 @@ class SettingsManager(private val context: Context) {
             settings["ai_model"]?.let { prefs[AI_MODEL] = it }
             settings["translate_target_lang"]?.let { prefs[TRANSLATE_TARGET_LANG] = it }
             settings["font_size"]?.let { prefs[FONT_SIZE] = it }
+            settings["rss_font_size"]?.let { prefs[RSS_FONT_SIZE] = it }
             settings["theme_mode"]?.let { prefs[THEME_MODE] = it }
             settings["reading_time_seconds"]?.let { prefs[READING_TIME_SECONDS] = it }
         }
