@@ -1,5 +1,6 @@
 package com.mlingofeed.ui.screens
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -18,10 +19,10 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
+import androidx.compose.material.icons.filled.Home
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -67,6 +68,7 @@ import kotlinx.coroutines.launch
 fun ReaderScreen(
     initialUrl: String,
     onBack: () -> Unit,
+    onGoHome: () -> Unit,
     onOpenUrl: (String) -> Unit = {}
 ) {
     val context = LocalContext.current
@@ -77,6 +79,12 @@ fun ReaderScreen(
     val fontSize by vm.fontSize.collectAsState()
 
     val currentTab = vm.currentTab
+
+    BackHandler {
+        currentTab?.webView?.let { wv ->
+            if (wv.canGoBack()) wv.goBack() else onBack()
+        } ?: onBack()
+    }
 
     Scaffold(
         topBar = {
@@ -100,12 +108,8 @@ fun ReaderScreen(
                         }
                     },
                     navigationIcon = {
-                        IconButton(onClick = {
-                            currentTab?.webView?.let { wv ->
-                                if (wv.canGoBack()) wv.goBack() else onBack()
-                            } ?: onBack()
-                        }) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        IconButton(onClick = onGoHome) {
+                            Icon(Icons.Default.Home, contentDescription = "Home")
                         }
                     },
                     actions = {

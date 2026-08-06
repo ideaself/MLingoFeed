@@ -213,6 +213,9 @@ fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
             ReaderScreen(
                 initialUrl = url,
                 onBack = { navController.popBackStack() },
+                onGoHome = {
+                    navController.popBackStack(Screen.Home.route, inclusive = false)
+                },
                 onOpenUrl = { newUrl ->
                     navController.navigate(Screen.Reader.createRoute(newUrl))
                 }
