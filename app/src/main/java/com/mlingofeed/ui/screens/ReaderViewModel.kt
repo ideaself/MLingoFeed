@@ -45,6 +45,8 @@ class ReaderViewModel(
         private set
     var selectedSentence by mutableStateOf("")
         private set
+    var wordSelectionEnabled by mutableStateOf(true)
+        private set
 
     val currentTab: ReaderTab? get() = tabs.getOrNull(selectedIndex)
 
@@ -103,6 +105,10 @@ class ReaderViewModel(
 
     fun dismissChat() {
         showChat = false
+    }
+
+    fun toggleWordSelection() {
+        wordSelectionEnabled = !wordSelectionEnabled
     }
 
     fun toggleBookmark() {

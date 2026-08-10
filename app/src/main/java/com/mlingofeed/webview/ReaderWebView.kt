@@ -12,7 +12,8 @@ fun createReaderWebView(
     onWordTapped: (String) -> Unit,
     onSentenceLongPressed: (String) -> Unit,
     onPageFinished: (String?) -> Unit,
-    onPageStarted: () -> Unit = {}
+    onPageStarted: () -> Unit = {},
+    selectionEnabled: () -> Boolean = { true }
 ): WebView {
     return WebView(context).apply {
         settings.javaScriptEnabled = true
@@ -36,6 +37,7 @@ fun createReaderWebView(
             override fun onPageFinished(view: WebView?, url: String?) {
                 super.onPageFinished(view, url)
                 injectSelectionScript(view)
+                setSelectionScriptEnabled(view, selectionEnabled())
                 onPageFinished(view?.title)
             }
 
@@ -70,12 +72,21 @@ fun injectSelectionScript(webView: WebView?) {
                 let isScrolling = false;
                 let touchStartX = 0;
                 let touchStartY = 0;
+                let enabled = (window.__webReaderSelectionEnabled !== false);
+                window.__webReaderSelectionEnabled = enabled;
 
-                document.documentElement.style.webkitUserSelect = 'none';
-                document.documentElement.style.userSelect = 'none';
-                document.documentElement.style.webkitTouchCallout = 'none';
+                window.__webReaderSetSelectionEnabled = function(flag) {
+                    enabled = !!flag;
+                    window.__webReaderSelectionEnabled = enabled;
+                    var uSelect = enabled ? 'none' : '';
+                    document.documentElement.style.webkitUserSelect = uSelect;
+                    document.documentElement.style.userSelect = uSelect;
+                    document.documentElement.style.webkitTouchCallout = uSelect;
+                };
+                window.__webReaderSetSelectionEnabled(enabled);
 
                 document.addEventListener('contextmenu', function(e) {
+                    if (!enabled) return;
                     e.preventDefault();
                     e.stopPropagation();
                     return false;
@@ -117,6 +128,7 @@ fun injectSelectionScript(webView: WebView?) {
                 }
 
                 document.addEventListener('touchstart', function(e) {
+                    if (!enabled) return;
                     var touch = e.touches[0];
                     touchStartX = touch.clientX;
                     touchStartY = touch.clientY;
@@ -134,6 +146,7 @@ fun injectSelectionScript(webView: WebView?) {
                 }, true);
 
                 document.addEventListener('touchmove', function(e) {
+                    if (!enabled) return;
                     var touch = e.touches[0];
                     if (Math.abs(touch.clientX - touchStartX) > 10 ||
                         Math.abs(touch.clientY - touchStartY) > 10) {
@@ -143,6 +156,7 @@ fun injectSelectionScript(webView: WebView?) {
                 }, true);
 
                 document.addEventListener('touchend', function(e) {
+                    if (!enabled) return;
                     clearTimeout(longPressTimer);
                     if (!isLongPress && !isScrolling) {
                         var touch = e.changedTouches[0];
@@ -156,6 +170,7 @@ fun injectSelectionScript(webView: WebView?) {
                 }, true);
 
                 document.addEventListener('click', function(e) {
+                    if (!enabled) return;
                     var result = getWordAtPoint(e.clientX, e.clientY);
                     if (result && result.word) {
                         Android.onWordSelected(result.word);
@@ -357,6 +372,13 @@ fun clearPageTranslations(webView: WebView?) {
             window.__wrPickedUp = {};
         })();
         """.trimIndent(),
+        null
+    )
+}
+
+fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
+    webView?.evaluateJavascript(
+        "window.__webReaderSetSelectionEnabled ? window.__webReaderSetSelectionEnabled($enabled) : null",
         null
     )
 }

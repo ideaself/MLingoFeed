@@ -60,6 +60,7 @@ import com.mlingofeed.ui.components.TranslationPopup
 import com.mlingofeed.webview.ReaderTab
 import com.mlingofeed.webview.createReaderWebView
 import com.mlingofeed.webview.injectSelectionScript
+import com.mlingofeed.webview.setSelectionScriptEnabled
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
@@ -182,12 +183,29 @@ fun ReaderScreen(
                         } else {
                             WebViewContent(
                                 tab = tab, url = tab.url, fontSize = fontSize, app = app,
-                                onWordTapped = { vm.openDictionary(it) },
+                                selectionEnabled = { vm.wordSelectionEnabled },
+                                onWordTapped = { if (vm.wordSelectionEnabled) vm.openDictionary(it) },
                                 onSentenceLongPressed = { vm.openTranslation(it) }
                             )
                         }
                     }
                 }
+            }
+            Surface(
+                modifier = Modifier
+                    .align(Alignment.BottomStart)
+                    .padding(12.dp)
+                    .clip(RoundedCornerShape(20.dp))
+                    .clickable { vm.toggleWordSelection() },
+                color = if (vm.wordSelectionEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant,
+                shadowElevation = 4.dp
+            ) {
+                Text(
+                    text = "选词",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (vm.wordSelectionEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant
+                )
             }
         }
     }
@@ -234,6 +252,7 @@ private fun NewTabPage(app: WebReaderApp, onOpenUrl: (String) -> Unit) {
 @Composable
 private fun WebViewContent(
     tab: ReaderTab, url: String, fontSize: Int, app: WebReaderApp,
+    selectionEnabled: () -> Boolean,
     onWordTapped: (String) -> Unit, onSentenceLongPressed: (String) -> Unit
 ) {
     val context = LocalContext.current
@@ -299,15 +318,23 @@ private fun WebViewContent(
 
     LaunchedEffect(fontSize) { tab.webView?.settings?.textZoom = fontSize }
 
+    LaunchedEffect(selectionEnabled()) {
+        setSelectionScriptEnabled(tab.webView, selectionEnabled())
+    }
+
     Box(modifier = Modifier.fillMaxSize()) {
         AndroidView(
             factory = { ctx ->
                 createReaderWebView(
                     context = ctx,
+                    selectionEnabled = selectionEnabled,
                     onWordTapped = onWordTapped,
                     onSentenceLongPressed = onSentenceLongPressed,
                     onPageFinished = { title -> title?.let { pageTitleRef.value = it; tab.title = it } },
-                    onPageStarted = { injectSelectionScript(tab.webView) }
+                    onPageStarted = {
+                        injectSelectionScript(tab.webView)
+                        setSelectionScriptEnabled(tab.webView, selectionEnabled())
+                    }
                 ).also { wv -> tab.webView = wv; wv.loadUrl(url) }
             },
             modifier = Modifier.fillMaxSize()
