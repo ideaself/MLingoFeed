@@ -63,6 +63,8 @@ class ReaderViewModel(
     val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
     val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
 
+    private val recordedUrls = mutableMapOf<Long, String>()
+
     fun selectTab(index: Int) {
         selectedIndex = index
     }
@@ -74,10 +76,41 @@ class ReaderViewModel(
 
     fun closeTab(index: Int) {
         if (tabs.size <= 1) return
-        tabs.getOrNull(index)?.webView?.destroy()
+        tabs.getOrNull(index)?.let { tab ->
+            saveScrollPosition(tab)
+            tab.webView?.destroy()
+            tab.webView = null
+            recordedUrls.remove(tab.id)
+        }
         tabs.removeAt(index)
         if (selectedIndex >= tabs.size) selectedIndex = tabs.size - 1
         if (selectedIndex < 0) selectedIndex = 0
+    }
+
+    fun onPageLoaded(tab: ReaderTab, url: String, title: String?) {
+        if (title.isNullOrBlank() || title == "Loading...") return
+        if (recordedUrls[tab.id] == url && tab.title == title) return
+        recordedUrls[tab.id] = url
+        tab.title = title
+        viewModelScope.launch { app.historyRepository.recordVisit(title, url) }
+    }
+
+    private fun saveScrollPosition(tab: ReaderTab) {
+        val webView = tab.webView ?: return
+        val scrollY = webView.scrollY
+        if (scrollY <= 0) return
+        val url = tab.url
+        app.applicationScope.launch { app.bookmarkRepository.updateScrollPosition(url, scrollY) }
+    }
+
+    override fun onCleared() {
+        tabs.forEach { tab ->
+            saveScrollPosition(tab)
+            tab.webView?.destroy()
+            tab.webView = null
+        }
+        tabs.clear()
+        super.onCleared()
     }
 
     fun openDictionary(word: String) {

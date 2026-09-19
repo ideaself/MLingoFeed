@@ -44,8 +44,10 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
         orderedBookmarks.addAll(list)
     }
 
-    fun moveBookmark(from: Int, to: Int) {
-        if (from !in orderedBookmarks.indices || to !in orderedBookmarks.indices) return
+    fun moveBookmark(fromId: Long, toId: Long) {
+        val from = orderedBookmarks.indexOfFirst { it.id == fromId }
+        val to = orderedBookmarks.indexOfFirst { it.id == toId }
+        if (from == -1 || to == -1 || from == to) return
         orderedBookmarks.add(to, orderedBookmarks.removeAt(from))
         hasReordered = true
     }

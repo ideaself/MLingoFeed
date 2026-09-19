@@ -23,7 +23,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        sharedUrl.value = extractSharedUrl(intent)
+        if (savedInstanceState == null) {
+            sharedUrl.value = extractSharedUrl(intent)
+        }
         setContent {
             val context = LocalContext.current
             val app = context.applicationContext as WebReaderApp

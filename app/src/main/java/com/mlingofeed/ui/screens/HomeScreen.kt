@@ -1,6 +1,7 @@
 package com.mlingofeed.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -17,6 +18,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.lazy.LazyColumn
@@ -55,20 +57,22 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.Bookmark
+import kotlinx.coroutines.flow.distinctUntilChanged
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 
@@ -93,17 +97,23 @@ fun HomeScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: HomeViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val bookmarks by vm.bookmarks.collectAsState()
-    val categories: List<String> by vm.categories.collectAsState()
+    val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
+    val categories: List<String> by vm.categories.collectAsStateWithLifecycle()
     LaunchedEffect(bookmarks) {
-        vm.syncOrdered(bookmarks)
+        if (!vm.hasReordered) {
+            vm.syncOrdered(bookmarks)
+        }
     }
 
-    val lazyListState = remember { androidx.compose.foundation.lazy.LazyListState() }
+    val lazyListState = rememberLazyListState()
     val reorderableState = rememberReorderableLazyListState(
         lazyListState,
         onMove = { from, to ->
-            vm.moveBookmark(from.index, to.index)
+            val fromId = from.key as? Long
+            val toId = to.key as? Long
+            if (fromId != null && toId != null) {
+                vm.moveBookmark(fromId, toId)
+            }
         }
     )
 
@@ -174,7 +184,7 @@ fun HomeScreen(
                 modifier = Modifier.fillMaxSize(),
                 verticalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                itemsIndexed(filteredBookmarks, key = { _, item -> item.id }) { index, bookmark ->
+                itemsIndexed(filteredBookmarks, key = { _, item -> item.id }) { _, bookmark ->
                     var dismissThresholdMet by remember { mutableStateOf(false) }
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = { value ->
@@ -184,8 +194,10 @@ fun HomeScreen(
                             false
                         }
                     )
-                    LaunchedEffect(dismissState.progress) {
-                        dismissThresholdMet = dismissState.progress > 0.3f
+                    LaunchedEffect(dismissState) {
+                        snapshotFlow { dismissState.progress > 0.3f }
+                            .distinctUntilChanged()
+                            .collect { dismissThresholdMet = it }
                     }
 
                     SwipeToDismissBox(
@@ -245,11 +257,15 @@ fun HomeScreen(
                                         .padding(start = 12.dp, top = 12.dp, bottom = 12.dp, end = 12.dp),
                                     verticalAlignment = Alignment.CenterVertically
                                 ) {
-                                    AsyncImage(
-                                        model = ImageRequest.Builder(LocalContext.current)
-                                            .data("https://www.google.com/s2/favicons?domain=${bookmark.url}&sz=64")
+                                    val faviconRequest = remember(bookmark.url) {
+                                        val host = Uri.parse(bookmark.url).host ?: bookmark.url
+                                        ImageRequest.Builder(context)
+                                            .data("https://www.google.com/s2/favicons?domain=$host&sz=64")
                                             .crossfade(true)
-                                            .build(),
+                                            .build()
+                                    }
+                                    AsyncImage(
+                                        model = faviconRequest,
                                         contentDescription = "Favicon",
                                         modifier = Modifier
                                             .size(32.dp)

@@ -9,8 +9,12 @@ import com.mlingofeed.data.repository.RssRepository
 import com.mlingofeed.data.repository.DictionaryRepository
 import com.mlingofeed.data.repository.WordBookRepository
 import com.mlingofeed.data.settings.SettingsManager
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 
 class WebReaderApp : Application() {
+    val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     val database by lazy { AppDatabase.getDatabase(this) }
     val bookmarkRepository by lazy { BookmarkRepository(database.bookmarkDao(), database) }
     val dictionaryRepository by lazy { DictionaryRepository() }

@@ -60,9 +60,12 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
         if (isRefreshing) return
         isRefreshing = true
         viewModelScope.launch {
-            repository.refreshAll()
-            repository.cleanupOldArticles()
-            isRefreshing = false
+            try {
+                repository.refreshAll()
+                repository.cleanupOldArticles()
+            } finally {
+                isRefreshing = false
+            }
         }
     }
 

@@ -1,5 +1,7 @@
 package com.mlingofeed.ui.screens
 
+import android.view.ViewGroup
+import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -35,9 +37,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -51,15 +51,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.ui.components.ChatDialog
 import com.mlingofeed.ui.components.DictionaryPopup
 import com.mlingofeed.ui.components.TranslationPopup
-import com.mlingofeed.webview.ReaderTab
 import com.mlingofeed.webview.createReaderWebView
-import com.mlingofeed.webview.injectSelectionScript
 import com.mlingofeed.webview.setSelectionScriptEnabled
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
@@ -75,9 +74,10 @@ fun ReaderScreen(
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: ReaderViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
-    remember(initialUrl) { vm.ensureInitialTab(initialUrl) }
+    LaunchedEffect(initialUrl) { vm.ensureInitialTab(initialUrl) }
+    ReadingTimer(app)
 
-    val fontSize by vm.fontSize.collectAsState()
+    val fontSize by vm.fontSize.collectAsStateWithLifecycle()
 
     val currentTab = vm.currentTab
 
@@ -175,22 +175,39 @@ fun ReaderScreen(
         }
     ) { innerPadding ->
         Box(modifier = Modifier.fillMaxSize().padding(innerPadding)) {
-            vm.tabs.forEachIndexed { index, tab ->
-                if (index == vm.selectedIndex) {
-                    key(tab.url) {
-                        if (tab.url == "about:blank") {
-                            NewTabPage(app = app, onOpenUrl = { tab.url = it })
-                        } else {
-                            WebViewContent(
-                                tab = tab, url = tab.url, fontSize = fontSize, app = app,
-                                selectionEnabled = { vm.wordSelectionEnabled },
-                                onWordTapped = { if (vm.wordSelectionEnabled) vm.openDictionary(it) },
-                                onSentenceLongPressed = { vm.openTranslation(it) }
+            AndroidView(
+                factory = { ctx -> FrameLayout(ctx) },
+                update = { container ->
+                    val tab = vm.currentTab
+                    val wv = tab?.takeIf { it.url != "about:blank" }?.webView
+                    if (wv != null) {
+                        if (wv.parent !== container) {
+                            (wv.parent as? ViewGroup)?.removeView(wv)
+                            container.removeAllViews()
+                            container.addView(
+                                wv,
+                                FrameLayout.LayoutParams(
+                                    ViewGroup.LayoutParams.MATCH_PARENT,
+                                    ViewGroup.LayoutParams.MATCH_PARENT
+                                )
                             )
                         }
+                    } else if (container.childCount > 0) {
+                        container.removeAllViews()
                     }
+                },
+                modifier = Modifier.fillMaxSize()
+            )
+
+            if (currentTab != null && currentTab.url == "about:blank") {
+                Surface(
+                    modifier = Modifier.fillMaxSize(),
+                    color = MaterialTheme.colorScheme.background
+                ) {
+                    NewTabPage(app = app, onOpenUrl = { currentTab.url = it })
                 }
             }
+
             Surface(
                 modifier = Modifier
                     .align(Alignment.BottomStart)
@@ -210,6 +227,29 @@ fun ReaderScreen(
         }
     }
 
+    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize) {
+        val tab = vm.currentTab ?: return@LaunchedEffect
+        val targetUrl = tab.url
+        if (targetUrl == "about:blank") return@LaunchedEffect
+        if (tab.webView == null) {
+            val wv = createReaderWebView(
+                context = context,
+                selectionEnabled = { vm.wordSelectionEnabled },
+                onWordTapped = { if (vm.wordSelectionEnabled) vm.openDictionary(it) },
+                onSentenceLongPressed = { vm.openTranslation(it) },
+                onPageFinished = { title -> vm.onPageLoaded(tab, targetUrl, title) }
+            )
+            tab.webView = wv
+            wv.loadUrl(targetUrl)
+        }
+        tab.webView?.settings?.textZoom = fontSize
+        setSelectionScriptEnabled(tab.webView, vm.wordSelectionEnabled)
+    }
+
+    LaunchedEffect(vm.wordSelectionEnabled, vm.selectedIndex) {
+        vm.currentTab?.webView?.let { setSelectionScriptEnabled(it, vm.wordSelectionEnabled) }
+    }
+
     if (vm.showDictionary) {
         DictionaryPopup(word = vm.selectedWord, onDismiss = { vm.dismissDictionary() }, onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) })
     }
@@ -223,7 +263,7 @@ fun ReaderScreen(
 
 @Composable
 private fun NewTabPage(app: WebReaderApp, onOpenUrl: (String) -> Unit) {
-    val bookmarks by app.bookmarkRepository.allBookmarks.collectAsState(initial = emptyList())
+    val bookmarks by app.bookmarkRepository.allBookmarks.collectAsStateWithLifecycle(initialValue = emptyList())
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
         Text("Quick Access", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 12.dp))
@@ -233,7 +273,7 @@ private fun NewTabPage(app: WebReaderApp, onOpenUrl: (String) -> Unit) {
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                items(bookmarks) { bookmark ->
+                items(bookmarks, key = { it.id }) { bookmark ->
                     Surface(
                         modifier = Modifier.fillMaxWidth().clickable { onOpenUrl(bookmark.url) },
                         shape = RoundedCornerShape(8.dp), color = MaterialTheme.colorScheme.surfaceVariant
@@ -250,32 +290,8 @@ private fun NewTabPage(app: WebReaderApp, onOpenUrl: (String) -> Unit) {
 }
 
 @Composable
-private fun WebViewContent(
-    tab: ReaderTab, url: String, fontSize: Int, app: WebReaderApp,
-    selectionEnabled: () -> Boolean,
-    onWordTapped: (String) -> Unit, onSentenceLongPressed: (String) -> Unit
-) {
-    val context = LocalContext.current
+private fun ReadingTimer(app: WebReaderApp) {
     val scope = rememberCoroutineScope()
-    val pageTitleRef = remember { mutableStateOf("Loading...") }
-
-    LaunchedEffect(pageTitleRef.value) {
-        val title = pageTitleRef.value
-        if (title != "Loading..." && title.isNotBlank()) {
-            app.historyRepository.recordVisit(title, url)
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            tab.webView?.let { wv ->
-                val scrollY = wv.scrollY
-                if (scrollY > 0) { scope.launch { app.bookmarkRepository.updateScrollPosition(url, scrollY) } }
-                wv.destroy()
-            }
-        }
-    }
-
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         var accumulatedSeconds = 0L
@@ -288,9 +304,10 @@ private fun WebViewContent(
                         while (true) {
                             kotlinx.coroutines.delay(1000)
                             accumulatedSeconds++
-                            if (accumulatedSeconds % 5 == 0L) {
-                                app.settingsManager.addReadingSession(accumulatedSeconds)
+                            if (accumulatedSeconds >= 60) {
+                                val seconds = accumulatedSeconds
                                 accumulatedSeconds = 0L
+                                app.applicationScope.launch { app.settingsManager.addReadingSession(seconds) }
                             }
                         }
                     }
@@ -299,8 +316,9 @@ private fun WebViewContent(
                     timerJob?.cancel()
                     timerJob = null
                     if (accumulatedSeconds > 0) {
-                        scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
+                        val seconds = accumulatedSeconds
                         accumulatedSeconds = 0L
+                        app.applicationScope.launch { app.settingsManager.addReadingSession(seconds) }
                     }
                 }
                 else -> {}
@@ -311,33 +329,8 @@ private fun WebViewContent(
             lifecycleOwner.lifecycle.removeObserver(observer)
             timerJob?.cancel()
             if (accumulatedSeconds > 0) {
-                scope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
+                app.applicationScope.launch { app.settingsManager.addReadingSession(accumulatedSeconds) }
             }
         }
-    }
-
-    LaunchedEffect(fontSize) { tab.webView?.settings?.textZoom = fontSize }
-
-    LaunchedEffect(selectionEnabled()) {
-        setSelectionScriptEnabled(tab.webView, selectionEnabled())
-    }
-
-    Box(modifier = Modifier.fillMaxSize()) {
-        AndroidView(
-            factory = { ctx ->
-                createReaderWebView(
-                    context = ctx,
-                    selectionEnabled = selectionEnabled,
-                    onWordTapped = onWordTapped,
-                    onSentenceLongPressed = onSentenceLongPressed,
-                    onPageFinished = { title -> title?.let { pageTitleRef.value = it; tab.title = it } },
-                    onPageStarted = {
-                        injectSelectionScript(tab.webView)
-                        setSelectionScriptEnabled(tab.webView, selectionEnabled())
-                    }
-                ).also { wv -> tab.webView = wv; wv.loadUrl(url) }
-            },
-            modifier = Modifier.fillMaxSize()
-        )
     }
 }
