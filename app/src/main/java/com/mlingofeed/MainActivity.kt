@@ -8,7 +8,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.Composable
@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val context = LocalContext.current
             val app = context.applicationContext as WebReaderApp
-            val themeMode by app.settingsManager.themeMode.collectAsState(initial = "system")
+            val themeMode by app.settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
             WebReaderTheme(themeMode = themeMode) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),

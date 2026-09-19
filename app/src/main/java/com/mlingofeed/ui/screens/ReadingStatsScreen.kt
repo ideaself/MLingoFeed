@@ -27,7 +27,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -56,8 +56,8 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
     val app = context.applicationContext as WebReaderApp
     val vm: ReadingStatsViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val readingSessions by vm.readingSessions.collectAsState()
-    val totalSeconds by vm.totalSeconds.collectAsState()
+    val readingSessions by vm.readingSessions.collectAsStateWithLifecycle()
+    val totalSeconds by vm.totalSeconds.collectAsStateWithLifecycle()
 
     val stats = remember(readingSessions) { calculateStats(readingSessions) }
 

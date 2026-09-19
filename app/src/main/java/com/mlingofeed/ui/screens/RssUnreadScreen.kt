@@ -23,7 +23,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
@@ -43,7 +43,7 @@ fun RssUnreadScreen(
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: RssUnreadViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
-    val unreadArticles by vm.unreadArticles.collectAsState()
+    val unreadArticles by vm.unreadArticles.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -78,7 +78,7 @@ fun RssUnreadScreen(
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
             ) {
-                items(unreadArticles) { article ->
+                items(unreadArticles, key = { it.id }) { article ->
                     Card(
                         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable { onNavigateToArticle(article.id) },
                         shape = RoundedCornerShape(12.dp),

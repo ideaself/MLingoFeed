@@ -3,6 +3,7 @@ package com.mlingofeed.ui.screens
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -11,9 +12,9 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Bookmark
@@ -36,11 +37,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.pointerInput
@@ -74,10 +76,10 @@ fun RssArticleDetailScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: RssArticleDetailViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     val clipboardManager = LocalClipboardManager.current
-    remember(articleId) { vm.ensureLoaded(articleId) }
+    LaunchedEffect(articleId) { vm.ensureLoaded(articleId) }
 
-    val subscriptions by vm.subscriptions.collectAsState()
-    val rssFontSize by vm.rssFontSize.collectAsState()
+    val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
+    val rssFontSize by vm.rssFontSize.collectAsStateWithLifecycle()
 
     val paragraphs = remember(vm.fullContent) {
         if (vm.fullContent.isNullOrBlank()) emptyList()
@@ -165,89 +167,92 @@ fun RssArticleDetailScreen(
                 CircularProgressIndicator()
             }
         } else {
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 20.dp)
+            LazyColumn(
+                modifier = Modifier.fillMaxSize().padding(padding),
+                contentPadding = PaddingValues(horizontal = 20.dp)
             ) {
-                Text(
-                    articleData.title,
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontSize = (rssFontSize + 4).sp,
-                    modifier = Modifier.padding(vertical = 12.dp)
-                )
+                item(key = "header") {
+                    Column {
+                        Text(
+                            articleData.title,
+                            style = MaterialTheme.typography.headlineSmall,
+                            fontSize = (rssFontSize + 4).sp,
+                            modifier = Modifier.padding(vertical = 12.dp)
+                        )
 
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        formatPubDate(articleData.pubDate),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                    val sub = subscriptions.find { it.id == articleData.subscriptionId }
-                    if (sub != null) {
-                        Text(" · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        Text(sub.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                formatPubDate(articleData.pubDate),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            val sub = subscriptions.find { it.id == articleData.subscriptionId }
+                            if (sub != null) {
+                                Text(" · ", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(sub.title, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.primary)
+                            }
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
-                Spacer(modifier = Modifier.height(4.dp))
-
                 if (vm.isLoadingContent) {
-                    Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            CircularProgressIndicator(modifier = Modifier.size(32.dp))
-                            Spacer(modifier = Modifier.height(8.dp))
-                            Text("Loading full content...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    item(key = "loading") {
+                        Box(modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp), contentAlignment = Alignment.Center) {
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                CircularProgressIndicator(modifier = Modifier.size(32.dp))
+                                Spacer(modifier = Modifier.height(8.dp))
+                                Text("Loading full content...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
                         }
                     }
                 } else if (paragraphs.isNotEmpty()) {
-                    Column {
-                        paragraphs.forEachIndexed { index, paragraph ->
-                            ParagraphBlock(
-                                index = index,
-                                text = paragraph.trim(),
-                                fontSize = rssFontSize,
-                                isTranslating = vm.translatingParagraphs[index] == true,
-                                translation = vm.translatedParagraphs[index],
-                                onWordTap = { word ->
-                                    val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
-                                    if (clean.length >= 2) {
-                                        vm.openDictionary(clean)
-                                    }
-                                },
-                                onSentenceLongPress = { sentence ->
-                                    if (sentence.isNotBlank()) {
-                                        vm.openTranslation(sentence)
-                                    }
-                                },
-                                onTranslateParagraph = { vm.translateParagraph(index, paragraph) }
-                            )
-                        }
+                    itemsIndexed(paragraphs, key = { index, _ -> index }) { index, paragraph ->
+                        ParagraphBlock(
+                            index = index,
+                            text = paragraph.trim(),
+                            fontSize = rssFontSize,
+                            isTranslating = vm.translatingParagraphs[index] == true,
+                            translation = vm.translatedParagraphs[index],
+                            onWordTap = { word ->
+                                val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
+                                if (clean.length >= 2) {
+                                    vm.openDictionary(clean)
+                                }
+                            },
+                            onSentenceLongPress = { sentence ->
+                                if (sentence.isNotBlank()) {
+                                    vm.openTranslation(sentence)
+                                }
+                            },
+                            onTranslateParagraph = { vm.translateParagraph(index, paragraph) }
+                        )
                     }
                 } else if (articleData.description.isNotBlank()) {
-                    ParagraphText(
-                        text = articleData.description.trim(),
-                        fontSize = rssFontSize,
-                        onWordTap = { word ->
-                            val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
-                            if (clean.length >= 2) {
-                                vm.openDictionary(clean)
+                    item(key = "description") {
+                        ParagraphText(
+                            text = articleData.description.trim(),
+                            fontSize = rssFontSize,
+                            onWordTap = { word ->
+                                val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
+                                if (clean.length >= 2) {
+                                    vm.openDictionary(clean)
+                                }
+                            },
+                            onSentenceLongPress = { sentence ->
+                                if (sentence.isNotBlank()) {
+                                    vm.openTranslation(sentence)
+                                }
                             }
-                        },
-                        onSentenceLongPress = { sentence ->
-                            if (sentence.isNotBlank()) {
-                                vm.openTranslation(sentence)
-                            }
-                        }
-                    )
+                        )
+                    }
                 }
 
-                Spacer(modifier = Modifier.height(80.dp))
+                item(key = "bottomSpacer") { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }

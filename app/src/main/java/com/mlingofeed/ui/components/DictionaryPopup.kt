@@ -34,7 +34,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -53,8 +53,10 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mlingofeed.WebReaderApp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class DictionaryResult(
     val name: String,
@@ -74,7 +76,7 @@ fun DictionaryPopup(
     val scope = rememberCoroutineScope()
     val clipboardManager = LocalClipboardManager.current
 
-    val dictionaries by app.settingsManager.dictionaries.collectAsState(initial = emptyList())
+    val dictionaries by app.settingsManager.dictionaries.collectAsStateWithLifecycle(initialValue = emptyList())
     val enabledDicts = dictionaries.filter { it.isEnabled }
 
     var editableWord by remember(word) { mutableStateOf(word) }
@@ -106,20 +108,22 @@ fun DictionaryPopup(
             DictionaryResult(name = dict.name, definition = "", isLoading = true)
         }
 
-        withContext(Dispatchers.IO) {
-            results = enabledDicts.mapIndexed { index, dict ->
-                val definition = app.dictionaryRepository.lookupWord(
-                    dict.urlTemplate,
-                    dict.cssSelector,
-                    searchWord
-                )
-                DictionaryResult(
-                    name = dict.name,
-                    definition = definition,
-                    isLoading = false,
-                    error = if (definition.startsWith("Error:") || definition.startsWith("No result")) definition else null
-                )
-            }
+        results = coroutineScope {
+            enabledDicts.map { dict ->
+                async(Dispatchers.IO) {
+                    val definition = app.dictionaryRepository.lookupWord(
+                        dict.urlTemplate,
+                        dict.cssSelector,
+                        searchWord
+                    )
+                    DictionaryResult(
+                        name = dict.name,
+                        definition = definition,
+                        isLoading = false,
+                        error = if (definition.startsWith("Error:") || definition.startsWith("No result")) definition else null
+                    )
+                }
+            }.awaitAll()
         }
     }
 

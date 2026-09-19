@@ -36,7 +36,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -62,8 +62,9 @@ fun RssArticlesScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: RssArticlesViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val articles by app.rssRepository.getArticles(subscriptionId).collectAsState(initial = emptyList())
-    val subscriptions by vm.subscriptions.collectAsState()
+    val articleFlow = remember(subscriptionId) { app.rssRepository.getArticles(subscriptionId) }
+    val articles by articleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
     val currentSub = subscriptions.find { it.id == subscriptionId }
 
     val filteredArticles = when (vm.filterMode) {
@@ -71,6 +72,8 @@ fun RssArticlesScreen(
         ArticleFilterMode.UNREAD -> articles.filter { !it.isRead }
         ArticleFilterMode.FAVORITES -> articles.filter { it.isFavorite }
     }
+    val unreadCount = remember(articles) { articles.count { !it.isRead } }
+    val favoriteCount = remember(articles) { articles.count { it.isFavorite } }
 
     Scaffold(
         topBar = {
@@ -143,18 +146,18 @@ fun RssArticlesScreen(
                         FilterChip(
                             selected = vm.filterMode == ArticleFilterMode.UNREAD,
                             onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) },
-                            label = { Text("Unread (${articles.count { !it.isRead }})") }
+                            label = { Text("Unread ($unreadCount)") }
                         )
                         Spacer(modifier = Modifier.size(8.dp))
                         FilterChip(
                             selected = vm.filterMode == ArticleFilterMode.FAVORITES,
                             onClick = { vm.updateFilterMode(ArticleFilterMode.FAVORITES) },
-                            label = { Text("★ (${articles.count { it.isFavorite }})") }
+                            label = { Text("★ ($favoriteCount)") }
                         )
                     }
                 }
 
-                items(filteredArticles) { article ->
+                items(filteredArticles, key = { it.id }) { article ->
                     RssArticleItem(
                         article = article,
                         onClick = { onNavigateToArticle(article.id) },

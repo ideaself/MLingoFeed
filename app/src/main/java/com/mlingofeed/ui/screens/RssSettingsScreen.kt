@@ -47,7 +47,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -72,8 +72,8 @@ fun RssSettingsScreen(
     val vm: RssSettingsViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     val scope = rememberCoroutineScope()
 
-    val folders by vm.folders.collectAsState()
-    val rules by vm.rules.collectAsState()
+    val folders by vm.folders.collectAsStateWithLifecycle()
+    val rules by vm.rules.collectAsStateWithLifecycle()
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -218,7 +218,7 @@ fun RssSettingsScreen(
                 }
             }
 
-            items(folders) { folder ->
+            items(folders, key = { it.id }) { folder ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     shape = RoundedCornerShape(8.dp)
@@ -265,7 +265,7 @@ fun RssSettingsScreen(
                 }
             }
 
-            items(rules) { rule ->
+            items(rules, key = { it.id }) { rule ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     shape = RoundedCornerShape(8.dp)

@@ -46,7 +46,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -72,7 +72,7 @@ fun WordQuizScreen(onBack: () -> Unit) {
     val app = context.applicationContext as WebReaderApp
     val vm: WordQuizViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val allWords by vm.allWords.collectAsState()
+    val allWords by vm.allWords.collectAsStateWithLifecycle()
 
     LaunchedEffect(allWords) {
         if (allWords.isNotEmpty() && vm.quizWords.isEmpty()) {
@@ -163,8 +163,7 @@ fun WordQuizScreen(onBack: () -> Unit) {
                     "multiple" -> MultipleChoiceContent(
                         word = currentWord,
                         options = options,
-                        isAnswered = vm.isCorrect != null,
-                        selectedAnswer = vm.isCorrect,
+                        selectedWord = vm.selectedOptionWord,
                         onSelect = { selected -> vm.selectOption(currentWord, selected) }
                     )
                     "spelling" -> SpellingContent(
@@ -301,10 +300,10 @@ private fun FlashcardContent(
 private fun MultipleChoiceContent(
     word: WordBookEntry,
     options: List<WordBookEntry>,
-    isAnswered: Boolean,
-    selectedAnswer: Boolean?,
+    selectedWord: String?,
     onSelect: (WordBookEntry) -> Unit
 ) {
+    val isAnswered = selectedWord != null
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -336,7 +335,7 @@ private fun MultipleChoiceContent(
 
         options.forEach { option ->
             val isCorrectOption = option.word == word.word
-            val isSelected = isAnswered && option.word == word.word
+            val isSelected = option.word == selectedWord
 
             Card(
                 modifier = Modifier
@@ -345,7 +344,8 @@ private fun MultipleChoiceContent(
                     .clickable(enabled = !isAnswered) { onSelect(option) },
                 colors = CardDefaults.cardColors(
                     containerColor = when {
-                        isSelected -> MaterialTheme.colorScheme.primaryContainer
+                        isSelected && isCorrectOption -> MaterialTheme.colorScheme.primaryContainer
+                        isSelected -> MaterialTheme.colorScheme.errorContainer
                         isAnswered && isCorrectOption -> MaterialTheme.colorScheme.primaryContainer
                         else -> MaterialTheme.colorScheme.surface
                     }
@@ -355,7 +355,7 @@ private fun MultipleChoiceContent(
                     modifier = Modifier.padding(16.dp),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    if (isAnswered && isSelected) {
+                    if (isAnswered && (isSelected || isCorrectOption)) {
                         Icon(
                             if (isCorrectOption) Icons.Default.Check else Icons.Default.Close,
                             contentDescription = null,

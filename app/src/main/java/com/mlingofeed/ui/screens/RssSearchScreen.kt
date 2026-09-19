@@ -29,7 +29,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -55,7 +55,7 @@ fun RssSearchScreen(
     val vm: RssSearchViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     val keyboardController = LocalSoftwareKeyboardController.current
 
-    val searchResults by app.rssRepository.searchArticles(vm.searchQuery).collectAsState(initial = emptyList())
+    val searchResults by vm.searchResults.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -112,7 +112,7 @@ fun RssSearchScreen(
                     modifier = Modifier.padding(bottom = 8.dp)
                 )
                 LazyColumn {
-                    items(searchResults) { article ->
+                    items(searchResults, key = { it.id }) { article ->
                         SearchResultItem(article = article, onClick = { onNavigateToArticle(article.id) })
                         Spacer(modifier = Modifier.height(8.dp))
                     }

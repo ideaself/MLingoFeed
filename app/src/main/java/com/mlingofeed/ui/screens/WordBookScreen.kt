@@ -50,7 +50,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -80,10 +80,10 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
-    val allWords by vm.allWords.collectAsState()
-    val dueWords by vm.dueWords.collectAsState()
-    val masteredWords by vm.masteredWords.collectAsState()
-    val searchResults by (if (vm.searchQuery.isNotBlank()) app.wordBookRepository.searchWords(vm.searchQuery) else app.wordBookRepository.allWords).collectAsState(initial = emptyList())
+    val allWords by vm.allWords.collectAsStateWithLifecycle()
+    val dueWords by vm.dueWords.collectAsStateWithLifecycle()
+    val masteredWords by vm.masteredWords.collectAsStateWithLifecycle()
+    val searchResults by vm.searchResults.collectAsStateWithLifecycle()
 
     val displayWords = when {
         vm.searchQuery.isNotBlank() -> searchResults

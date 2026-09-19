@@ -22,7 +22,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,10 +53,10 @@ fun TranslationPopup(
     var translation by remember(text) { mutableStateOf("") }
     var isLoading by remember(text) { mutableStateOf(false) }
 
-    val apiUrl by app.settingsManager.aiApiUrl.collectAsState(initial = "")
-    val apiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
-    val model by app.settingsManager.aiModel.collectAsState(initial = "")
-    val targetLang by app.settingsManager.translateTargetLang.collectAsState(initial = "Chinese")
+    val apiUrl by app.settingsManager.aiApiUrl.collectAsStateWithLifecycle(initialValue = "")
+    val apiKey by app.settingsManager.aiApiKey.collectAsStateWithLifecycle(initialValue = "")
+    val model by app.settingsManager.aiModel.collectAsStateWithLifecycle(initialValue = "")
+    val targetLang by app.settingsManager.translateTargetLang.collectAsStateWithLifecycle(initialValue = "Chinese")
 
     LaunchedEffect(text, apiUrl, apiKey, model, targetLang) {
         if (apiKey.isBlank()) {

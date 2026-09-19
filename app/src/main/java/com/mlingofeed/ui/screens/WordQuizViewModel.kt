@@ -34,6 +34,8 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
         private set
     var isCorrect by mutableStateOf<Boolean?>(null)
         private set
+    var selectedOptionWord by mutableStateOf<String?>(null)
+        private set
     var quizComplete by mutableStateOf(false)
         private set
     var correctCount by mutableIntStateOf(0)
@@ -47,6 +49,7 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
         isFlipped = false
         inputAnswer = ""
         isCorrect = null
+        selectedOptionWord = null
         quizComplete = false
         correctCount = 0
     }
@@ -68,6 +71,7 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
         if (isCorrect != null) return
         val correct = selected.word == word.word
         isCorrect = correct
+        selectedOptionWord = selected.word
         if (correct) correctCount++
         viewModelScope.launch {
             delay(1000)
@@ -104,6 +108,7 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
             currentIndex++
             isFlipped = false
             isCorrect = null
+            selectedOptionWord = null
         } else {
             quizComplete = true
         }

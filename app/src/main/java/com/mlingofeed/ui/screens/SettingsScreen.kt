@@ -56,7 +56,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -84,12 +84,12 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     val vm: SettingsViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     val clipboardManager = LocalClipboardManager.current
 
-    val dictionaries by vm.dictionaries.collectAsState()
-    val fontSize by vm.fontSize.collectAsState()
-    val rssFontSize by vm.rssFontSize.collectAsState()
-    val themeMode by vm.themeMode.collectAsState()
-    val readingTimeSeconds by vm.readingTimeSeconds.collectAsState()
-    val readingSessions by vm.readingSessions.collectAsState()
+    val dictionaries by vm.dictionaries.collectAsStateWithLifecycle()
+    val fontSize by vm.fontSize.collectAsStateWithLifecycle()
+    val rssFontSize by vm.rssFontSize.collectAsStateWithLifecycle()
+    val themeMode by vm.themeMode.collectAsStateWithLifecycle()
+    val readingTimeSeconds by vm.readingTimeSeconds.collectAsStateWithLifecycle()
+    val readingSessions by vm.readingSessions.collectAsStateWithLifecycle()
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -452,8 +452,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     }
 
     if (vm.showPresetDicts) {
+        val existingIds = remember(dictionaries) { dictionaries.map { it.id } }
         PresetDictionaryDialog(
-            existingIds = dictionaries.map { it.id },
+            existingIds = existingIds,
             onAdd = { preset -> vm.addPreset(preset) },
             onDismiss = { vm.dismissPresetDicts() }
         )
@@ -653,9 +654,9 @@ private fun EditDictionaryDialog(
     onConfirm: (DictionaryConfig) -> Unit,
     onDismiss: () -> Unit
 ) {
-    var name by remember { mutableStateOf(dictionary.name) }
-    var urlTemplate by remember { mutableStateOf(dictionary.urlTemplate) }
-    var cssSelector by remember { mutableStateOf(dictionary.cssSelector) }
+    var name by remember(dictionary) { mutableStateOf(dictionary.name) }
+    var urlTemplate by remember(dictionary) { mutableStateOf(dictionary.urlTemplate) }
+    var cssSelector by remember(dictionary) { mutableStateOf(dictionary.cssSelector) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -720,7 +721,8 @@ private fun PresetDictionaryDialog(
     onAdd: (DictionaryConfig) -> Unit,
     onDismiss: () -> Unit
 ) {
-    val presets = listOf(
+    val presets = remember {
+        listOf(
         DictionaryConfig(
             id = "oxford",
             name = "Oxford Learner's Dictionaries",
@@ -756,7 +758,8 @@ private fun PresetDictionaryDialog(
             cssSelector = "#dictionary-entry-1, .word-syllables",
             isEnabled = true
         )
-    )
+        )
+    }
 
     AlertDialog(
         onDismissRequest = onDismiss,

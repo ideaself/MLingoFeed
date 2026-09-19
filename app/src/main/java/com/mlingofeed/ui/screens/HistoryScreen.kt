@@ -1,6 +1,7 @@
 package com.mlingofeed.ui.screens
 
 import android.content.Intent
+import android.net.Uri
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -30,7 +31,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -45,6 +46,11 @@ import coil.request.ImageRequest
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.History
+import java.time.Instant
+import java.time.LocalDate
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,21 +59,18 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
     val app = context.applicationContext as WebReaderApp
     val vm: HistoryViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val history by vm.history.collectAsState()
+    val history by vm.history.collectAsStateWithLifecycle()
 
-    val grouped = history.groupBy { item ->
-        val cal = java.util.Calendar.getInstance().apply { timeInMillis = item.visitedAt }
-        val today = java.util.Calendar.getInstance()
-        val yesterday = java.util.Calendar.getInstance().apply {
-            add(java.util.Calendar.DAY_OF_YEAR, -1)
-        }
-
-        when {
-            isSameDay(cal, today) -> "Today"
-            isSameDay(cal, yesterday) -> "Yesterday"
-            else -> {
-                val sdf = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault())
-                sdf.format(java.util.Date(item.visitedAt))
+    val grouped = remember(history) {
+        val zone = ZoneId.systemDefault()
+        val todayStart = LocalDate.now(zone).atStartOfDay(zone).toInstant().toEpochMilli()
+        val yesterdayStart = LocalDate.now(zone).minusDays(1).atStartOfDay(zone).toInstant().toEpochMilli()
+        val dayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
+        history.groupBy { item ->
+            when {
+                item.visitedAt >= todayStart -> "Today"
+                item.visitedAt >= yesterdayStart -> "Yesterday"
+                else -> Instant.ofEpochMilli(item.visitedAt).atZone(zone).format(dayFormatter)
             }
         }
     }
@@ -128,7 +131,7 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
                             modifier = Modifier.padding(vertical = 8.dp)
                         )
                     }
-                    items(items) { item ->
+                    items(items, key = { it.id }) { item ->
                         HistoryItem(
                             history = item,
                             onClick = { onNavigateToReader(item.url) },
@@ -160,6 +163,14 @@ private fun HistoryItem(
     onDelete: () -> Unit,
     onShare: () -> Unit
 ) {
+    val context = LocalContext.current
+    val faviconRequest = remember(history.url) {
+        val host = Uri.parse(history.url).host ?: history.url
+        ImageRequest.Builder(context)
+            .data("https://www.google.com/s2/favicons?domain=$host&sz=64")
+            .crossfade(true)
+            .build()
+    }
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -174,10 +185,7 @@ private fun HistoryItem(
             verticalAlignment = Alignment.CenterVertically
         ) {
             AsyncImage(
-                model = ImageRequest.Builder(LocalContext.current)
-                    .data("https://www.google.com/s2/favicons?domain=${history.url}&sz=64")
-                    .crossfade(true)
-                    .build(),
+                model = faviconRequest,
                 contentDescription = "Favicon",
                 modifier = Modifier
                     .size(28.dp)
@@ -226,12 +234,7 @@ private fun HistoryItem(
     }
 }
 
-private fun isSameDay(cal1: java.util.Calendar, cal2: java.util.Calendar): Boolean {
-    return cal1.get(java.util.Calendar.YEAR) == cal2.get(java.util.Calendar.YEAR) &&
-            cal1.get(java.util.Calendar.DAY_OF_YEAR) == cal2.get(java.util.Calendar.DAY_OF_YEAR)
-}
+private val TIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("HH:mm", Locale.getDefault())
 
-private fun formatTime(timestamp: Long): String {
-    val sdf = java.text.SimpleDateFormat("HH:mm", java.util.Locale.getDefault())
-    return sdf.format(java.util.Date(timestamp))
-}
+private fun formatTime(timestamp: Long): String =
+    Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).format(TIME_FORMATTER)

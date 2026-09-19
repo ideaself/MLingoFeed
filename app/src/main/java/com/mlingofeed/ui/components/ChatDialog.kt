@@ -36,7 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
@@ -54,10 +54,14 @@ import com.mlingofeed.data.api.ChatMessage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicLong
+
+private val nextMessageId = AtomicLong(0)
 
 data class ChatMessageItem(
     val role: String,
-    val content: String
+    val content: String,
+    val id: Long = nextMessageId.incrementAndGet()
 )
 
 data class PresetAction(val label: String, val prompt: String)
@@ -76,9 +80,9 @@ fun ChatDialog(
     val messages = remember { mutableStateListOf<ChatMessageItem>() }
     var isLoading by remember { mutableStateOf(false) }
 
-    val apiUrl by app.settingsManager.aiApiUrl.collectAsState(initial = "")
-    val apiKey by app.settingsManager.aiApiKey.collectAsState(initial = "")
-    val model by app.settingsManager.aiModel.collectAsState(initial = "")
+    val apiUrl by app.settingsManager.aiApiUrl.collectAsStateWithLifecycle(initialValue = "")
+    val apiKey by app.settingsManager.aiApiKey.collectAsStateWithLifecycle(initialValue = "")
+    val model by app.settingsManager.aiModel.collectAsStateWithLifecycle(initialValue = "")
 
     val presets = remember(initialContext) {
         listOf(
@@ -203,7 +207,7 @@ fun ChatDialog(
                         }
                     }
 
-                    items(messages) { msg ->
+                    items(messages, key = { it.id }) { msg ->
                         ChatBubble(message = msg)
                     }
 

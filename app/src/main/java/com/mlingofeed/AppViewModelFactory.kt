@@ -34,7 +34,7 @@ class AppViewModelFactory(private val app: WebReaderApp) : ViewModelProvider.Fac
         modelClass.isAssignableFrom(RssUnreadViewModel::class.java) ->
             RssUnreadViewModel(app) as T
         modelClass.isAssignableFrom(RssSearchViewModel::class.java) ->
-            RssSearchViewModel() as T
+            RssSearchViewModel(app) as T
         modelClass.isAssignableFrom(HistoryViewModel::class.java) ->
             HistoryViewModel(app) as T
         modelClass.isAssignableFrom(WordBookViewModel::class.java) ->
