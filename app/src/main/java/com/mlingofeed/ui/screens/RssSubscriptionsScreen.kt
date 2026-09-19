@@ -104,7 +104,7 @@ fun RssSubscriptionsScreen(
         }
     ) { padding ->
         if (vm.isRefreshing) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(padding))
         }
 
         if (subscriptions.isEmpty() && folders.isEmpty()) {
@@ -115,7 +115,9 @@ fun RssSubscriptionsScreen(
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
                     Spacer(modifier = Modifier.height(16.dp))
-                    Text("Loading RSS feeds...", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text("No RSS feeds yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(modifier = Modifier.height(8.dp))
+                    Text("Tap + to add your first feed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                 }
             }
         } else {

@@ -50,5 +50,7 @@ class BookmarkRepository(private val bookmarkDao: BookmarkDao, private val datab
         bookmarkDao.updateScrollPosition(url, scrollPosition)
     }
 
+    suspend fun getScrollPosition(url: String): Int? = bookmarkDao.getScrollPosition(url)
+
     fun getCategories(): kotlinx.coroutines.flow.Flow<List<String>> = bookmarkDao.getCategories()
 }

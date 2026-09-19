@@ -165,7 +165,15 @@ fun RssArticleDetailScreen(
     ) { padding ->
         if (articleData == null) {
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
-                CircularProgressIndicator()
+                if (vm.articleNotFound) {
+                    Text(
+                        text = "Article not found",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                } else {
+                    CircularProgressIndicator()
+                }
             }
         } else {
             LazyColumn(

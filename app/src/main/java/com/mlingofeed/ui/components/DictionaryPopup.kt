@@ -56,6 +56,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 data class DictionaryResult(
@@ -78,6 +79,14 @@ fun DictionaryPopup(
 
     val dictionaries by app.settingsManager.dictionaries.collectAsStateWithLifecycle(initialValue = emptyList())
     val enabledDicts = dictionaries.filter { it.isEnabled }
+    var dictionariesLoaded by remember { mutableStateOf(false) }
+
+    LaunchedEffect(Unit) {
+        // Wait for the first real DataStore value so an empty initial list does not flash the
+        // "no dictionaries configured" message.
+        app.settingsManager.dictionaries.first()
+        dictionariesLoaded = true
+    }
 
     var editableWord by remember(word) { mutableStateOf(word) }
     var searchWord by remember(word) { mutableStateOf(word) }
@@ -94,7 +103,8 @@ fun DictionaryPopup(
         results = emptyList()
     }
 
-    LaunchedEffect(searchWord, enabledDicts) {
+    LaunchedEffect(searchWord, enabledDicts, dictionariesLoaded) {
+        if (!dictionariesLoaded) return@LaunchedEffect
         if (enabledDicts.isEmpty()) {
             results = listOf(DictionaryResult(
                 name = "No Dictionary",

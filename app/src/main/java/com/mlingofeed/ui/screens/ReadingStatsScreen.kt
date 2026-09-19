@@ -227,23 +227,32 @@ private fun calculateStats(sessions: List<Pair<Long, Long>>): ReadingStats {
 
     val now = System.currentTimeMillis()
     val calendar = Calendar.getInstance()
+    calendar.timeInMillis = now
 
-    val todayStart = calendar.apply {
+    fun startOfDay(timeMillis: Long): Long = Calendar.getInstance().apply {
+        this.timeInMillis = timeMillis
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    val weekStart = calendar.apply {
-        set(Calendar.DAY_OF_WEEK, firstDayOfWeek)
+    val todayStart = startOfDay(now)
+
+    // Calendar.set(DAY_OF_WEEK, firstDayOfWeek) can resolve to a future date for Monday-first
+    // locales when today is Sunday, so walk back by the actual day distance instead.
+    val daysSinceWeekStart = (calendar.get(Calendar.DAY_OF_WEEK) - calendar.firstDayOfWeek + 7) % 7
+    val weekStart = Calendar.getInstance().apply {
+        timeInMillis = now
+        add(Calendar.DAY_OF_MONTH, -daysSinceWeekStart)
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)
         set(Calendar.SECOND, 0)
         set(Calendar.MILLISECOND, 0)
     }.timeInMillis
 
-    val monthStart = calendar.apply {
+    val monthStart = Calendar.getInstance().apply {
+        timeInMillis = now
         set(Calendar.DAY_OF_MONTH, 1)
         set(Calendar.HOUR_OF_DAY, 0)
         set(Calendar.MINUTE, 0)

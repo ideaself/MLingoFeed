@@ -86,7 +86,17 @@ fun ReaderScreen(
             }
         }
         lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+            // Leaving the Reader destination keeps the tabs alive, so stop their timers/media.
+            vm.pauseWebViews()
+        }
+    }
+
+    LaunchedEffect(Unit) {
+        // ON_RESUME does not fire when this destination is re-entered while the Activity is
+        // already resumed, so resume the retained tabs explicitly.
+        vm.resumeWebViews()
     }
 
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()

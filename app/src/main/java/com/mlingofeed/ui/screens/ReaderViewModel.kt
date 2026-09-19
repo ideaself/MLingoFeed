@@ -65,7 +65,10 @@ class ReaderViewModel(
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
 
     private val recordedUrls = mutableMapOf<Long, String>()
+    private val restoredScrollKeys = mutableSetOf<String>()
+    private val urlsWithRestoredScroll = mutableSetOf<String>()
     private var hostRef: WeakReference<Any>? = null
+    private var translationGeneration = 0
 
     /**
      * Called with the current Activity. WebViews are bound to the Activity that created them, so
@@ -109,6 +112,7 @@ class ReaderViewModel(
             tab.webView?.destroy()
             tab.webView = null
             recordedUrls.remove(tab.id)
+            restoredScrollKeys.removeAll { it.startsWith("${tab.id}:") }
         }
         tabs.removeAt(index)
         if (selectedIndex >= tabs.size) selectedIndex = tabs.size - 1
@@ -122,19 +126,38 @@ class ReaderViewModel(
         if (loadedUrl != null && loadedUrl != tab.url) {
             tab.url = loadedUrl
         }
-        if (title.isNullOrBlank() || title == "Loading...") return
         val currentUrl = loadedUrl ?: tab.url
+        restoreScrollPosition(tab, currentUrl)
+        if (title.isNullOrBlank() || title == "Loading...") return
         if (recordedUrls[tab.id] == currentUrl && tab.title == title) return
         recordedUrls[tab.id] = currentUrl
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
     }
 
+    /** Restores the saved reading position the first time a bookmarked URL loads in a tab. */
+    private fun restoreScrollPosition(tab: ReaderTab, url: String) {
+        if (url.isBlank() || url == "about:blank") return
+        if (!restoredScrollKeys.add("${tab.id}:$url")) return
+        viewModelScope.launch {
+            val position = app.bookmarkRepository.getScrollPosition(url)
+            if (position == null || position <= 0) return@launch
+            urlsWithRestoredScroll.add(url)
+            tab.webView?.postDelayed({
+                if (tab.url == url) {
+                    tab.webView?.scrollTo(0, position)
+                }
+            }, 250)
+        }
+    }
+
     private fun saveScrollPosition(tab: ReaderTab) {
         val webView = tab.webView ?: return
         val scrollY = webView.scrollY
-        if (scrollY <= 0) return
         val url = tab.url
+        // Writes are only useful for bookmarked pages; skip pages the user never scrolled unless
+        // a position was restored for this URL, so scrolling back to the top clears it.
+        if (scrollY <= 0 && url !in urlsWithRestoredScroll) return
         app.applicationScope.launch { app.bookmarkRepository.updateScrollPosition(url, scrollY) }
     }
 
@@ -194,6 +217,7 @@ class ReaderViewModel(
 
     fun startTranslation() {
         if (isTranslating) {
+            translationGeneration++
             isTranslating = false
             translateProgress = ""
             clearPageTranslations(currentTab?.webView)
@@ -201,6 +225,7 @@ class ReaderViewModel(
         }
         isTranslating = true
         translateProgress = "Preparing..."
+        val generation = ++translationGeneration
 
         viewModelScope.launch {
             try {
@@ -225,9 +250,9 @@ class ReaderViewModel(
                         }
                     } ?: 0
                 }
-                if (paraCount == 0 || !isTranslating) return@launch
+                if (paraCount == 0 || !isTranslating || generation != translationGeneration) return@launch
                 var currentIndex = 0
-                while (isTranslating && isActive && currentIndex < paraCount) {
+                while (isTranslating && isActive && currentIndex < paraCount && generation == translationGeneration) {
                     val text = withContext(Dispatchers.Main) {
                         withTimeoutOrNull(JS_CALLBACK_TIMEOUT_MS) { getTextByIndex(wv, currentIndex) }
                     }
@@ -249,10 +274,12 @@ class ReaderViewModel(
                     kotlinx.coroutines.delay(50)
                 }
             } finally {
-                isTranslating = false
-                translateProgress = ""
-                withContext(NonCancellable + Dispatchers.Main) {
-                    clearTranslationPlaceholders(currentTab?.webView)
+                if (generation == translationGeneration) {
+                    isTranslating = false
+                    translateProgress = ""
+                    withContext(NonCancellable + Dispatchers.Main) {
+                        clearTranslationPlaceholders(currentTab?.webView)
+                    }
                 }
             }
         }

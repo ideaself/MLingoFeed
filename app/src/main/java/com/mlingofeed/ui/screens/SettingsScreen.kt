@@ -58,6 +58,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -197,6 +198,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 onToggle = { vm.toggleSection("font_size") },
                 summary = "Web ${fontSize}% · RSS ${rssFontSize.toInt()}sp"
             ) {
+                // Keep slider drags local and commit once when the drag ends, instead of writing
+                // to DataStore on every frame.
+                var fontSizeSlider by remember(fontSize) { mutableFloatStateOf(fontSize.toFloat()) }
                 Text("Web Reader Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -204,8 +208,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 ) {
                     Text("A", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
                     Slider(
-                        value = fontSize.toFloat(),
-                        onValueChange = { vm.setFontSize(it.toInt()) },
+                        value = fontSizeSlider,
+                        onValueChange = { fontSizeSlider = it },
+                        onValueChangeFinished = { vm.setFontSize(fontSizeSlider.toInt()) },
                         valueRange = 60f..180f,
                         steps = 5,
                         modifier = Modifier.weight(1f)
@@ -213,13 +218,14 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     Text("A", style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(32.dp))
                 }
                 Text(
-                    text = "${fontSize}%",
+                    text = "${fontSizeSlider.toInt()}%",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))
 
+                var rssFontSizeSlider by remember(rssFontSize) { mutableFloatStateOf(rssFontSize) }
                 Text("RSS Article Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -227,8 +233,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 ) {
                     Text("A", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(24.dp))
                     Slider(
-                        value = rssFontSize,
-                        onValueChange = { vm.setRssFontSize(it) },
+                        value = rssFontSizeSlider,
+                        onValueChange = { rssFontSizeSlider = it },
+                        onValueChangeFinished = { vm.setRssFontSize(rssFontSizeSlider) },
                         valueRange = 13f..24f,
                         steps = 10,
                         modifier = Modifier.weight(1f)
@@ -236,7 +243,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     Text("A", style = MaterialTheme.typography.titleLarge, modifier = Modifier.width(32.dp))
                 }
                 Text(
-                    text = "${rssFontSize.toInt()}sp",
+                    text = "${rssFontSizeSlider.toInt()}sp",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )

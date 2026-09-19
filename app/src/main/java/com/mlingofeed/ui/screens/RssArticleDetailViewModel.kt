@@ -46,6 +46,8 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         private set
     var translateProgress by mutableStateOf("")
         private set
+    var articleNotFound by mutableStateOf(false)
+        private set
     val translatedParagraphs = mutableStateMapOf<Int, String>()
     val translatingParagraphs = mutableStateMapOf<Int, Boolean>()
 
@@ -53,12 +55,19 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private var initializedArticleId: Long? = null
     private var favoriteTouched = false
+    private var translationGeneration = 0
 
     fun ensureLoaded(articleId: Long) {
         if (initializedArticleId == articleId) return
         viewModelScope.launch {
-            val loaded = repository.getArticleById(articleId) ?: return@launch
+            val loaded = repository.getArticleById(articleId)
+            if (loaded == null) {
+                initializedArticleId = articleId
+                articleNotFound = true
+                return@launch
+            }
             initializedArticleId = articleId
+            articleNotFound = false
             article = loaded
             if (!favoriteTouched) {
                 isFavorite = loaded.isFavorite
@@ -137,6 +146,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun translateAll(paragraphs: List<String>) {
         if (isTranslatingAll) {
+            translationGeneration++
             isTranslatingAll = false
             translateProgress = ""
             return
@@ -144,15 +154,18 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         if (paragraphs.isEmpty()) return
         isTranslatingAll = true
         translateProgress = "Translating..."
+        val generation = ++translationGeneration
         viewModelScope.launch {
             val settings = app.settingsManager.getAllSettings()
             if (settings["ai_api_key"].orEmpty().isBlank()) {
-                isTranslatingAll = false
-                translateProgress = ""
+                if (generation == translationGeneration) {
+                    isTranslatingAll = false
+                    translateProgress = ""
+                }
                 return@launch
             }
             paragraphs.forEachIndexed { index, para ->
-                if (!isTranslatingAll) return@launch
+                if (generation != translationGeneration || !isTranslatingAll) return@launch
                 val trimmed = para.trim()
                 if (trimmed.length < 3) return@forEachIndexed
                 if (translatingParagraphs[index] == true) return@forEachIndexed
@@ -165,8 +178,10 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 translatingParagraphs.remove(index)
                 kotlinx.coroutines.delay(50)
             }
-            isTranslatingAll = false
-            translateProgress = ""
+            if (generation == translationGeneration) {
+                isTranslatingAll = false
+                translateProgress = ""
+            }
         }
     }
 
