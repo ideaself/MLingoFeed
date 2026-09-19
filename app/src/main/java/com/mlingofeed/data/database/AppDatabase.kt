@@ -4,6 +4,8 @@ import android.content.Context
 import androidx.room.Database
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.migration.Migration
+import androidx.sqlite.db.SupportSQLiteDatabase
 
 @Database(
     entities = [
@@ -12,12 +14,13 @@ import androidx.room.RoomDatabase
         RssFolder::class,
         RssSubscription::class,
         RssArticle::class,
+        RssArticleFts::class,
         RssTag::class,
         RssArticleTag::class,
         RssRule::class,
         WordBookEntry::class
     ],
-    version = 8,
+    version = 9,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -30,6 +33,21 @@ abstract class AppDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: AppDatabase? = null
 
+        /**
+         * Adds the full-text index over existing articles. Matches the FTS table and sync
+         * triggers Room creates for a fresh install (see the generated AppDatabase_Impl).
+         */
+        val MIGRATION_8_9 = object : Migration(8, 9) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("CREATE VIRTUAL TABLE IF NOT EXISTS `rss_articles_fts` USING FTS4(`title` TEXT NOT NULL, `description` TEXT NOT NULL, `content` TEXT NOT NULL, content=`rss_articles`)")
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_rss_articles_fts_BEFORE_UPDATE BEFORE UPDATE ON `rss_articles` BEGIN DELETE FROM `rss_articles_fts` WHERE `docid`=OLD.`rowid`; END")
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_rss_articles_fts_BEFORE_DELETE BEFORE DELETE ON `rss_articles` BEGIN DELETE FROM `rss_articles_fts` WHERE `docid`=OLD.`rowid`; END")
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_rss_articles_fts_AFTER_UPDATE AFTER UPDATE ON `rss_articles` BEGIN INSERT INTO `rss_articles_fts`(`docid`, `title`, `description`, `content`) VALUES (NEW.`rowid`, NEW.`title`, NEW.`description`, NEW.`content`); END")
+                db.execSQL("CREATE TRIGGER IF NOT EXISTS room_fts_content_sync_rss_articles_fts_AFTER_INSERT AFTER INSERT ON `rss_articles` BEGIN INSERT INTO `rss_articles_fts`(`docid`, `title`, `description`, `content`) VALUES (NEW.`rowid`, NEW.`title`, NEW.`description`, NEW.`content`); END")
+                db.execSQL("INSERT INTO rss_articles_fts(docid, title, description, content) SELECT rowid, title, description, content FROM rss_articles")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -37,6 +55,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "webreader_database"
                 )
+                    .addMigrations(MIGRATION_8_9)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

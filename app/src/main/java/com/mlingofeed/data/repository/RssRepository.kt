@@ -16,6 +16,7 @@ import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
@@ -49,8 +50,25 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
     fun getArticlesByTag(tagId: Long): Flow<List<RssArticle>> =
         rssDao.getArticlesByTag(tagId)
 
-    fun searchArticles(query: String): Flow<List<RssArticle>> =
-        rssDao.searchArticles(escapeLikePattern(query))
+    fun searchArticles(query: String): Flow<List<RssArticle>> {
+        val trimmed = query.trim()
+        if (trimmed.isEmpty()) return flowOf(emptyList())
+        // FTS4 cannot match substrings inside CJK text, so use it for ASCII queries and keep
+        // LIKE (which handles any substring) for everything else.
+        return if (trimmed.all { it.code < 128 }) {
+            val ftsQuery = buildFtsQuery(trimmed)
+            if (ftsQuery == null) flowOf(emptyList()) else rssDao.searchArticlesFts(ftsQuery)
+        } else {
+            rssDao.searchArticles(escapeLikePattern(trimmed))
+        }
+    }
+
+    private fun buildFtsQuery(raw: String): String? {
+        val tokens = raw.split(Regex("[^A-Za-z0-9]+")).filter { it.isNotEmpty() }
+        if (tokens.isEmpty()) return null
+        // Prefix-match every token (implicit AND).
+        return tokens.joinToString(" ") { "$it*" }
+    }
 
     suspend fun getArticleById(id: Long): RssArticle? =
         rssDao.getArticleById(id)

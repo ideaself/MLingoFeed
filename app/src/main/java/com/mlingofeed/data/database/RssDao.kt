@@ -74,6 +74,14 @@ interface RssDao {
     @Query("SELECT * FROM rss_articles WHERE title LIKE '%' || :query || '%' ESCAPE '\\' OR description LIKE '%' || :query || '%' ESCAPE '\\' OR content LIKE '%' || :query || '%' ESCAPE '\\' ORDER BY pubDate DESC LIMIT 100")
     fun searchArticles(query: String): Flow<List<RssArticle>>
 
+    @Query(
+        "SELECT a.* FROM rss_articles a " +
+            "JOIN rss_articles_fts ON rss_articles_fts.rowid = a.id " +
+            "WHERE rss_articles_fts MATCH :query " +
+            "ORDER BY a.pubDate DESC LIMIT 100"
+    )
+    fun searchArticlesFts(query: String): Flow<List<RssArticle>>
+
     @Query("SELECT * FROM rss_articles WHERE id = :id LIMIT 1")
     suspend fun getArticleById(id: Long): RssArticle?
 
