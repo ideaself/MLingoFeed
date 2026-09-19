@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
+import com.mlingofeed.data.api.HttpClient
 import com.mlingofeed.data.database.Bookmark
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -14,10 +15,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
-import java.util.concurrent.TimeUnit
 
 class HomeViewModel(app: WebReaderApp) : ViewModel() {
 
@@ -42,8 +41,7 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
 
     fun syncOrdered(list: List<Bookmark>) {
         if (!hasReordered) {
-            orderedBookmarks.clear()
-            orderedBookmarks.addAll(list)
+            syncInPlace(list)
             return
         }
         val ids = list.map { it.id }.toSet()
@@ -55,6 +53,25 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
                 orderedBookmarks[index] = updated
             } else {
                 orderedBookmarks.add(updated)
+            }
+        }
+    }
+
+    /**
+     * Replaces only the entries whose data changed, instead of clear()+addAll(), so unrelated
+     * bookmark-table writes (e.g. saved scroll positions) do not churn the whole list.
+     */
+    private fun syncInPlace(list: List<Bookmark>) {
+        val sameOrder = orderedBookmarks.size == list.size &&
+            orderedBookmarks.indices.all { orderedBookmarks[it].id == list[it].id }
+        if (!sameOrder) {
+            orderedBookmarks.clear()
+            orderedBookmarks.addAll(list)
+            return
+        }
+        list.forEachIndexed { index, bookmark ->
+            if (orderedBookmarks[index] != bookmark) {
+                orderedBookmarks[index] = bookmark
             }
         }
     }
@@ -92,8 +109,7 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
 
     fun addBookmark(url: String, title: String, category: String) {
         viewModelScope.launch {
-            val finalTitle = title.ifBlank { url }
-            val resolvedTitle = if (finalTitle.isBlank()) fetchPageTitle(url) else finalTitle
+            val resolvedTitle = title.ifBlank { fetchPageTitle(url) }
             repository.insert(
                 Bookmark(
                     title = resolvedTitle,
@@ -134,19 +150,14 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
 
 private suspend fun fetchPageTitle(pageUrl: String): String = withContext(Dispatchers.IO) {
     try {
-        val client = OkHttpClient.Builder()
-            .connectTimeout(8, TimeUnit.SECONDS)
-            .readTimeout(8, TimeUnit.SECONDS)
-            .followRedirects(true)
-            .build()
         val request = Request.Builder()
             .url(pageUrl)
             .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
             .build()
-        val response = client.newCall(request).execute()
-        val body = response.body?.string() ?: return@withContext pageUrl
-        val doc = Jsoup.parse(body)
-        doc.title()?.ifBlank { null } ?: pageUrl
+        HttpClient.shared.newCall(request).execute().use { response ->
+            val body = response.body?.string() ?: return@use pageUrl
+            Jsoup.parse(body).title().ifBlank { pageUrl }
+        }
     } catch (e: CancellationException) {
         throw e
     } catch (_: Exception) {

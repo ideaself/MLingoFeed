@@ -50,6 +50,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -66,15 +67,49 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.WordBookEntry
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import java.text.SimpleDateFormat
+import kotlinx.coroutines.withContext
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
-import java.util.Date
 import java.util.Locale
 
 private val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
+private val EXPORT_DATETIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
+
+private fun formatExportDate(epochMillis: Long): String =
+    Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(DISPLAY_DATE_FORMATTER)
+
+private fun buildCsvExport(words: List<WordBookEntry>): String = buildString {
+    append("word,definition,phonetic,example,dateAdded\n")
+    words.forEach { w ->
+        append("${w.word},\"${w.definition}\",${w.phonetic},\"${w.exampleSentence}\",${formatExportDate(w.dateAdded)}\n")
+    }
+}
+
+private fun buildMarkdownExport(words: List<WordBookEntry>): String = buildString {
+    append("# Word Book\n\n")
+    append("Exported: ${Instant.now().atZone(ZoneId.systemDefault()).format(EXPORT_DATETIME_FORMATTER)}\n\n")
+    words.forEach { w ->
+        append("## ${w.word}\n")
+        if (w.phonetic.isNotEmpty()) append("*${w.phonetic}*\n")
+        if (w.definition.isNotEmpty()) append("\n${w.definition}\n")
+        if (w.exampleSentence.isNotEmpty()) append("\n> ${w.exampleSentence}\n")
+        append("\n---\n\n")
+    }
+}
+
+private fun buildAnkiExport(words: List<WordBookEntry>): String = buildString {
+    words.forEach { w ->
+        val back = buildString {
+            if (w.definition.isNotEmpty()) append(w.definition)
+            if (w.phonetic.isNotEmpty()) append(" (${w.phonetic})")
+            if (w.exampleSentence.isNotEmpty()) append("<br><br><i>${w.exampleSentence}</i>")
+        }
+        append("${w.word}\t$back\n")
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -173,6 +208,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
                 items(displayWords, key = { it.id }) { entry ->
+                    val isExpanded by remember(entry) { derivedStateOf { vm.expandedWord == entry.word } }
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = {
                             if (it == SwipeToDismissBoxValue.EndToStart) {
@@ -199,7 +235,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                     ) {
                         WordBookItem(
                             entry = entry,
-                            expanded = vm.expandedWord == entry.word,
+                            expanded = isExpanded,
                             onClick = { vm.toggleExpanded(entry.word) },
                             onMasteredToggle = { vm.toggleMastered(entry) }
                         )
@@ -232,6 +268,7 @@ private fun ExportDialog(
     onDismiss: () -> Unit,
     onExport: (String, String, String) -> Unit
 ) {
+    val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Export Words") },
@@ -244,11 +281,10 @@ private fun ExportDialog(
                     title = "CSV",
                     description = "Compatible with Excel, Google Sheets",
                     onClick = {
-                        val csv = StringBuilder("word,definition,phonetic,example,dateAdded\n")
-                        words.forEach { w ->
-                            csv.appendLine("${w.word},\"${w.definition}\",${w.phonetic},\"${w.exampleSentence}\",${SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(w.dateAdded))}")
+                        scope.launch {
+                            val csv = withContext(Dispatchers.Default) { buildCsvExport(words) }
+                            onExport(csv, "text/csv", "Word Book Export")
                         }
-                        onExport(csv.toString(), "text/csv", "Word Book Export")
                     }
                 )
 
@@ -258,16 +294,10 @@ private fun ExportDialog(
                     title = "Markdown",
                     description = "Formatted text for note-taking apps",
                     onClick = {
-                        val md = StringBuilder("# Word Book\n\n")
-                        md.appendLine("Exported: ${SimpleDateFormat("yyyy-MM-dd HH:mm", Locale.getDefault()).format(Date())}\n")
-                        words.forEach { w ->
-                            md.appendLine("## ${w.word}")
-                            if (w.phonetic.isNotEmpty()) md.appendLine("*${w.phonetic}*")
-                            if (w.definition.isNotEmpty()) md.appendLine("\n${w.definition}")
-                            if (w.exampleSentence.isNotEmpty()) md.appendLine("\n> ${w.exampleSentence}")
-                            md.appendLine("\n---\n")
+                        scope.launch {
+                            val md = withContext(Dispatchers.Default) { buildMarkdownExport(words) }
+                            onExport(md, "text/markdown", "Word Book Export")
                         }
-                        onExport(md.toString(), "text/markdown", "Word Book Export")
                     }
                 )
 
@@ -277,16 +307,10 @@ private fun ExportDialog(
                     title = "Anki Flashcards",
                     description = "Tab-separated for Anki import",
                     onClick = {
-                        val anki = StringBuilder()
-                        words.forEach { w ->
-                            val back = buildString {
-                                if (w.definition.isNotEmpty()) append(w.definition)
-                                if (w.phonetic.isNotEmpty()) append(" (${w.phonetic})")
-                                if (w.exampleSentence.isNotEmpty()) append("<br><br><i>${w.exampleSentence}</i>")
-                            }
-                            anki.appendLine("${w.word}\t$back")
+                        scope.launch {
+                            val anki = withContext(Dispatchers.Default) { buildAnkiExport(words) }
+                            onExport(anki, "text/plain", "Word Book Anki Import")
                         }
-                        onExport(anki.toString(), "text/plain", "Word Book Anki Import")
                     }
                 )
             }

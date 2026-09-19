@@ -67,10 +67,12 @@ fun RssArticlesScreen(
     val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
     val currentSub = subscriptions.find { it.id == subscriptionId }
 
-    val filteredArticles = when (vm.filterMode) {
-        ArticleFilterMode.ALL -> articles
-        ArticleFilterMode.UNREAD -> articles.filter { !it.isRead }
-        ArticleFilterMode.FAVORITES -> articles.filter { it.isFavorite }
+    val filteredArticles = remember(articles, vm.filterMode) {
+        when (vm.filterMode) {
+            ArticleFilterMode.ALL -> articles
+            ArticleFilterMode.UNREAD -> articles.filter { !it.isRead }
+            ArticleFilterMode.FAVORITES -> articles.filter { it.isFavorite }
+        }
     }
     val unreadCount = remember(articles) { articles.count { !it.isRead } }
     val favoriteCount = remember(articles) { articles.count { it.isFavorite } }

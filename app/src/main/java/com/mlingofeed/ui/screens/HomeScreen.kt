@@ -57,6 +57,7 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -159,7 +160,7 @@ fun HomeScreen(
                             label = { Text("All") }
                         )
                     }
-                    items(categories) { category: String ->
+                    items(categories, key = { it }) { category: String ->
                         FilterChip(
                             selected = vm.selectedCategory == category,
                             onClick = { vm.selectCategory(category) },
@@ -171,8 +172,12 @@ fun HomeScreen(
 
             Spacer(modifier = Modifier.height(12.dp))
 
-            val filteredBookmarks = vm.orderedBookmarks.filter {
-                vm.selectedCategory.isEmpty() || it.category == vm.selectedCategory
+            val filteredBookmarks by remember {
+                derivedStateOf {
+                    vm.orderedBookmarks.filter {
+                        vm.selectedCategory.isEmpty() || it.category == vm.selectedCategory
+                    }
+                }
             }
 
             Spacer(modifier = Modifier.height(4.dp))

@@ -78,6 +78,7 @@ fun RssSubscriptionsScreen(
     val folders by vm.folders.collectAsStateWithLifecycle()
     val totalUnread by vm.totalUnread.collectAsStateWithLifecycle()
     val unreadCounts by vm.unreadCounts.collectAsStateWithLifecycle()
+    val subsByFolder = remember(subscriptions) { subscriptions.groupBy { it.folderId } }
 
     Scaffold(
         topBar = {
@@ -142,7 +143,7 @@ fun RssSubscriptionsScreen(
                 }
 
                 folders.forEach { folder ->
-                    val folderSubs = subscriptions.filter { it.folderId == folder.id }
+                    val folderSubs = subsByFolder[folder.id].orEmpty()
                     val isExpanded = folder.id in vm.expandedFolders
                     val folderUnread = folderSubs.sumOf { unreadCounts[it.id] ?: 0 }
 
@@ -170,7 +171,7 @@ fun RssSubscriptionsScreen(
                     }
                 }
 
-                val ungroupedSubs = subscriptions.filter { it.folderId == null }
+                val ungroupedSubs = subsByFolder[null].orEmpty()
                 if (ungroupedSubs.isNotEmpty()) {
                     if (folders.isNotEmpty()) {
                         item {
