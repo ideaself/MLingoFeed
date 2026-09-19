@@ -68,8 +68,13 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.WordBookEntry
 import kotlinx.coroutines.launch
 import java.text.SimpleDateFormat
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Date
 import java.util.Locale
+
+private val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -393,7 +398,7 @@ private fun WordBookItem(
                 )
             }
             Spacer(modifier = Modifier.height(4.dp))
-            val dateStr = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault()).format(Date(entry.dateAdded))
+            val dateStr = Instant.ofEpochMilli(entry.dateAdded).atZone(ZoneId.systemDefault()).format(DISPLAY_DATE_FORMATTER)
             Text(
                 text = "Added: $dateStr",
                 style = MaterialTheme.typography.labelSmall,

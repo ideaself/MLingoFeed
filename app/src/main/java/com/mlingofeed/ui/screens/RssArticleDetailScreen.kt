@@ -61,8 +61,9 @@ import com.mlingofeed.data.database.RssArticle
 import com.mlingofeed.ui.components.ChatDialog
 import com.mlingofeed.ui.components.DictionaryPopup
 import com.mlingofeed.ui.components.TranslationPopup
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -421,8 +422,10 @@ private fun extractSentenceAtOffset(text: String, offset: Int): String {
     return text.substring(start, end).trim()
 }
 
+private val PUB_DATE_FORMATTER: DateTimeFormatter =
+    DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' HH:mm", Locale.getDefault())
+
 private fun formatPubDate(timestamp: Long): String {
     if (timestamp == 0L) return ""
-    val sdf = SimpleDateFormat("MMM dd, yyyy 'at' HH:mm", Locale.getDefault())
-    return sdf.format(Date(timestamp))
+    return Instant.ofEpochMilli(timestamp).atZone(ZoneId.systemDefault()).format(PUB_DATE_FORMATTER)
 }
