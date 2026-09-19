@@ -1,6 +1,7 @@
 package com.mlingofeed.data.repository
 
 import com.mlingofeed.data.api.HttpClient
+import com.mlingofeed.data.api.await
 import com.mlingofeed.data.database.RssArticle
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -48,7 +49,7 @@ object RssParser {
                 .url(rssUrl)
                 .header("User-Agent", BROWSER_UA)
                 .build()
-            val body = client.newCall(request).execute().use { response ->
+            val body = client.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@withContext emptyList()
                 response.body?.string() ?: return@withContext emptyList()
             }
@@ -102,7 +103,7 @@ object RssParser {
                 .url(articleUrl)
                 .header("User-Agent", USER_AGENT)
                 .build()
-            val body = client.newCall(request).execute().use { response ->
+            val body = client.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@withContext ""
                 response.body?.string() ?: return@withContext ""
             }

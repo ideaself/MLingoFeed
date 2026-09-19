@@ -1,6 +1,7 @@
 package com.mlingofeed.data.repository
 
 import com.mlingofeed.data.api.HttpClient
+import com.mlingofeed.data.api.await
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -25,7 +26,7 @@ class DictionaryRepository {
                 .header("Accept-Language", "en-US,en;q=0.9")
                 .build()
 
-            okHttpClient.newCall(request).execute().use { response ->
+            okHttpClient.newCall(request).await().use { response ->
                 if (!response.isSuccessful) return@withContext "Error: HTTP ${response.code}"
 
                 val body = response.body?.string() ?: return@withContext "No result"

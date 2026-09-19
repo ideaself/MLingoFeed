@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.api.HttpClient
+import com.mlingofeed.data.api.await
 import com.mlingofeed.data.database.Bookmark
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -154,7 +155,7 @@ private suspend fun fetchPageTitle(pageUrl: String): String = withContext(Dispat
             .url(pageUrl)
             .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
             .build()
-        HttpClient.shared.newCall(request).execute().use { response ->
+        HttpClient.shared.newCall(request).await().use { response ->
             val body = response.body?.string() ?: return@use pageUrl
             Jsoup.parse(body).title().ifBlank { pageUrl }
         }
