@@ -190,22 +190,36 @@ private fun StatCard(modifier: Modifier = Modifier, title: String, value: String
 private fun DailyBarChart(data: List<Pair<String, Long>>, modifier: Modifier = Modifier) {
     val maxValue = data.maxOfOrNull { it.second } ?: 1L
     val barColor = MaterialTheme.colorScheme.primary
-    val gridColor = MaterialTheme.colorScheme.outlineVariant
 
-    Canvas(modifier = modifier) {
-        val barWidth = size.width / (data.size * 2f)
-        val chartHeight = size.height - 30f
+    Column(modifier = modifier) {
+        Canvas(modifier = Modifier.fillMaxWidth().weight(1f)) {
+            val barWidth = size.width / (data.size * 2f)
+            val chartHeight = size.height
 
-        for (i in data.indices) {
-            val barHeight = if (maxValue > 0) (data[i].second.toFloat() / maxValue) * chartHeight else 0f
-            val x = i * (size.width / data.size) + barWidth / 2
+            for (i in data.indices) {
+                val barHeight = if (maxValue > 0) (data[i].second.toFloat() / maxValue) * chartHeight else 0f
+                val x = i * (size.width / data.size) + barWidth / 2
 
-            drawRoundRect(
-                color = barColor,
-                topLeft = Offset(x, chartHeight - barHeight),
-                size = Size(barWidth, barHeight),
-                cornerRadius = CornerRadius(4f, 4f)
-            )
+                drawRoundRect(
+                    color = barColor,
+                    topLeft = Offset(x, chartHeight - barHeight),
+                    size = Size(barWidth, barHeight),
+                    cornerRadius = CornerRadius(4f, 4f)
+                )
+            }
+        }
+        Spacer(modifier = Modifier.height(4.dp))
+        Row(modifier = Modifier.fillMaxWidth()) {
+            data.forEach { (label, _) ->
+                Text(
+                    text = label,
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                    maxLines = 1,
+                    modifier = Modifier.weight(1f)
+                )
+            }
         }
     }
 }

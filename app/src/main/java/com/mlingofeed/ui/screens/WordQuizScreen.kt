@@ -88,7 +88,7 @@ fun WordQuizScreen(onBack: () -> Unit) {
     }
 
     val options = remember(vm.quizWords, vm.currentIndex) {
-        if (vm.quizWords.size >= 4 && vm.currentIndex < vm.quizWords.size) {
+        if (vm.currentIndex in vm.quizWords.indices) {
             val correct = vm.quizWords[vm.currentIndex]
             val others = vm.quizWords.filter { it.word != correct.word }.shuffled().take(3)
             (others + correct).shuffled()

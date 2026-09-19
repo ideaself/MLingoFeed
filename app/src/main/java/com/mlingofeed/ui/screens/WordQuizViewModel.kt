@@ -59,7 +59,7 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
     }
 
     fun answerKnown(word: WordBookEntry) {
-        if (!isFlipped) correctCount++
+        correctCount++
         reviewAndAdvance(word, true)
     }
 
