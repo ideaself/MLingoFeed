@@ -11,8 +11,10 @@ import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import androidx.work.Constraints
 import androidx.work.CoroutineWorker
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.NetworkType
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.WorkerParameters
@@ -20,6 +22,7 @@ import com.mlingofeed.MainActivity
 import com.mlingofeed.R
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.repository.RssRepository
+import kotlinx.coroutines.CancellationException
 import java.util.concurrent.TimeUnit
 
 class RssSyncWorker(
@@ -40,6 +43,8 @@ class RssSyncWorker(
             }
 
             Result.success()
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             Result.retry()
         }
@@ -97,11 +102,17 @@ class RssSyncWorker(
             val request = PeriodicWorkRequestBuilder<RssSyncWorker>(
                 intervalHours, TimeUnit.HOURS,
                 15, TimeUnit.MINUTES
-            ).build()
+            )
+                .setConstraints(
+                    Constraints.Builder()
+                        .setRequiredNetworkType(NetworkType.CONNECTED)
+                        .build()
+                )
+                .build()
 
             WorkManager.getInstance(context).enqueueUniquePeriodicWork(
                 WORK_NAME,
-                ExistingPeriodicWorkPolicy.KEEP,
+                ExistingPeriodicWorkPolicy.UPDATE,
                 request
             )
         }

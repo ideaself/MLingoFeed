@@ -12,6 +12,7 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssRule
 import com.mlingofeed.data.repository.OpmlParser
 import com.mlingofeed.data.work.RssSyncWorker
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
@@ -116,10 +117,9 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
         viewModelScope.launch {
             val success = try {
                 withContext(Dispatchers.IO) {
-                    val inputStream = app.contentResolver.openInputStream(uri)
-                    val reader = BufferedReader(InputStreamReader(inputStream))
-                    val content = reader.readText()
-                    reader.close()
+                    val content = app.contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader().readText()
+                    } ?: ""
 
                     val opmlFolders = OpmlParser.parseOpml(content)
                     if (opmlFolders.isEmpty()) {
@@ -134,6 +134,8 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
                         true
                     }
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
                 false
             }
@@ -144,10 +146,13 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     fun exportOpml(uri: Uri, content: String) {
         viewModelScope.launch {
             try {
-                app.contentResolver.openOutputStream(uri)?.use {
-                    it.write(content.toByteArray())
+                withContext(Dispatchers.IO) {
+                    app.contentResolver.openOutputStream(uri)?.use {
+                        it.write(content.toByteArray())
+                    }
                 }
-            } catch (_: Exception) {}
+            } catch (_: Exception) {
+            }
         }
     }
 

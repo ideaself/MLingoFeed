@@ -15,6 +15,7 @@ import com.mlingofeed.webview.clearPageTranslations
 import com.mlingofeed.webview.injectTranslationStyles
 import com.mlingofeed.webview.prepareTranslationParagraphs
 import com.mlingofeed.webview.updateParagraphTranslation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -208,7 +209,11 @@ class ReaderViewModel(
                 val translation = withContext(Dispatchers.IO) {
                     try {
                         app.chatRepository.translate(text, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                    } catch (e: Exception) { "Error: ${e.message}" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        "Error: ${e.message}"
+                    }
                 }
                 withContext(Dispatchers.Main) {
                     updateParagraphTranslation(wv, currentIndex, translation)

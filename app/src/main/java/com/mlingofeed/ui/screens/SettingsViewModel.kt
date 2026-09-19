@@ -11,10 +11,13 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportData
 import com.mlingofeed.data.export.ExportManager
 import com.mlingofeed.data.settings.DictionaryConfig
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
@@ -58,10 +61,11 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     init {
         viewModelScope.launch {
-            aiUrlInput = app.settingsManager.aiApiUrl.first()
-            aiKeyInput = app.settingsManager.aiApiKey.first()
-            aiModelInput = app.settingsManager.aiModel.first()
-            targetLangInput = app.settingsManager.translateTargetLang.first()
+            val settings = app.settingsManager.getAllSettings()
+            aiUrlInput = settings["ai_api_url"] ?: ""
+            aiKeyInput = settings["ai_api_key"] ?: ""
+            aiModelInput = settings["ai_model"] ?: ""
+            targetLangInput = settings["translate_target_lang"] ?: "Chinese"
         }
     }
 
@@ -102,6 +106,8 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
                 val models = app.chatRepository.fetchModels(aiUrlInput, aiKeyInput)
                 modelList = models
                 showModelDropdown = models.isNotEmpty()
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 Toast.makeText(app, e.message, Toast.LENGTH_SHORT).show()
             }
@@ -221,17 +227,19 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun exportData(uri: Uri) {
         viewModelScope.launch {
-            val bookmarks = app.bookmarkRepository.allBookmarks.first()
-            val subscriptions = app.rssRepository.allSubscriptions.first()
-            val settings = app.settingsManager.getAllSettings()
-            val ok = ExportManager.exportToJson(app, uri, bookmarks, settings, subscriptions)
+            val ok = withContext(Dispatchers.IO) {
+                val bookmarks = app.bookmarkRepository.allBookmarks.first()
+                val subscriptions = app.rssRepository.allSubscriptions.first()
+                val settings = app.settingsManager.getAllSettings()
+                ExportManager.exportToJson(app, uri, bookmarks, settings, subscriptions)
+            }
             Toast.makeText(app, if (ok) "Export successful" else "Export failed", Toast.LENGTH_SHORT).show()
         }
     }
 
     fun importData(uri: Uri) {
         viewModelScope.launch {
-            val data = ExportManager.importFromJson(app, uri)
+            val data = withContext(Dispatchers.IO) { ExportManager.importFromJson(app, uri) }
             if (data == null) {
                 Toast.makeText(app, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
                 return@launch

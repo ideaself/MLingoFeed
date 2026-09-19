@@ -54,11 +54,8 @@ fun injectSelectionScript(webView: WebView?) {
     webView?.evaluateJavascript(
         """
         (function() {
-            if (window.__webReaderInjected) {
-                window.__webReaderInjected = false;
-                var oldScript = document.getElementById('__webReaderSelectionScript');
-                if (oldScript) oldScript.remove();
-            }
+            if (window.__webReaderInjected) return;
+            window.__webReaderInjected = true;
 
             var script = document.createElement('script');
             script.id = '__webReaderSelectionScript';

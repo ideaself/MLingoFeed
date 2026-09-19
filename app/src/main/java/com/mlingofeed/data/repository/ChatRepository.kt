@@ -2,9 +2,9 @@ package com.mlingofeed.data.repository
 
 import com.mlingofeed.data.api.ChatMessage
 import com.mlingofeed.data.api.ChatRequest
+import com.mlingofeed.data.api.HttpClient
 import com.mlingofeed.data.api.TranslationApi
-import okhttp3.OkHttpClient
-import okhttp3.logging.HttpLoggingInterceptor
+import kotlinx.coroutines.CancellationException
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -13,12 +13,8 @@ import java.io.IOException
 
 class ChatRepository {
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .addInterceptor(HttpLoggingInterceptor().apply {
-            level = HttpLoggingInterceptor.Level.BASIC
-        })
+    private val okHttpClient = HttpClient.shared.newBuilder()
+        .readTimeout(120, TimeUnit.SECONDS)
         .build()
 
     private val retrofit = Retrofit.Builder()
@@ -55,6 +51,8 @@ class ChatRepository {
             "API Error ${e.code()}: $errorBody"
         } catch (e: IOException) {
             "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
@@ -80,6 +78,8 @@ class ChatRepository {
             "API Error ${e.code()}: $errorBody"
         } catch (e: IOException) {
             "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
@@ -99,6 +99,8 @@ class ChatRepository {
             throw Exception("API Error ${e.code()}: $errorBody")
         } catch (e: IOException) {
             throw Exception("Network error: ${e.message}")
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             throw Exception("Error: ${e.message}")
         }
@@ -145,6 +147,8 @@ Return ONLY the JSON object, no other text."""
             "API Error ${e.code()}: $errorBody"
         } catch (e: IOException) {
             "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             "Error: ${e.message}"
         }
@@ -192,6 +196,8 @@ Find 5-10 items. Return ONLY the JSON array, no other text."""
             "API Error ${e.code()}: $errorBody"
         } catch (e: IOException) {
             "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             "Error: ${e.message}"
         }

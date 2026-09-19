@@ -9,6 +9,7 @@ import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssArticle
 import com.mlingofeed.data.repository.RssParser
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -123,7 +124,11 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             val translation = withContext(Dispatchers.IO) {
                 try {
                     app.chatRepository.translate(trimmed, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                } catch (e: Exception) { "Error: ${e.message}" }
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                }
             }
             translatedParagraphs[index] = translation
             translatingParagraphs.remove(index)
@@ -149,7 +154,11 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 val translation = withContext(Dispatchers.IO) {
                     try {
                         app.chatRepository.translate(trimmed, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                    } catch (e: Exception) { "Error: ${e.message}" }
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        "Error: ${e.message}"
+                    }
                 }
                 translatedParagraphs[index] = translation
                 translatingParagraphs.remove(index)

@@ -9,8 +9,14 @@ import com.mlingofeed.data.database.RssFolder
 import com.mlingofeed.data.database.RssRule
 import com.mlingofeed.data.database.RssSubscription
 import com.mlingofeed.data.database.RssTag
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withPermit
 
 class RssRepository(private val rssDao: RssDao, private val database: AppDatabase) {
     val allSubscriptions: Flow<List<RssSubscription>> = rssDao.getAllSubscriptions()
@@ -130,17 +136,21 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.markAllArticlesRead()
     }
 
-    suspend fun refreshAll(): Int {
+    suspend fun refreshAll(): Int = coroutineScope {
         val subscriptions = rssDao.getAllSubscriptionsSync().filter { it.isEnabled }
-        var totalNew = 0
-        for (sub in subscriptions) {
-            try {
-                val articles = RssParser.parse(sub.id, sub.url)
-                totalNew += insertArticles(articles)
-            } catch (_: Exception) {
+        val semaphore = Semaphore(4)
+        subscriptions.map { sub ->
+            async(Dispatchers.IO) {
+                semaphore.withPermit {
+                    try {
+                        val articles = RssParser.parse(sub.id, sub.url)
+                        insertArticles(articles)
+                    } catch (_: Exception) {
+                        0
+                    }
+                }
             }
-        }
-        return totalNew
+        }.awaitAll().sum()
     }
 
     suspend fun deleteAllSubscriptions() {

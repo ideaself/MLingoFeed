@@ -51,6 +51,7 @@ import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.api.ChatMessage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -136,6 +137,8 @@ fun ChatDialog(
                 }
 
                 messages.add(ChatMessageItem(role = "assistant", content = response))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 messages.add(
                     ChatMessageItem(role = "assistant", content = "Error: ${e.message}")

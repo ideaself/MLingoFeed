@@ -18,7 +18,6 @@ class WordQuizViewModel(app: WebReaderApp) : ViewModel() {
     private val repository = app.wordBookRepository
 
     val allWords = repository.allWords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val dueWords = repository.dueWords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 
     var quizMode by mutableStateOf("flashcard")
         private set

@@ -1,9 +1,10 @@
 package com.mlingofeed.data.repository
 
+import com.mlingofeed.data.api.HttpClient
 import com.mlingofeed.data.database.RssArticle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
@@ -19,10 +20,8 @@ import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 object RssParser {
-    private val client = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
+    private val client = HttpClient.shared.newBuilder()
         .readTimeout(20, TimeUnit.SECONDS)
-        .followRedirects(true)
         .build()
 
     private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
@@ -39,8 +38,6 @@ object RssParser {
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH),
         DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ENGLISH)
     ).map { it.withLocale(Locale.ENGLISH) }
-
-    data class ParsedArticle(val title: String, val link: String, val description: String, val pubDate: Long)
 
     suspend fun parse(subscriptionId: Long, rssUrl: String): List<RssArticle> = withContext(Dispatchers.IO) {
         try {
@@ -89,6 +86,8 @@ object RssParser {
             }
 
             articles
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             emptyList()
         }
@@ -114,6 +113,8 @@ object RssParser {
             }
 
             doc.body()?.text() ?: ""
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             ""
         }

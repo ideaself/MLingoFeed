@@ -7,7 +7,6 @@ import androidx.compose.runtime.setValue
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
-import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import com.mlingofeed.ui.screens.HistoryScreen
@@ -60,7 +59,6 @@ sealed class Screen(val route: String) {
 @Composable
 fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
     val navController = rememberNavController()
-    val navBackStackEntry by navController.currentBackStackEntryAsState()
 
     NavHost(
         navController = navController,

@@ -1,21 +1,20 @@
 package com.mlingofeed.data.repository
 
-import okhttp3.OkHttpClient
+import com.mlingofeed.data.api.HttpClient
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.Request
 import org.json.JSONObject
 import org.jsoup.Jsoup
 import java.net.URLEncoder
-import java.util.concurrent.TimeUnit
 
 class DictionaryRepository {
 
-    private val okHttpClient = OkHttpClient.Builder()
-        .connectTimeout(15, TimeUnit.SECONDS)
-        .readTimeout(15, TimeUnit.SECONDS)
-        .build()
+    private val okHttpClient = HttpClient.shared
 
-    suspend fun lookupWord(urlTemplate: String, cssSelector: String, word: String): String {
-        return try {
+    suspend fun lookupWord(urlTemplate: String, cssSelector: String, word: String): String = withContext(Dispatchers.IO) {
+        try {
             val encodedWord = URLEncoder.encode(word, "UTF-8")
             val url = urlTemplate.replace("{word}", encodedWord)
 
@@ -27,9 +26,9 @@ class DictionaryRepository {
                 .build()
 
             okHttpClient.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return "Error: HTTP ${response.code}"
+                if (!response.isSuccessful) return@withContext "Error: HTTP ${response.code}"
 
-                val body = response.body?.string() ?: return "No result"
+                val body = response.body?.string() ?: return@withContext "No result"
 
                 if (cssSelector.isNotEmpty()) {
                     parseHtmlResult(body, cssSelector)
@@ -37,6 +36,8 @@ class DictionaryRepository {
                     parseDefaultResult(body, urlTemplate)
                 }
             }
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             "Error: ${e.message}"
         }

@@ -52,8 +52,9 @@ object OpmlParser {
         sb.appendLine("  <head><title>Web Reader Subscriptions</title></head>")
         sb.appendLine("  <body>")
 
+        val subsByFolder = subscriptions.groupBy { it.folderId }
         for (folder in folders) {
-            val folderSubs = subscriptions.filter { it.folderId == folder.id }
+            val folderSubs = subsByFolder[folder.id].orEmpty()
             if (folderSubs.isNotEmpty()) {
                 sb.appendLine("    <outline text=\"${escapeXml(folder.name)}\" title=\"${escapeXml(folder.name)}\">")
                 for (sub in folderSubs) {

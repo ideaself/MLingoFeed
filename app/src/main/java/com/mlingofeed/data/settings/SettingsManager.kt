@@ -36,7 +36,9 @@ class SettingsManager(private val context: Context) {
         val READING_TIME_SECONDS = stringPreferencesKey("reading_time_seconds")
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
 
-        private fun defaultDictionaries(): String {
+        private val defaultDictionariesJson: String by lazy { createDefaultDictionaries() }
+
+        private fun createDefaultDictionaries(): String {
             val list = JSONArray()
             val youdao = JSONObject().apply {
                 put("id", "youdao")
@@ -51,7 +53,7 @@ class SettingsManager(private val context: Context) {
     }
 
     val dictionaries: Flow<List<DictionaryConfig>> = context.dataStore.data.map { prefs ->
-        val json = prefs[DICTIONARIES] ?: defaultDictionaries()
+        val json = prefs[DICTIONARIES] ?: defaultDictionariesJson
         parseDictionaries(json)
     }
 
@@ -198,7 +200,7 @@ class SettingsManager(private val context: Context) {
     suspend fun getAllSettings(): Map<String, String> {
         val prefs = context.dataStore.data.first()
         return mapOf(
-            "dictionaries" to (prefs[DICTIONARIES] ?: defaultDictionaries()),
+            "dictionaries" to (prefs[DICTIONARIES] ?: defaultDictionariesJson),
             "ai_api_url" to (prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"),
             "ai_api_key" to (prefs[AI_API_KEY] ?: ""),
             "ai_model" to (prefs[AI_MODEL] ?: "deepseek-v4-flash"),

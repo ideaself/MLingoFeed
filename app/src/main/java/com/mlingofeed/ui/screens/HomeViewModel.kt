@@ -8,6 +8,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.Bookmark
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -132,6 +133,8 @@ private suspend fun fetchPageTitle(pageUrl: String): String = withContext(Dispat
         val body = response.body?.string() ?: return@withContext pageUrl
         val doc = Jsoup.parse(body)
         doc.title()?.ifBlank { null } ?: pageUrl
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Exception) {
         pageUrl
     }
