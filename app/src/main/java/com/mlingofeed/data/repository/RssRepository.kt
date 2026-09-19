@@ -9,13 +9,16 @@ import com.mlingofeed.data.database.RssFolder
 import com.mlingofeed.data.database.RssRule
 import com.mlingofeed.data.database.RssSubscription
 import com.mlingofeed.data.database.RssTag
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
 
 class RssRepository(private val rssDao: RssDao, private val database: AppDatabase) {
@@ -27,6 +30,7 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
     val favoriteArticles: Flow<List<RssArticle>> = rssDao.getFavoriteArticles()
     val unreadArticles: Flow<List<RssArticle>> = rssDao.getUnreadArticles()
     val totalUnreadCount: Flow<Int> = rssDao.getTotalUnreadCount()
+    private val refreshMutex = Mutex()
     val unreadCountsBySubscription: Flow<Map<Long, Int>> =
         rssDao.getUnreadCountsBySubscription().map { list ->
             list.associate { it.subscriptionId to it.unreadCount }
@@ -45,15 +49,33 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.getArticlesByTag(tagId)
 
     fun searchArticles(query: String): Flow<List<RssArticle>> =
-        rssDao.searchArticles(query)
+        rssDao.searchArticles(escapeLikePattern(query))
+
+    private fun escapeLikePattern(value: String): String = value
+        .replace("\\", "\\\\")
+        .replace("%", "\\%")
+        .replace("_", "\\_")
 
     suspend fun getArticleById(id: Long): RssArticle? =
         rssDao.getArticleById(id)
+
+    suspend fun getSubscriptionById(id: Long): RssSubscription? =
+        rssDao.getSubscriptionById(id)
 
     suspend fun addSubscription(title: String, url: String, folderId: Long? = null): Long {
         return rssDao.insertSubscription(
             RssSubscription(title = title, url = url, folderId = folderId)
         )
+    }
+
+    suspend fun addSubscriptions(subscriptions: List<Pair<String, String>>): Int {
+        if (subscriptions.isEmpty()) return 0
+        return database.withTransaction {
+            subscriptions.forEach { (title, url) ->
+                rssDao.insertSubscription(RssSubscription(title = title, url = url))
+            }
+            subscriptions.size
+        }
     }
 
     suspend fun deleteSubscription(id: Long) {
@@ -77,7 +99,11 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
 
     suspend fun insertArticles(articles: List<RssArticle>): Int {
         if (articles.isEmpty()) return 0
-        val rules = rssDao.getEnabledRulesSync()
+        return insertArticles(articles, rssDao.getEnabledRulesSync())
+    }
+
+    private suspend fun insertArticles(articles: List<RssArticle>, rules: List<RssRule>): Int {
+        if (articles.isEmpty()) return 0
         val processedArticles = if (rules.isEmpty()) {
             articles
         } else {
@@ -136,21 +162,26 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.markAllArticlesRead()
     }
 
-    suspend fun refreshAll(): Int = coroutineScope {
-        val subscriptions = rssDao.getAllSubscriptionsSync().filter { it.isEnabled }
-        val semaphore = Semaphore(4)
-        subscriptions.map { sub ->
-            async(Dispatchers.IO) {
-                semaphore.withPermit {
-                    try {
-                        val articles = RssParser.parse(sub.id, sub.url)
-                        insertArticles(articles)
-                    } catch (_: Exception) {
-                        0
+    suspend fun refreshAll(): Int = refreshMutex.withLock {
+        coroutineScope {
+            val subscriptions = rssDao.getAllSubscriptionsSync().filter { it.isEnabled }
+            val rules = rssDao.getEnabledRulesSync()
+            val semaphore = Semaphore(4)
+            subscriptions.map { sub ->
+                async(Dispatchers.IO) {
+                    semaphore.withPermit {
+                        try {
+                            val articles = RssParser.parse(sub.id, sub.url)
+                            insertArticles(articles, rules)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (_: Exception) {
+                            0
+                        }
                     }
                 }
-            }
-        }.awaitAll().sum()
+            }.awaitAll().sum()
+        }
     }
 
     suspend fun deleteAllSubscriptions() {

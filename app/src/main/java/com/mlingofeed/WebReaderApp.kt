@@ -12,6 +12,7 @@ import com.mlingofeed.data.settings.SettingsManager
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class WebReaderApp : Application() {
     val applicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
@@ -23,4 +24,12 @@ class WebReaderApp : Application() {
     val rssRepository: RssRepository by lazy { RssRepository(database.rssDao(), database) }
     val wordBookRepository: WordBookRepository by lazy { WordBookRepository(database.wordBookDao(), database) }
     val settingsManager by lazy { SettingsManager(this) }
+
+    override fun onCreate() {
+        super.onCreate()
+        applicationScope.launch {
+            rssRepository.cleanupDuplicates()
+            rssRepository.initDefaultSubscriptions()
+        }
+    }
 }

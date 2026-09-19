@@ -8,7 +8,6 @@ import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.repository.RssParser
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
@@ -48,7 +47,7 @@ class RssArticlesViewModel(app: WebReaderApp) : ViewModel() {
         isRefreshing = true
         viewModelScope.launch {
             try {
-                val sub = repository.allSubscriptions.first().find { it.id == subscriptionId }
+                val sub = repository.getSubscriptionById(subscriptionId)
                 if (sub != null) {
                     val newArticles = RssParser.parse(sub.id, sub.url)
                     repository.insertArticles(newArticles)

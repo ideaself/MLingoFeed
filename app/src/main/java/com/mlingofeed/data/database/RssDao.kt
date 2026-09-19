@@ -71,7 +71,7 @@ interface RssDao {
     @Query("SELECT * FROM rss_articles WHERE isRead = 0 ORDER BY pubDate DESC LIMIT 300")
     fun getUnreadArticles(): Flow<List<RssArticle>>
 
-    @Query("SELECT * FROM rss_articles WHERE title LIKE '%' || :query || '%' OR description LIKE '%' || :query || '%' OR content LIKE '%' || :query || '%' ORDER BY pubDate DESC LIMIT 100")
+    @Query("SELECT * FROM rss_articles WHERE title LIKE '%' || :query || '%' ESCAPE '\\' OR description LIKE '%' || :query || '%' ESCAPE '\\' OR content LIKE '%' || :query || '%' ESCAPE '\\' ORDER BY pubDate DESC LIMIT 100")
     fun searchArticles(query: String): Flow<List<RssArticle>>
 
     @Query("SELECT * FROM rss_articles WHERE id = :id LIMIT 1")

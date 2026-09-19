@@ -33,13 +33,6 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
     var expandedFolders by mutableStateOf(setOf<Long>())
         private set
 
-    init {
-        viewModelScope.launch {
-            repository.cleanupDuplicates()
-            repository.initDefaultSubscriptions()
-        }
-    }
-
     fun openAddDialog() {
         showAddDialog = true
     }
@@ -94,9 +87,12 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
 
     fun updateSubscription(sub: RssSubscription, title: String, url: String, folderId: Long?) {
         viewModelScope.launch {
-            repository.updateSubscription(sub.id, title.trim(), url.trim(), folderId)
-            val articles = RssParser.parse(sub.id, url.trim())
-            repository.insertArticles(articles)
+            val newUrl = url.trim()
+            repository.updateSubscription(sub.id, title.trim(), newUrl, folderId)
+            if (newUrl != sub.url) {
+                val articles = RssParser.parse(sub.id, newUrl)
+                repository.insertArticles(articles)
+            }
         }
         editingSub = null
     }
