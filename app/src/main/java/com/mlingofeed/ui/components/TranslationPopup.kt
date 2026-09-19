@@ -22,7 +22,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,24 +52,24 @@ fun TranslationPopup(
     var translation by remember(text) { mutableStateOf("") }
     var isLoading by remember(text) { mutableStateOf(false) }
 
-    val apiUrl by app.settingsManager.aiApiUrl.collectAsStateWithLifecycle(initialValue = "")
-    val apiKey by app.settingsManager.aiApiKey.collectAsStateWithLifecycle(initialValue = "")
-    val model by app.settingsManager.aiModel.collectAsStateWithLifecycle(initialValue = "")
-    val targetLang by app.settingsManager.translateTargetLang.collectAsStateWithLifecycle(initialValue = "Chinese")
-
-    LaunchedEffect(text, apiUrl, apiKey, model, targetLang) {
+    LaunchedEffect(text) {
+        isLoading = true
+        // Read the AI settings once per popup. Collecting them separately would first run with
+        // empty defaults and fire a doomed request before the stored values arrive.
+        val settings = app.settingsManager.getAllSettings()
+        val apiKey = settings["ai_api_key"].orEmpty()
         if (apiKey.isBlank()) {
             translation = "Please configure AI API Key in Settings"
+            isLoading = false
             return@LaunchedEffect
         }
-        isLoading = true
-        withContext(Dispatchers.IO) {
-            translation = app.chatRepository.translate(
+        translation = withContext(Dispatchers.IO) {
+            app.chatRepository.translate(
                 text = text,
-                targetLang = targetLang,
-                apiUrl = apiUrl,
+                targetLang = settings["translate_target_lang"] ?: "Chinese",
+                apiUrl = settings["ai_api_url"].orEmpty(),
                 apiKey = apiKey,
-                model = model
+                model = settings["ai_model"].orEmpty()
             )
         }
         isLoading = false

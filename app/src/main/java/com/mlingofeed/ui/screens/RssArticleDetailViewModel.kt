@@ -13,7 +13,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
-import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
@@ -22,10 +21,6 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     private val repository = app.rssRepository
 
     val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
 
     var article by mutableStateOf<RssArticle?>(null)
         private set
@@ -57,24 +52,27 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 17f)
 
     private var initializedArticleId: Long? = null
+    private var favoriteTouched = false
 
     fun ensureLoaded(articleId: Long) {
         if (initializedArticleId == articleId) return
-        initializedArticleId = articleId
         viewModelScope.launch {
-            val loaded = repository.getArticleById(articleId)
+            val loaded = repository.getArticleById(articleId) ?: return@launch
+            initializedArticleId = articleId
             article = loaded
-            isFavorite = loaded?.isFavorite ?: false
-            if (loaded != null && !loaded.isRead) {
+            if (!favoriteTouched) {
+                isFavorite = loaded.isFavorite
+            }
+            if (!loaded.isRead) {
                 repository.markAsRead(articleId)
             }
-            if (loaded != null && loaded.content.isBlank()) {
+            if (loaded.content.isBlank()) {
                 isLoadingContent = true
                 val content = RssParser.fetchFullContent(loaded.link)
                 repository.updateArticleContent(articleId, content)
                 fullContent = content
                 isLoadingContent = false
-            } else if (loaded != null) {
+            } else {
                 fullContent = loaded.content
             }
         }
@@ -108,27 +106,29 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     }
 
     fun toggleFavorite(articleId: Long) {
+        favoriteTouched = true
         viewModelScope.launch {
             repository.toggleFavorite(articleId)
-            isFavorite = !isFavorite
+            val updated = repository.getArticleById(articleId)
+            if (updated != null) {
+                article = updated
+                isFavorite = updated.isFavorite
+            } else {
+                isFavorite = !isFavorite
+            }
         }
     }
 
     fun translateParagraph(index: Int, text: String) {
-        if (apiKey.value.isBlank()) return
         val trimmed = text.trim()
         if (trimmed.length < 3) return
         if (translatingParagraphs[index] == true) return
         translatingParagraphs[index] = true
         viewModelScope.launch {
-            val translation = withContext(Dispatchers.IO) {
-                try {
-                    app.chatRepository.translate(trimmed, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    "Error: ${e.message}"
-                }
+            val translation = translateText(trimmed)
+            if (translation == null) {
+                translatingParagraphs.remove(index)
+                return@launch
             }
             translatedParagraphs[index] = translation
             translatingParagraphs.remove(index)
@@ -141,31 +141,56 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             translateProgress = ""
             return
         }
-        if (apiKey.value.isBlank() || paragraphs.isEmpty()) return
+        if (paragraphs.isEmpty()) return
         isTranslatingAll = true
         translateProgress = "Translating..."
         viewModelScope.launch {
+            val settings = app.settingsManager.getAllSettings()
+            if (settings["ai_api_key"].orEmpty().isBlank()) {
+                isTranslatingAll = false
+                translateProgress = ""
+                return@launch
+            }
             paragraphs.forEachIndexed { index, para ->
                 if (!isTranslatingAll) return@launch
                 val trimmed = para.trim()
                 if (trimmed.length < 3) return@forEachIndexed
+                if (translatingParagraphs[index] == true) return@forEachIndexed
                 translateProgress = "Translating ${index + 1}/${paragraphs.size}..."
                 translatingParagraphs[index] = true
-                val translation = withContext(Dispatchers.IO) {
-                    try {
-                        app.chatRepository.translate(trimmed, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        "Error: ${e.message}"
-                    }
+                val translation = translateText(trimmed, settings)
+                if (translation != null) {
+                    translatedParagraphs[index] = translation
                 }
-                translatedParagraphs[index] = translation
                 translatingParagraphs.remove(index)
                 kotlinx.coroutines.delay(50)
             }
             isTranslatingAll = false
             translateProgress = ""
+        }
+    }
+
+    private suspend fun translateText(
+        text: String,
+        settings: Map<String, String>? = null
+    ): String? {
+        val values = settings ?: app.settingsManager.getAllSettings()
+        val apiKey = values["ai_api_key"].orEmpty()
+        if (apiKey.isBlank()) return null
+        return withContext(Dispatchers.IO) {
+            try {
+                app.chatRepository.translate(
+                    text = text,
+                    targetLang = values["translate_target_lang"] ?: "Chinese",
+                    apiUrl = values["ai_api_url"].orEmpty(),
+                    apiKey = apiKey,
+                    model = values["ai_model"].orEmpty()
+                )
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                "Error: ${e.message}"
+            }
         }
     }
 }
