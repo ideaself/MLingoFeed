@@ -6,8 +6,10 @@ import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import org.json.JSONArray
 import org.json.JSONObject
@@ -55,7 +57,7 @@ class SettingsManager(private val context: Context) {
     val dictionaries: Flow<List<DictionaryConfig>> = context.dataStore.data.map { prefs ->
         val json = prefs[DICTIONARIES] ?: defaultDictionariesJson
         parseDictionaries(json)
-    }
+    }.flowOn(Dispatchers.Default)
 
     private fun parseDictionaries(json: String): List<DictionaryConfig> {
         return try {
@@ -122,9 +124,14 @@ class SettingsManager(private val context: Context) {
         prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
     }
 
-    suspend fun setDictionaries(dicts: List<DictionaryConfig>) {
+    /**
+     * Applies [transform] to the currently persisted dictionaries inside the same DataStore
+     * transaction, so concurrent edits cannot overwrite each other with a stale list.
+     */
+    suspend fun updateDictionaries(transform: (List<DictionaryConfig>) -> List<DictionaryConfig>) {
         context.dataStore.edit { prefs ->
-            prefs[DICTIONARIES] = dictionariesToJson(dicts)
+            val current = parseDictionaries(prefs[DICTIONARIES] ?: defaultDictionariesJson)
+            prefs[DICTIONARIES] = dictionariesToJson(transform(current))
         }
     }
 
@@ -195,7 +202,7 @@ class SettingsManager(private val context: Context) {
         } catch (_: Exception) {
             emptyList()
         }
-    }
+    }.flowOn(Dispatchers.Default)
 
     suspend fun getAllSettings(): Map<String, String> {
         val prefs = context.dataStore.data.first()

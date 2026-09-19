@@ -19,11 +19,17 @@ interface BookmarkDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insert(bookmark: Bookmark): Long
 
+    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    suspend fun insertAll(bookmarks: List<Bookmark>)
+
     @Update
     suspend fun update(bookmark: Bookmark)
 
     @Delete
     suspend fun delete(bookmark: Bookmark)
+
+    @Query("DELETE FROM bookmarks")
+    suspend fun deleteAll()
 
     @Query("DELETE FROM bookmarks WHERE url = :url")
     suspend fun deleteByUrl(url: String)

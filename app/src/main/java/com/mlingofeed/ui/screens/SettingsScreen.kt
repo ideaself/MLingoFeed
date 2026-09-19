@@ -254,11 +254,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 dictionaries.forEachIndexed { index, dict ->
                     DictionaryItem(
                         dictionary = dict,
-                        onToggle = { enabled -> vm.toggleDictionary(index, enabled) },
+                        onToggle = { enabled -> vm.toggleDictionary(dict, enabled) },
                         onEdit = { vm.requestEditDictionary(dict) },
-                        onDelete = { vm.deleteDictionary(index) },
-                        onMoveUp = { vm.moveDictionary(index, -1) },
-                        onMoveDown = { vm.moveDictionary(index, 1) },
+                        onDelete = { vm.deleteDictionary(dict) },
+                        onMoveUp = { vm.moveDictionary(dict, -1) },
+                        onMoveDown = { vm.moveDictionary(dict, 1) },
                         canMoveUp = index > 0,
                         canMoveDown = index < dictionaries.size - 1
                     )

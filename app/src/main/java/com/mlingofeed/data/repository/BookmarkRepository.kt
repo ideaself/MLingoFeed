@@ -25,6 +25,15 @@ class BookmarkRepository(private val bookmarkDao: BookmarkDao, private val datab
         bookmarkDao.delete(bookmark)
     }
 
+    suspend fun replaceAll(bookmarks: List<Bookmark>) {
+        database.withTransaction {
+            bookmarkDao.deleteAll()
+            if (bookmarks.isNotEmpty()) {
+                bookmarkDao.insertAll(bookmarks)
+            }
+        }
+    }
+
     suspend fun deleteByUrl(url: String) {
         bookmarkDao.deleteByUrl(url)
     }

@@ -143,35 +143,36 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
         }
     }
 
-    fun toggleDictionary(index: Int, enabled: Boolean) {
+    fun toggleDictionary(dictionary: DictionaryConfig, enabled: Boolean) {
         viewModelScope.launch {
-            val updated = dictionaries.value.toMutableList()
-            if (index in updated.indices) {
-                updated[index] = updated[index].copy(isEnabled = enabled)
-                app.settingsManager.setDictionaries(updated)
+            app.settingsManager.updateDictionaries { dicts ->
+                dicts.map { if (it.id == dictionary.id) it.copy(isEnabled = enabled) else it }
             }
         }
     }
 
-    fun deleteDictionary(index: Int) {
+    fun deleteDictionary(dictionary: DictionaryConfig) {
         viewModelScope.launch {
-            val updated = dictionaries.value.toMutableList()
-            if (index in updated.indices) {
-                updated.removeAt(index)
-                app.settingsManager.setDictionaries(updated)
+            app.settingsManager.updateDictionaries { dicts ->
+                dicts.filterNot { it.id == dictionary.id }
             }
         }
     }
 
-    fun moveDictionary(index: Int, direction: Int) {
+    fun moveDictionary(dictionary: DictionaryConfig, direction: Int) {
         viewModelScope.launch {
-            val updated = dictionaries.value.toMutableList()
-            val target = index + direction
-            if (target in updated.indices) {
-                val temp = updated[index]
-                updated[index] = updated[target]
-                updated[target] = temp
-                app.settingsManager.setDictionaries(updated)
+            app.settingsManager.updateDictionaries { dicts ->
+                val index = dicts.indexOfFirst { it.id == dictionary.id }
+                val target = index + direction
+                if (index < 0 || target !in dicts.indices) {
+                    dicts
+                } else {
+                    dicts.toMutableList().apply {
+                        val temp = this[index]
+                        this[index] = this[target]
+                        this[target] = temp
+                    }
+                }
             }
         }
     }
@@ -186,11 +187,13 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun saveDictionary(updated: DictionaryConfig) {
         viewModelScope.launch {
-            val index = dictionaries.value.indexOfFirst { it.id == updated.id }
-            if (index >= 0) {
-                val updatedList = dictionaries.value.toMutableList()
-                updatedList[index] = updated
-                app.settingsManager.setDictionaries(updatedList)
+            app.settingsManager.updateDictionaries { dicts ->
+                val index = dicts.indexOfFirst { it.id == updated.id }
+                if (index >= 0) {
+                    dicts.toMutableList().also { it[index] = updated }
+                } else {
+                    dicts
+                }
             }
         }
         editingDict = null
@@ -206,7 +209,9 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun addDictionary(dict: DictionaryConfig) {
         viewModelScope.launch {
-            app.settingsManager.setDictionaries(dictionaries.value + dict)
+            app.settingsManager.updateDictionaries { dicts ->
+                if (dicts.any { it.id == dict.id }) dicts else dicts + dict
+            }
         }
         showAddDict = false
     }
@@ -221,7 +226,9 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun addPreset(preset: DictionaryConfig) {
         viewModelScope.launch {
-            app.settingsManager.setDictionaries(dictionaries.value + preset)
+            app.settingsManager.updateDictionaries { dicts ->
+                if (dicts.any { it.id == preset.id }) dicts else dicts + preset
+            }
         }
     }
 
@@ -258,14 +265,14 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
         val data = pendingImportData ?: return
         viewModelScope.launch {
             val repo = app.bookmarkRepository
-            repo.allBookmarks.first().forEach { repo.delete(it) }
-            data.bookmarks.forEach { repo.insert(it) }
+            repo.replaceAll(data.bookmarks)
             if (data.subscriptions.isNotEmpty()) {
                 val rss = app.rssRepository
-                val existingUrls = rss.allSubscriptions.first().map { it.url }
-                data.subscriptions
+                val existingUrls = rss.allSubscriptions.first().map { it.url }.toSet()
+                val newSubscriptions = data.subscriptions
                     .filter { it.url !in existingUrls && it.title.isNotBlank() }
-                    .forEach { rss.addSubscription(it.title, it.url) }
+                    .map { it.title to it.url }
+                rss.addSubscriptions(newSubscriptions)
             }
             if (data.settings.isNotEmpty()) {
                 app.settingsManager.importSettings(data.settings)
