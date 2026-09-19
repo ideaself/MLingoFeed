@@ -13,8 +13,8 @@ interface WordBookDao {
     @Query("SELECT * FROM word_book ORDER BY dateAdded DESC LIMIT 500")
     fun getAllWords(): Flow<List<WordBookEntry>>
 
-    @Query("SELECT * FROM word_book WHERE mastered = 0 ORDER BY nextReviewDate ASC LIMIT 200")
-    fun getDueWords(): Flow<List<WordBookEntry>>
+    @Query("SELECT * FROM word_book WHERE mastered = 0 AND nextReviewDate <= :now ORDER BY nextReviewDate ASC LIMIT 200")
+    fun getDueWords(now: Long): Flow<List<WordBookEntry>>
 
     @Query("SELECT * FROM word_book WHERE mastered = 1 ORDER BY dateAdded DESC LIMIT 200")
     fun getMasteredWords(): Flow<List<WordBookEntry>>
@@ -22,7 +22,7 @@ interface WordBookDao {
     @Query("SELECT * FROM word_book WHERE word = :word LIMIT 1")
     suspend fun getWord(word: String): WordBookEntry?
 
-    @Query("SELECT * FROM word_book WHERE word LIKE '%' || :query || '%' ORDER BY dateAdded DESC")
+    @Query("SELECT * FROM word_book WHERE word LIKE '%' || :query || '%' ESCAPE '\\' ORDER BY dateAdded DESC")
     fun searchWords(query: String): Flow<List<WordBookEntry>>
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
@@ -30,6 +30,9 @@ interface WordBookDao {
 
     @Update
     suspend fun update(entry: WordBookEntry)
+
+    @Query("UPDATE word_book SET mastered = NOT mastered WHERE word = :word")
+    suspend fun toggleMastered(word: String)
 
     @Delete
     suspend fun delete(entry: WordBookEntry)

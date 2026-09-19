@@ -83,6 +83,12 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isRead = :isRead WHERE id = :id")
     suspend fun setReadStatus(id: Long, isRead: Boolean)
 
+    @Query("UPDATE rss_articles SET isRead = NOT isRead WHERE id = :id")
+    suspend fun toggleReadStatus(id: Long)
+
+    @Query("UPDATE rss_articles SET isFavorite = NOT isFavorite WHERE id = :id")
+    suspend fun toggleFavoriteStatus(id: Long)
+
     @Query("UPDATE rss_articles SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun setFavoriteStatus(id: Long, isFavorite: Boolean)
 
@@ -95,7 +101,7 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isRead = 1 WHERE isRead = 0")
     suspend fun markAllArticlesRead()
 
-    @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp")
+    @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp AND isFavorite = 0 AND isRead = 1")
     suspend fun deleteOldArticles(timestamp: Long)
 
     @Query("SELECT subscriptionId, COUNT(*) AS unreadCount FROM rss_articles WHERE isRead = 0 GROUP BY subscriptionId")

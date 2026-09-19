@@ -4,15 +4,22 @@ import androidx.room.withTransaction
 import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.WordBookDao
 import com.mlingofeed.data.database.WordBookEntry
+import com.mlingofeed.data.escapeLikePattern
 import kotlinx.coroutines.flow.Flow
 
 class WordBookRepository(private val dao: WordBookDao, private val database: AppDatabase) {
 
     val allWords: Flow<List<WordBookEntry>> = dao.getAllWords()
-    val dueWords: Flow<List<WordBookEntry>> = dao.getDueWords()
+    val dueWords: Flow<List<WordBookEntry>>
+        get() = dao.getDueWords(System.currentTimeMillis())
     val masteredWords: Flow<List<WordBookEntry>> = dao.getMasteredWords()
 
-    fun searchWords(query: String): Flow<List<WordBookEntry>> = dao.searchWords(query)
+    fun searchWords(query: String): Flow<List<WordBookEntry>> =
+        dao.searchWords(escapeLikePattern(query))
+
+    suspend fun toggleMastered(word: String) {
+        dao.toggleMastered(word)
+    }
 
     suspend fun addWord(
         word: String,

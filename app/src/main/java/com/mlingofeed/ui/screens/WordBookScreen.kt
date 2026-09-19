@@ -81,10 +81,26 @@ private val EXPORT_DATETIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofP
 private fun formatExportDate(epochMillis: Long): String =
     Instant.ofEpochMilli(epochMillis).atZone(ZoneId.systemDefault()).format(DISPLAY_DATE_FORMATTER)
 
+private fun csvField(value: String): String =
+    if (value.none { it == '"' || it == ',' || it == '\n' || it == '\r' }) {
+        value
+    } else {
+        "\"" + value.replace("\"", "\"\"") + "\""
+    }
+
 private fun buildCsvExport(words: List<WordBookEntry>): String = buildString {
     append("word,definition,phonetic,example,dateAdded\n")
     words.forEach { w ->
-        append("${w.word},\"${w.definition}\",${w.phonetic},\"${w.exampleSentence}\",${formatExportDate(w.dateAdded)}\n")
+        append(csvField(w.word))
+        append(',')
+        append(csvField(w.definition))
+        append(',')
+        append(csvField(w.phonetic))
+        append(',')
+        append(csvField(w.exampleSentence))
+        append(',')
+        append(formatExportDate(w.dateAdded))
+        append('\n')
     }
 }
 

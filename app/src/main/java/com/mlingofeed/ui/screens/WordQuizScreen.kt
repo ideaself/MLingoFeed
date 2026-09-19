@@ -73,10 +73,17 @@ fun WordQuizScreen(onBack: () -> Unit) {
     val vm: WordQuizViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
     val allWords by vm.allWords.collectAsStateWithLifecycle()
+    val dueWords by vm.dueWords.collectAsStateWithLifecycle()
 
-    LaunchedEffect(allWords) {
-        if (allWords.isNotEmpty() && vm.quizWords.isEmpty()) {
-            vm.startQuiz("flashcard", allWords.take(10))
+    // Prefer words whose review interval has elapsed; fall back to the newest words when
+    // nothing is due so the quiz stays usable.
+    val quizDeck = remember(allWords, dueWords) {
+        (if (dueWords.isNotEmpty()) dueWords else allWords).take(10)
+    }
+
+    LaunchedEffect(quizDeck) {
+        if (quizDeck.isNotEmpty() && vm.quizWords.isEmpty()) {
+            vm.startQuiz("flashcard", quizDeck)
         }
     }
 
@@ -125,9 +132,9 @@ fun WordQuizScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip("Flashcard", vm.quizMode == "flashcard") { vm.startQuiz("flashcard", allWords.take(10)) }
-                FilterChip("Multiple Choice", vm.quizMode == "multiple") { vm.startQuiz("multiple", allWords.take(10)) }
-                FilterChip("Spelling", vm.quizMode == "spelling") { vm.startQuiz("spelling", allWords.take(10)) }
+                FilterChip("Flashcard", vm.quizMode == "flashcard") { vm.startQuiz("flashcard", quizDeck) }
+                FilterChip("Multiple Choice", vm.quizMode == "multiple") { vm.startQuiz("multiple", quizDeck) }
+                FilterChip("Spelling", vm.quizMode == "spelling") { vm.startQuiz("spelling", quizDeck) }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

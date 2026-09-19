@@ -78,9 +78,6 @@ class WordBookViewModel(app: WebReaderApp) : ViewModel() {
     }
 
     fun toggleMastered(entry: WordBookEntry) {
-        viewModelScope.launch {
-            if (entry.mastered) repository.markAsNotMastered(entry.word)
-            else repository.markAsMastered(entry.word)
-        }
+        viewModelScope.launch { repository.toggleMastered(entry.word) }
     }
 }

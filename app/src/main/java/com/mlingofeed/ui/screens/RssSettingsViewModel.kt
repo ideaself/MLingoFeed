@@ -15,7 +15,6 @@ import com.mlingofeed.data.work.RssSyncWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -125,12 +124,7 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
                     if (opmlFolders.isEmpty()) {
                         false
                     } else {
-                        opmlFolders.forEach { opmlFolder ->
-                            val folderId = repository.addFolder(opmlFolder.name)
-                            opmlFolder.feeds.forEach { feed ->
-                                repository.addSubscription(feed.title, feed.url, folderId)
-                            }
-                        }
+                        repository.importOpml(opmlFolders)
                         true
                     }
                 }
@@ -158,9 +152,7 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     suspend fun buildOpml(): String {
         return withContext(Dispatchers.IO) {
-            val folders = repository.allFolders.first()
-            val subs = repository.allSubscriptions.first()
-            OpmlParser.exportToOpml(folders, subs)
+            OpmlParser.exportToOpml(repository.getFoldersSync(), repository.getSubscriptionsSync())
         }
     }
 }

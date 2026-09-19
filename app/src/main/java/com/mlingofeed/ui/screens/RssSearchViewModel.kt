@@ -31,7 +31,8 @@ class RssSearchViewModel(app: WebReaderApp) : ViewModel() {
         .debounce(300)
         .distinctUntilChanged()
         .flatMapLatest { query ->
-            if (query.isBlank()) flowOf(emptyList()) else repository.searchArticles(query)
+            val trimmed = query.trim()
+            if (trimmed.length < 2) flowOf(emptyList()) else repository.searchArticles(trimmed)
         }
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 

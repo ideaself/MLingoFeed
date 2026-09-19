@@ -14,6 +14,7 @@ object OpmlParser {
             val doc = Jsoup.parse(opmlContent, "", Parser.xmlParser())
             val outlines = doc.select("body > outline")
             val folders = mutableListOf<OpmlFolder>()
+            val looseFeeds = mutableListOf<OpmlFeed>()
 
             for (outline in outlines) {
                 val folderName = outline.attr("text").ifBlank { outline.attr("title") }
@@ -25,18 +26,19 @@ object OpmlParser {
                         val title = feedOutline.attr("text").ifBlank { feedOutline.attr("title") }.ifBlank { xmlUrl }
                         if (xmlUrl.isNotBlank()) OpmlFeed(title, xmlUrl) else null
                     }
-                    if (folderName.isNotBlank()) {
-                        folders.add(OpmlFolder(folderName, feeds))
-                    } else {
-                        folders.add(OpmlFolder("Imported", feeds))
-                    }
+                    folders.add(OpmlFolder(folderName.ifBlank { "Imported" }, feeds))
                 } else if (outline.hasAttr("xmlUrl")) {
                     val xmlUrl = outline.attr("xmlUrl")
                     val title = outline.attr("text").ifBlank { outline.attr("title") }.ifBlank { xmlUrl }
                     if (xmlUrl.isNotBlank()) {
-                        folders.add(OpmlFolder("Imported", listOf(OpmlFeed(title, xmlUrl))))
+                        looseFeeds.add(OpmlFeed(title, xmlUrl))
                     }
                 }
+            }
+
+            // All flat feeds share a single "Imported" folder instead of one folder per feed.
+            if (looseFeeds.isNotEmpty()) {
+                folders.add(0, OpmlFolder("Imported", looseFeeds))
             }
 
             return folders

@@ -1,6 +1,7 @@
 package com.mlingofeed.data.repository
 
 import androidx.room.withTransaction
+import com.mlingofeed.data.escapeLikePattern
 import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.RssArticle
 import com.mlingofeed.data.database.RssArticleTag
@@ -50,11 +51,6 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
 
     fun searchArticles(query: String): Flow<List<RssArticle>> =
         rssDao.searchArticles(escapeLikePattern(query))
-
-    private fun escapeLikePattern(value: String): String = value
-        .replace("\\", "\\\\")
-        .replace("%", "\\%")
-        .replace("_", "\\_")
 
     suspend fun getArticleById(id: Long): RssArticle? =
         rssDao.getArticleById(id)
@@ -141,13 +137,11 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
     }
 
     suspend fun toggleReadStatus(id: Long) {
-        val article = rssDao.getArticleById(id) ?: return
-        rssDao.setReadStatus(id, !article.isRead)
+        rssDao.toggleReadStatus(id)
     }
 
     suspend fun toggleFavorite(id: Long) {
-        val article = rssDao.getArticleById(id) ?: return
-        rssDao.setFavoriteStatus(id, !article.isFavorite)
+        rssDao.toggleFavoriteStatus(id)
     }
 
     suspend fun updateArticleContent(id: Long, content: String) {
@@ -189,6 +183,38 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
             rssDao.deleteAllArticles()
             rssDao.clearOrphanArticleTags()
             rssDao.deleteAllSubscriptions()
+        }
+    }
+
+    suspend fun getFoldersSync(): List<RssFolder> = rssDao.getAllFoldersSync()
+
+    suspend fun getSubscriptionsSync(): List<RssSubscription> = rssDao.getAllSubscriptionsSync()
+
+    /**
+     * Imports parsed OPML folders/subs atomically, reusing an existing folder with the same name
+     * and skipping feeds that are already subscribed. Returns the number of new subscriptions.
+     */
+    suspend fun importOpml(folders: List<OpmlParser.OpmlFolder>): Int {
+        if (folders.isEmpty()) return 0
+        return database.withTransaction {
+            val folderIds = rssDao.getAllFoldersSync().associate { it.name to it.id }.toMutableMap()
+            val knownUrls = rssDao.getAllSubscriptionsSync().map { it.url }.toMutableSet()
+            var added = 0
+            folders.forEach { folder ->
+                if (folder.feeds.isEmpty()) return@forEach
+                val folderId = folderIds.getOrPut(folder.name) {
+                    rssDao.insertFolder(RssFolder(name = folder.name, order = folderIds.size))
+                }
+                folder.feeds.forEach { feed ->
+                    if (knownUrls.add(feed.url)) {
+                        rssDao.insertSubscription(
+                            RssSubscription(title = feed.title, url = feed.url, folderId = folderId)
+                        )
+                        added++
+                    }
+                }
+            }
+            added
         }
     }
 
