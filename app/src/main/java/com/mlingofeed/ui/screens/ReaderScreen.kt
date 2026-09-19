@@ -75,11 +75,12 @@ fun ReaderScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: ReaderViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     LaunchedEffect(initialUrl) { vm.ensureInitialTab(initialUrl) }
-    ReadingTimer(app)
 
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
-
     val currentTab = vm.currentTab
+    if (currentTab != null && currentTab.url != "about:blank") {
+        ReadingTimer(app)
+    }
 
     BackHandler {
         currentTab?.webView?.let { wv ->

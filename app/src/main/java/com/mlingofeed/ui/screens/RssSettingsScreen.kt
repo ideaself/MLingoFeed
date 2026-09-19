@@ -218,7 +218,7 @@ fun RssSettingsScreen(
                 }
             }
 
-            items(folders, key = { it.id }) { folder ->
+            items(folders, key = { "folder-${it.id}" }) { folder ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     shape = RoundedCornerShape(8.dp)
@@ -265,7 +265,7 @@ fun RssSettingsScreen(
                 }
             }
 
-            items(rules, key = { it.id }) { rule ->
+            items(rules, key = { "rule-${it.id}" }) { rule ->
                 Card(
                     modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
                     shape = RoundedCornerShape(8.dp)

@@ -100,9 +100,7 @@ fun HomeScreen(
     val bookmarks by vm.bookmarks.collectAsStateWithLifecycle()
     val categories: List<String> by vm.categories.collectAsStateWithLifecycle()
     LaunchedEffect(bookmarks) {
-        if (!vm.hasReordered) {
-            vm.syncOrdered(bookmarks)
-        }
+        vm.syncOrdered(bookmarks)
     }
 
     val lazyListState = rememberLazyListState()

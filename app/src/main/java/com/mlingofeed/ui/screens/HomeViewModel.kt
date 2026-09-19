@@ -41,8 +41,22 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
         private set
 
     fun syncOrdered(list: List<Bookmark>) {
-        orderedBookmarks.clear()
-        orderedBookmarks.addAll(list)
+        if (!hasReordered) {
+            orderedBookmarks.clear()
+            orderedBookmarks.addAll(list)
+            return
+        }
+        val ids = list.map { it.id }.toSet()
+        orderedBookmarks.removeAll { it.id !in ids }
+        val positions = orderedBookmarks.withIndex().associate { it.value.id to it.index }
+        list.forEach { updated ->
+            val index = positions[updated.id]
+            if (index != null) {
+                orderedBookmarks[index] = updated
+            } else {
+                orderedBookmarks.add(updated)
+            }
+        }
     }
 
     fun moveBookmark(fromId: Long, toId: Long) {

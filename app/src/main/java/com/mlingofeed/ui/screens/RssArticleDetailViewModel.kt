@@ -22,10 +22,10 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     private val repository = app.rssRepository
 
     val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
-    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
-    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "Chinese")
+    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
+    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
 
     var article by mutableStateOf<RssArticle?>(null)
         private set
