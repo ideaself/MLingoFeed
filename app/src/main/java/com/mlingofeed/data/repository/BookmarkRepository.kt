@@ -1,10 +1,12 @@
 package com.mlingofeed.data.repository
 
+import androidx.room.withTransaction
+import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.data.database.BookmarkDao
 import kotlinx.coroutines.flow.Flow
 
-class BookmarkRepository(private val bookmarkDao: BookmarkDao) {
+class BookmarkRepository(private val bookmarkDao: BookmarkDao, private val database: AppDatabase) {
     val allBookmarks: Flow<List<Bookmark>> = bookmarkDao.getAllBookmarks()
 
     suspend fun getBookmarkByUrl(url: String): Bookmark? {
@@ -28,8 +30,10 @@ class BookmarkRepository(private val bookmarkDao: BookmarkDao) {
     }
 
     suspend fun updatePositions(bookmarks: List<Bookmark>) {
-        bookmarks.forEachIndexed { index, bookmark ->
-            bookmarkDao.updatePosition(bookmark.id, index)
+        database.withTransaction {
+            bookmarks.forEachIndexed { index, bookmark ->
+                bookmarkDao.updatePosition(bookmark.id, index)
+            }
         }
     }
 

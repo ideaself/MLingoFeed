@@ -12,11 +12,11 @@ import com.mlingofeed.data.settings.SettingsManager
 
 class WebReaderApp : Application() {
     val database by lazy { AppDatabase.getDatabase(this) }
-    val bookmarkRepository by lazy { BookmarkRepository(database.bookmarkDao()) }
+    val bookmarkRepository by lazy { BookmarkRepository(database.bookmarkDao(), database) }
     val dictionaryRepository by lazy { DictionaryRepository() }
     val chatRepository by lazy { ChatRepository() }
-    val historyRepository: HistoryRepository by lazy { HistoryRepository(database.historyDao()) }
-    val rssRepository: RssRepository by lazy { RssRepository(database.rssDao()) }
-    val wordBookRepository: WordBookRepository by lazy { WordBookRepository(database.wordBookDao()) }
+    val historyRepository: HistoryRepository by lazy { HistoryRepository(database.historyDao(), database) }
+    val rssRepository: RssRepository by lazy { RssRepository(database.rssDao(), database) }
+    val wordBookRepository: WordBookRepository by lazy { WordBookRepository(database.wordBookDao(), database) }
     val settingsManager by lazy { SettingsManager(this) }
 }

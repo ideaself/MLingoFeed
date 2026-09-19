@@ -10,13 +10,13 @@ import kotlinx.coroutines.flow.Flow
 
 @Dao
 interface WordBookDao {
-    @Query("SELECT * FROM word_book ORDER BY dateAdded DESC")
+    @Query("SELECT * FROM word_book ORDER BY dateAdded DESC LIMIT 500")
     fun getAllWords(): Flow<List<WordBookEntry>>
 
-    @Query("SELECT * FROM word_book WHERE mastered = 0 ORDER BY nextReviewDate ASC")
+    @Query("SELECT * FROM word_book WHERE mastered = 0 ORDER BY nextReviewDate ASC LIMIT 200")
     fun getDueWords(): Flow<List<WordBookEntry>>
 
-    @Query("SELECT * FROM word_book WHERE mastered = 1 ORDER BY dateAdded DESC")
+    @Query("SELECT * FROM word_book WHERE mastered = 1 ORDER BY dateAdded DESC LIMIT 200")
     fun getMasteredWords(): Flow<List<WordBookEntry>>
 
     @Query("SELECT * FROM word_book WHERE word = :word LIMIT 1")
@@ -25,7 +25,7 @@ interface WordBookDao {
     @Query("SELECT * FROM word_book WHERE word LIKE '%' || :query || '%' ORDER BY dateAdded DESC")
     fun searchWords(query: String): Flow<List<WordBookEntry>>
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insert(entry: WordBookEntry): Long
 
     @Update

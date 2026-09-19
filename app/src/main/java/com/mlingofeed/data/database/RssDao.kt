@@ -8,6 +8,10 @@ import androidx.room.Update
 import androidx.room.Upsert
 import kotlinx.coroutines.flow.Flow
 
+data class SubscriptionUnread(val subscriptionId: Long, val unreadCount: Int)
+
+data class ArticleStats(val total: Int, val readCount: Int, val favoriteCount: Int)
+
 @Dao
 interface RssDao {
     // Folders
@@ -51,6 +55,9 @@ interface RssDao {
     @Query("UPDATE rss_subscriptions SET folderId = :folderId WHERE id = :subscriptionId")
     suspend fun moveSubscriptionToFolder(subscriptionId: Long, folderId: Long?)
 
+    @Query("UPDATE rss_subscriptions SET folderId = NULL WHERE folderId = :folderId")
+    suspend fun clearFolderFromSubscriptions(folderId: Long)
+
     // Articles
     @Query("SELECT * FROM rss_articles WHERE subscriptionId = :subscriptionId ORDER BY pubDate DESC LIMIT 200")
     fun getArticlesBySubscription(subscriptionId: Long): Flow<List<RssArticle>>
@@ -71,7 +78,7 @@ interface RssDao {
     suspend fun getArticleById(id: Long): RssArticle?
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    suspend fun insertArticles(articles: List<RssArticle>)
+    suspend fun insertArticles(articles: List<RssArticle>): List<Long>
 
     @Query("UPDATE rss_articles SET isRead = :isRead WHERE id = :id")
     suspend fun setReadStatus(id: Long, isRead: Boolean)
@@ -85,14 +92,14 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isRead = :isRead WHERE subscriptionId = :subscriptionId")
     suspend fun setAllReadStatus(subscriptionId: Long, isRead: Boolean)
 
+    @Query("UPDATE rss_articles SET isRead = 1 WHERE isRead = 0")
+    suspend fun markAllArticlesRead()
+
     @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp")
     suspend fun deleteOldArticles(timestamp: Long)
 
-    @Query("SELECT COUNT(*) FROM rss_articles WHERE subscriptionId = :subscriptionId AND isRead = 0")
-    fun getUnreadCount(subscriptionId: Long): Flow<Int>
-
-    @Query("SELECT COUNT(*) FROM rss_articles WHERE subscriptionId = :subscriptionId AND isRead = 0")
-    suspend fun getUnreadCountSync(subscriptionId: Long): Int
+    @Query("SELECT subscriptionId, COUNT(*) AS unreadCount FROM rss_articles WHERE isRead = 0 GROUP BY subscriptionId")
+    fun getUnreadCountsBySubscription(): Flow<List<SubscriptionUnread>>
 
     @Query("DELETE FROM rss_articles WHERE subscriptionId = :subscriptionId")
     suspend fun deleteArticlesBySubscription(subscriptionId: Long)
@@ -106,20 +113,16 @@ interface RssDao {
     @Query("SELECT COUNT(*) FROM rss_subscriptions")
     suspend fun getSubscriptionCount(): Int
 
-    @Query("SELECT url FROM rss_subscriptions")
-    suspend fun getAllUrls(): List<String>
-
     @Query("SELECT COUNT(*) FROM rss_articles WHERE isRead = 0")
     fun getTotalUnreadCount(): Flow<Int>
 
-    @Query("SELECT COUNT(*) FROM rss_articles WHERE isRead = 1")
-    suspend fun getTotalReadCount(): Int
-
-    @Query("SELECT COUNT(*) FROM rss_articles WHERE isFavorite = 1")
-    suspend fun getTotalFavoriteCount(): Int
-
-    @Query("SELECT COUNT(*) FROM rss_articles")
-    suspend fun getTotalArticleCount(): Int
+    @Query(
+        "SELECT COUNT(*) AS total, " +
+            "COALESCE(SUM(CASE WHEN isRead = 1 THEN 1 ELSE 0 END), 0) AS readCount, " +
+            "COALESCE(SUM(CASE WHEN isFavorite = 1 THEN 1 ELSE 0 END), 0) AS favoriteCount " +
+            "FROM rss_articles"
+    )
+    suspend fun getArticleStats(): ArticleStats
 
     // Tags
     @Query("SELECT * FROM rss_tags ORDER BY name ASC")
@@ -139,6 +142,15 @@ interface RssDao {
 
     @Query("DELETE FROM rss_article_tags WHERE articleId = :articleId")
     suspend fun clearArticleTags(articleId: Long)
+
+    @Query("DELETE FROM rss_article_tags WHERE articleId = :articleId AND tagId = :tagId")
+    suspend fun removeArticleTag(articleId: Long, tagId: Long)
+
+    @Query("DELETE FROM rss_article_tags WHERE articleId IN (SELECT id FROM rss_articles WHERE subscriptionId = :subscriptionId)")
+    suspend fun clearArticleTagsForSubscription(subscriptionId: Long)
+
+    @Query("DELETE FROM rss_article_tags WHERE articleId NOT IN (SELECT id FROM rss_articles)")
+    suspend fun clearOrphanArticleTags()
 
     @Query("SELECT t.* FROM rss_tags t INNER JOIN rss_article_tags at ON t.id = at.tagId WHERE at.articleId = :articleId")
     suspend fun getTagsForArticle(articleId: Long): List<RssTag>

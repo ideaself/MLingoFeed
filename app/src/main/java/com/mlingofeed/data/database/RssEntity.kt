@@ -12,7 +12,10 @@ data class RssFolder(
     val createdAt: Long = System.currentTimeMillis()
 )
 
-@Entity(tableName = "rss_subscriptions")
+@Entity(
+    tableName = "rss_subscriptions",
+    indices = [Index(value = ["folderId"])]
+)
 data class RssSubscription(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,
     val title: String,
@@ -24,7 +27,14 @@ data class RssSubscription(
 
 @Entity(
     tableName = "rss_articles",
-    indices = [Index(value = ["link"], unique = true)]
+    indices = [
+        Index(value = ["link"], unique = true),
+        Index(value = ["subscriptionId", "pubDate"]),
+        Index(value = ["isRead", "pubDate"]),
+        Index(value = ["isFavorite", "pubDate"]),
+        Index(value = ["subscriptionId", "isRead"]),
+        Index(value = ["fetchedAt"])
+    ]
 )
 data class RssArticle(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

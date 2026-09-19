@@ -1,5 +1,7 @@
 package com.mlingofeed.data.repository
 
+import androidx.room.withTransaction
+import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.RssArticle
 import com.mlingofeed.data.database.RssArticleTag
 import com.mlingofeed.data.database.RssDao
@@ -8,8 +10,9 @@ import com.mlingofeed.data.database.RssRule
 import com.mlingofeed.data.database.RssSubscription
 import com.mlingofeed.data.database.RssTag
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.map
 
-class RssRepository(private val rssDao: RssDao) {
+class RssRepository(private val rssDao: RssDao, private val database: AppDatabase) {
     val allSubscriptions: Flow<List<RssSubscription>> = rssDao.getAllSubscriptions()
     val allArticles: Flow<List<RssArticle>> = rssDao.getAllArticles()
     val allFolders: Flow<List<RssFolder>> = rssDao.getAllFolders()
@@ -18,6 +21,10 @@ class RssRepository(private val rssDao: RssDao) {
     val favoriteArticles: Flow<List<RssArticle>> = rssDao.getFavoriteArticles()
     val unreadArticles: Flow<List<RssArticle>> = rssDao.getUnreadArticles()
     val totalUnreadCount: Flow<Int> = rssDao.getTotalUnreadCount()
+    val unreadCountsBySubscription: Flow<Map<Long, Int>> =
+        rssDao.getUnreadCountsBySubscription().map { list ->
+            list.associate { it.subscriptionId to it.unreadCount }
+        }
 
     fun getArticles(subscriptionId: Long): Flow<List<RssArticle>> =
         rssDao.getArticlesBySubscription(subscriptionId)
@@ -28,9 +35,6 @@ class RssRepository(private val rssDao: RssDao) {
     fun getSubscriptionsWithoutFolder(): Flow<List<RssSubscription>> =
         rssDao.getSubscriptionsWithoutFolder()
 
-    fun getUnreadCount(subscriptionId: Long): Flow<Int> =
-        rssDao.getUnreadCount(subscriptionId)
-
     fun getArticlesByTag(tagId: Long): Flow<List<RssArticle>> =
         rssDao.getArticlesByTag(tagId)
 
@@ -40,9 +44,6 @@ class RssRepository(private val rssDao: RssDao) {
     suspend fun getArticleById(id: Long): RssArticle? =
         rssDao.getArticleById(id)
 
-    suspend fun getUnreadCountSync(subscriptionId: Long): Int =
-        rssDao.getUnreadCountSync(subscriptionId)
-
     suspend fun addSubscription(title: String, url: String, folderId: Long? = null): Long {
         return rssDao.insertSubscription(
             RssSubscription(title = title, url = url, folderId = folderId)
@@ -50,8 +51,11 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun deleteSubscription(id: Long) {
-        rssDao.deleteArticlesBySubscription(id)
-        rssDao.deleteSubscription(id)
+        database.withTransaction {
+            rssDao.clearArticleTagsForSubscription(id)
+            rssDao.deleteArticlesBySubscription(id)
+            rssDao.deleteSubscription(id)
+        }
     }
 
     suspend fun updateSubscription(id: Long, title: String, url: String, folderId: Long? = null) {
@@ -65,17 +69,15 @@ class RssRepository(private val rssDao: RssDao) {
         rssDao.moveSubscriptionToFolder(subscriptionId, folderId)
     }
 
-    suspend fun insertArticles(articles: List<RssArticle>) {
-        if (articles.isEmpty()) return
+    suspend fun insertArticles(articles: List<RssArticle>): Int {
+        if (articles.isEmpty()) return 0
         val rules = rssDao.getEnabledRulesSync()
-        if (rules.isNotEmpty()) {
-            val processedArticles = articles.map { article ->
-                applyRules(article, rules)
-            }
-            rssDao.insertArticles(processedArticles)
+        val processedArticles = if (rules.isEmpty()) {
+            articles
         } else {
-            rssDao.insertArticles(articles)
+            articles.map { article -> applyRules(article, rules) }
         }
+        return rssDao.insertArticles(processedArticles).count { it != -1L }
     }
 
     private fun applyRules(article: RssArticle, rules: List<RssRule>): RssArticle {
@@ -125,69 +127,66 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun markAllAsRead() {
-        rssDao.getAllSubscriptionsSync().forEach { sub ->
-            rssDao.setAllReadStatus(sub.id, true)
-        }
-    }
-
-    suspend fun fetchAndRefresh(subscriptionId: Long): Int {
-        val sub = rssDao.getSubscriptionById(subscriptionId) ?: return 0
-        val articles = RssParser.parse(sub.id, sub.url)
-        val existingUrls = rssDao.getAllUrls().toSet()
-        val newArticles = articles.filter { it.link !in existingUrls || true }
-        rssDao.insertArticles(newArticles)
-        return newArticles.size
+        rssDao.markAllArticlesRead()
     }
 
     suspend fun refreshAll(): Int {
-        val subscriptions = rssDao.getAllSubscriptionsSync()
+        val subscriptions = rssDao.getAllSubscriptionsSync().filter { it.isEnabled }
         var totalNew = 0
         for (sub in subscriptions) {
-            if (sub.isEnabled) {
-                try {
-                    val articles = RssParser.parse(sub.id, sub.url)
-                    rssDao.insertArticles(articles)
-                    totalNew += articles.size
-                } catch (_: Exception) {}
+            try {
+                val articles = RssParser.parse(sub.id, sub.url)
+                totalNew += insertArticles(articles)
+            } catch (_: Exception) {
             }
         }
         return totalNew
     }
 
     suspend fun deleteAllSubscriptions() {
-        rssDao.deleteAllArticles()
-        rssDao.deleteAllSubscriptions()
+        database.withTransaction {
+            rssDao.deleteAllArticles()
+            rssDao.clearOrphanArticleTags()
+            rssDao.deleteAllSubscriptions()
+        }
     }
 
     suspend fun cleanupOldArticles() {
         val oneWeekAgo = System.currentTimeMillis() - 7L * 24 * 60 * 60 * 1000
-        rssDao.deleteOldArticles(oneWeekAgo)
+        database.withTransaction {
+            rssDao.deleteOldArticles(oneWeekAgo)
+            rssDao.clearOrphanArticleTags()
+        }
     }
 
     suspend fun initDefaultSubscriptions() {
-        val count = rssDao.getSubscriptionCount()
-        if (count > 0) return
+        if (rssDao.getSubscriptionCount() > 0) return
 
-        val folderIds = mutableMapOf<String, Long>()
-        DEFAULT_SUBSCRIPTIONS.forEach { (title, url, folder) ->
-            val folderId = folderIds.getOrPut(folder) {
-                rssDao.insertFolder(RssFolder(name = folder, order = folderIds.size))
+        database.withTransaction {
+            val folderIds = mutableMapOf<String, Long>()
+            DEFAULT_SUBSCRIPTIONS.forEach { (title, url, folder) ->
+                val folderId = folderIds.getOrPut(folder) {
+                    rssDao.insertFolder(RssFolder(name = folder, order = folderIds.size))
+                }
+                rssDao.insertSubscription(
+                    RssSubscription(title = title, url = url, folderId = folderId)
+                )
             }
-            rssDao.insertSubscription(
-                RssSubscription(title = title, url = url, folderId = folderId)
-            )
         }
     }
 
     suspend fun cleanupDuplicates() {
-        val allSubs = rssDao.getAllSubscriptionsSync()
-        val seen = mutableSetOf<String>()
-        for (sub in allSubs) {
-            if (sub.url in seen) {
-                rssDao.deleteArticlesBySubscription(sub.id)
-                rssDao.deleteSubscription(sub.id)
-            } else {
-                seen.add(sub.url)
+        database.withTransaction {
+            val allSubs = rssDao.getAllSubscriptionsSync()
+            val seen = mutableSetOf<String>()
+            for (sub in allSubs) {
+                if (sub.url in seen) {
+                    rssDao.clearArticleTagsForSubscription(sub.id)
+                    rssDao.deleteArticlesBySubscription(sub.id)
+                    rssDao.deleteSubscription(sub.id)
+                } else {
+                    seen.add(sub.url)
+                }
             }
         }
     }
@@ -202,10 +201,10 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun deleteFolder(id: Long) {
-        rssDao.getAllSubscriptionsSync().filter { it.folderId == id }.forEach {
-            rssDao.moveSubscriptionToFolder(it.id, null)
+        database.withTransaction {
+            rssDao.clearFolderFromSubscriptions(id)
+            rssDao.deleteFolder(id)
         }
-        rssDao.deleteFolder(id)
     }
 
     suspend fun addTag(name: String, color: String = ""): Long {
@@ -225,7 +224,7 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun removeTagFromArticle(articleId: Long, tagId: Long) {
-        rssDao.clearArticleTags(articleId)
+        rssDao.removeArticleTag(articleId, tagId)
     }
 
     suspend fun addRule(name: String, keyword: String, action: String, tagId: Long? = null): Long {
@@ -241,11 +240,12 @@ class RssRepository(private val rssDao: RssDao) {
     }
 
     suspend fun getReadStats(): ReadStats {
+        val stats = rssDao.getArticleStats()
         return ReadStats(
-            totalArticles = rssDao.getTotalArticleCount(),
-            readArticles = rssDao.getTotalReadCount(),
-            unreadArticles = rssDao.getTotalReadCount(),
-            favoriteArticles = rssDao.getTotalFavoriteCount(),
+            totalArticles = stats.total,
+            readArticles = stats.readCount,
+            unreadArticles = stats.total - stats.readCount,
+            favoriteArticles = stats.favoriteCount,
             subscriptionCount = rssDao.getSubscriptionCount()
         )
     }

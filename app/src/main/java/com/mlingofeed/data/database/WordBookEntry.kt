@@ -6,7 +6,11 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "word_book",
-    indices = [Index(value = ["word"], unique = true)]
+    indices = [
+        Index(value = ["word"], unique = true),
+        Index(value = ["mastered", "nextReviewDate"]),
+        Index(value = ["dateAdded"])
+    ]
 )
 data class WordBookEntry(
     @PrimaryKey(autoGenerate = true) val id: Long = 0,

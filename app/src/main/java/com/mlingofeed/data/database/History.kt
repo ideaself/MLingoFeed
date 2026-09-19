@@ -6,7 +6,7 @@ import androidx.room.PrimaryKey
 
 @Entity(
     tableName = "history",
-    indices = [Index(value = ["url"], unique = false)]
+    indices = [Index(value = ["url"], unique = true), Index(value = ["visitedAt"])]
 )
 data class History(
     @PrimaryKey(autoGenerate = true)

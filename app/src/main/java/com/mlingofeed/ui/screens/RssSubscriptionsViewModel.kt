@@ -19,6 +19,8 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
     val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val folders = repository.allFolders.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
     val totalUnread = repository.totalUnreadCount.stateIn(viewModelScope, SharingStarted.Eagerly, 0)
+    val unreadCounts = repository.unreadCountsBySubscription
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyMap())
 
     var isRefreshing by mutableStateOf(false)
         private set

@@ -1,10 +1,12 @@
 package com.mlingofeed.data.repository
 
+import androidx.room.withTransaction
+import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.WordBookDao
 import com.mlingofeed.data.database.WordBookEntry
 import kotlinx.coroutines.flow.Flow
 
-class WordBookRepository(private val dao: WordBookDao) {
+class WordBookRepository(private val dao: WordBookDao, private val database: AppDatabase) {
 
     val allWords: Flow<List<WordBookEntry>> = dao.getAllWords()
     val dueWords: Flow<List<WordBookEntry>> = dao.getDueWords()
@@ -19,11 +21,11 @@ class WordBookRepository(private val dao: WordBookDao) {
         exampleSentence: String = "",
         sourceUrl: String = "",
         sourceTitle: String = ""
-    ): Long {
+    ): Long = database.withTransaction {
         val existing = dao.getWord(word)
-        if (existing != null) return existing.id
+        if (existing != null) return@withTransaction existing.id
 
-        return dao.insert(
+        dao.insert(
             WordBookEntry(
                 word = word,
                 definition = definition,
@@ -32,32 +34,38 @@ class WordBookRepository(private val dao: WordBookDao) {
                 sourceUrl = sourceUrl,
                 sourceTitle = sourceTitle
             )
-        )
+        ).takeIf { it != -1L } ?: dao.getWord(word)?.id ?: -1L
     }
 
     suspend fun markAsMastered(word: String) {
-        val entry = dao.getWord(word) ?: return
-        dao.update(entry.copy(mastered = true))
+        database.withTransaction {
+            val entry = dao.getWord(word) ?: return@withTransaction
+            dao.update(entry.copy(mastered = true))
+        }
     }
 
     suspend fun markAsNotMastered(word: String) {
-        val entry = dao.getWord(word) ?: return
-        dao.update(entry.copy(mastered = false))
+        database.withTransaction {
+            val entry = dao.getWord(word) ?: return@withTransaction
+            dao.update(entry.copy(mastered = false))
+        }
     }
 
     suspend fun reviewWord(word: String, isKnown: Boolean) {
-        val entry = dao.getWord(word) ?: return
-        val newCount = entry.reviewCount + 1
-        val interval = getReviewInterval(newCount)
-        val nextReview = System.currentTimeMillis() + interval
+        database.withTransaction {
+            val entry = dao.getWord(word) ?: return@withTransaction
+            val newCount = entry.reviewCount + 1
+            val interval = getReviewInterval(newCount)
+            val nextReview = System.currentTimeMillis() + interval
 
-        dao.update(
-            entry.copy(
-                reviewCount = newCount,
-                nextReviewDate = nextReview,
-                mastered = isKnown && newCount >= 5
+            dao.update(
+                entry.copy(
+                    reviewCount = newCount,
+                    nextReviewDate = nextReview,
+                    mastered = isKnown && newCount >= 5
+                )
             )
-        )
+        }
     }
 
     suspend fun deleteWord(word: String) = dao.deleteByWord(word)

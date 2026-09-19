@@ -8,6 +8,14 @@ import okhttp3.Request
 import org.jsoup.Jsoup
 import org.jsoup.nodes.Element
 import org.jsoup.parser.Parser
+import java.time.Instant
+import java.time.LocalDate
+import java.time.LocalDateTime
+import java.time.OffsetDateTime
+import java.time.ZoneId
+import java.time.ZonedDateTime
+import java.time.format.DateTimeFormatter
+import java.util.Locale
 import java.util.concurrent.TimeUnit
 
 object RssParser {
@@ -17,16 +25,33 @@ object RssParser {
         .followRedirects(true)
         .build()
 
+    private const val USER_AGENT = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+    private const val BROWSER_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36"
+
+    private val WHITESPACE_REGEX = Regex("\\n{3,}")
+
+    private val DATE_FORMATTERS = listOf(
+        DateTimeFormatter.RFC_1123_DATE_TIME,
+        DateTimeFormatter.ISO_OFFSET_DATE_TIME,
+        DateTimeFormatter.ISO_INSTANT,
+        DateTimeFormatter.ISO_LOCAL_DATE_TIME,
+        DateTimeFormatter.ISO_LOCAL_DATE,
+        DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.ENGLISH),
+        DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss", Locale.ENGLISH)
+    ).map { it.withLocale(Locale.ENGLISH) }
+
     data class ParsedArticle(val title: String, val link: String, val description: String, val pubDate: Long)
 
     suspend fun parse(subscriptionId: Long, rssUrl: String): List<RssArticle> = withContext(Dispatchers.IO) {
         try {
             val request = Request.Builder()
                 .url(rssUrl)
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36")
+                .header("User-Agent", BROWSER_UA)
                 .build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext emptyList()
+            val body = client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext emptyList()
+                response.body?.string() ?: return@withContext emptyList()
+            }
             val doc = Jsoup.parse(body, "", Parser.xmlParser())
 
             val articles = mutableListOf<RssArticle>()
@@ -37,27 +62,27 @@ object RssParser {
             }
 
             for (item in items) {
-                val title = item.selectFirst("title")?.text()?.trim() ?: continue
+                val rawTitle = item.selectFirst("title")?.text()?.trim() ?: continue
                 val link = extractLink(item)
                 if (link.isBlank()) continue
-                val description = item.selectFirst("description")?.text()?.trim()
+                val rawDescription = item.selectFirst("description")?.text()?.trim()
                     ?: item.selectFirst("summary")?.text()?.trim()
                     ?: item.selectFirst("content")?.text()?.trim()
                     ?: ""
-                val pubDate = parseDate(item.selectFirst("pubDate")?.text()
-                    ?: item.selectFirst("published")?.text()
-                    ?: item.selectFirst("updated")?.text()
-                    ?: item.selectFirst("dc|date")?.text()
-                    ?: "")
-
-                val cleanDesc = Jsoup.parse(description).text().take(300)
+                val pubDate = parseDate(
+                    item.selectFirst("pubDate")?.text()
+                        ?: item.selectFirst("published")?.text()
+                        ?: item.selectFirst("updated")?.text()
+                        ?: item.selectFirst("dc|date")?.text()
+                        ?: ""
+                )
 
                 articles.add(
                     RssArticle(
                         subscriptionId = subscriptionId,
-                        title = Jsoup.parse(title).text(),
+                        title = stripHtml(rawTitle),
                         link = link,
-                        description = cleanDesc,
+                        description = stripHtml(rawDescription).take(300),
                         pubDate = pubDate
                     )
                 )
@@ -73,10 +98,12 @@ object RssParser {
         try {
             val request = Request.Builder()
                 .url(articleUrl)
-                .header("User-Agent", "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
+                .header("User-Agent", USER_AGENT)
                 .build()
-            val response = client.newCall(request).execute()
-            val body = response.body?.string() ?: return@withContext ""
+            val body = client.newCall(request).execute().use { response ->
+                if (!response.isSuccessful) return@withContext ""
+                response.body?.string() ?: return@withContext ""
+            }
             val doc = Jsoup.parse(body)
 
             doc.select("script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, .comments, noscript").remove()
@@ -91,6 +118,9 @@ object RssParser {
             ""
         }
     }
+
+    private fun stripHtml(text: String): String =
+        if (text.contains('<')) Jsoup.parseBodyFragment(text).text() else text
 
     private fun extractMainContent(doc: org.jsoup.nodes.Document): String {
         val selectors = listOf(
@@ -117,10 +147,11 @@ object RssParser {
 
         var bestElement: Element? = null
         var maxTextLength = 0
+        val parentTextLengths = HashMap<Element, Int>()
         val paragraphs = doc.select("p")
         for (p in paragraphs) {
             val parent = p.parent() ?: continue
-            val textLength = parent.text().length
+            val textLength = parentTextLengths.getOrPut(parent) { parent.text().length }
             if (textLength > maxTextLength && textLength > 200) {
                 maxTextLength = textLength
                 bestElement = parent
@@ -131,14 +162,14 @@ object RssParser {
             return cleanExtractedText(bestElement)
         }
 
-        return doc.select("p").joinToString("\n\n") { it.text() }
+        return paragraphs.joinToString("\n\n") { it.text() }
     }
 
     private fun cleanExtractedText(element: Element): String {
         element.select("script, style, iframe, .ad, .advertisement, .social-share, .related-articles, .newsletter-signup, noscript").remove()
         return element.select("p, h1, h2, h3, h4, li")
             .joinToString("\n\n") { it.text() }
-            .replace(Regex("\\n{3,}"), "\n\n")
+            .replace(WHITESPACE_REGEX, "\n\n")
             .trim()
     }
 
@@ -151,18 +182,27 @@ object RssParser {
 
     private fun parseDate(dateStr: String): Long {
         if (dateStr.isBlank()) return System.currentTimeMillis()
-        val formats = listOf(
-            "EEE, dd MMM yyyy HH:mm:ss Z",
-            "yyyy-MM-dd'T'HH:mm:ssZ",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSSZ",
-            "EEE, dd MMM yyyy HH:mm:ss z"
-        )
-        for (fmt in formats) {
+        val trimmed = dateStr.trim()
+        for (formatter in DATE_FORMATTERS) {
             try {
-                val sdf = java.text.SimpleDateFormat(fmt, java.util.Locale.ENGLISH)
-                sdf.parse(dateStr)?.let { return it.time }
-            } catch (_: Exception) {}
+                val parsed = formatter.parseBest(
+                    trimmed,
+                    Instant::from,
+                    ZonedDateTime::from,
+                    OffsetDateTime::from,
+                    LocalDateTime::from,
+                    LocalDate::from
+                )
+                return when (parsed) {
+                    is Instant -> parsed.toEpochMilli()
+                    is ZonedDateTime -> parsed.toInstant().toEpochMilli()
+                    is OffsetDateTime -> parsed.toInstant().toEpochMilli()
+                    is LocalDateTime -> parsed.atZone(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    is LocalDate -> parsed.atStartOfDay(ZoneId.systemDefault()).toInstant().toEpochMilli()
+                    else -> continue
+                }
+            } catch (_: Exception) {
+            }
         }
         return System.currentTimeMillis()
     }

@@ -1,9 +1,13 @@
 package com.mlingofeed.data.database
 
 import androidx.room.Entity
+import androidx.room.Index
 import androidx.room.PrimaryKey
 
-@Entity(tableName = "bookmarks")
+@Entity(
+    tableName = "bookmarks",
+    indices = [Index(value = ["url"], unique = true), Index(value = ["category"])]
+)
 data class Bookmark(
     @PrimaryKey(autoGenerate = true)
     val id: Long = 0,

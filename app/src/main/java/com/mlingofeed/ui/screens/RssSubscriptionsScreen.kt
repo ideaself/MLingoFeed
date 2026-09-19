@@ -44,7 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -74,9 +74,10 @@ fun RssSubscriptionsScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: RssSubscriptionsViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val subscriptions by vm.subscriptions.collectAsState()
-    val folders by vm.folders.collectAsState()
-    val totalUnread by vm.totalUnread.collectAsState()
+    val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
+    val folders by vm.folders.collectAsStateWithLifecycle()
+    val totalUnread by vm.totalUnread.collectAsStateWithLifecycle()
+    val unreadCounts by vm.unreadCounts.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -143,7 +144,7 @@ fun RssSubscriptionsScreen(
                 folders.forEach { folder ->
                     val folderSubs = subscriptions.filter { it.folderId == folder.id }
                     val isExpanded = folder.id in vm.expandedFolders
-                    val folderUnread = 0
+                    val folderUnread = folderSubs.sumOf { unreadCounts[it.id] ?: 0 }
 
                     item {
                         FolderHeader(
@@ -156,11 +157,10 @@ fun RssSubscriptionsScreen(
                     }
 
                     if (isExpanded) {
-                        items(folderSubs) { subscription ->
-                            val unreadCount by app.rssRepository.getUnreadCount(subscription.id).collectAsState(initial = 0)
+                        items(folderSubs, key = { it.id }) { subscription ->
                             RssSubscriptionItem(
                                 subscription = subscription,
-                                unreadCount = unreadCount,
+                                unreadCount = unreadCounts[subscription.id] ?: 0,
                                 onClick = { onNavigateToArticles(subscription.id, subscription.title) },
                                 onDelete = { vm.requestDelete(subscription) },
                                 onEdit = { vm.requestEdit(subscription) }
@@ -182,11 +182,10 @@ fun RssSubscriptionsScreen(
                             )
                         }
                     }
-                    items(ungroupedSubs) { subscription ->
-                        val unreadCount by app.rssRepository.getUnreadCount(subscription.id).collectAsState(initial = 0)
+                    items(ungroupedSubs, key = { it.id }) { subscription ->
                         RssSubscriptionItem(
                             subscription = subscription,
-                            unreadCount = unreadCount,
+                            unreadCount = unreadCounts[subscription.id] ?: 0,
                             onClick = { onNavigateToArticles(subscription.id, subscription.title) },
                             onDelete = { vm.requestDelete(subscription) },
                             onEdit = { vm.requestEdit(subscription) }
