@@ -23,8 +23,8 @@ class HomeViewModel(app: WebReaderApp) : ViewModel() {
 
     private val repository = app.bookmarkRepository
 
-    val bookmarks = repository.allBookmarks.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val categories = repository.getCategories().stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val bookmarks = repository.allBookmarks.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val categories = repository.getCategories().stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     var showAddDialog by mutableStateOf(false)
         private set

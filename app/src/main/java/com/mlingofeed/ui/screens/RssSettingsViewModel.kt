@@ -26,8 +26,8 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private val repository = app.rssRepository
 
-    val folders = repository.allFolders.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val rules = repository.allRules.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val folders = repository.allFolders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val rules = repository.allRules.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     var showAddFolderDialog by mutableStateOf(false)
         private set

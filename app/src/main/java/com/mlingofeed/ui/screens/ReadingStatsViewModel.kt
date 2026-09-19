@@ -7,6 +7,6 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
 class ReadingStatsViewModel(app: WebReaderApp) : ViewModel() {
-    val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val totalSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
+    val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val totalSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
 }

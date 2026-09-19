@@ -11,7 +11,7 @@ class HistoryViewModel(app: WebReaderApp) : ViewModel() {
 
     private val repository = app.historyRepository
 
-    val history = repository.allHistory.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val history = repository.allHistory.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun clearAll() {
         viewModelScope.launch { repository.clearAll() }

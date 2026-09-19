@@ -21,11 +21,11 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private val repository = app.rssRepository
 
-    val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
+    val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "Chinese")
 
     var article by mutableStateOf<RssArticle?>(null)
         private set
@@ -54,7 +54,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     val translatedParagraphs = mutableStateMapOf<Int, String>()
     val translatingParagraphs = mutableStateMapOf<Int, Boolean>()
 
-    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 17f)
+    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 17f)
 
     private var initializedArticleId: Long? = null
 

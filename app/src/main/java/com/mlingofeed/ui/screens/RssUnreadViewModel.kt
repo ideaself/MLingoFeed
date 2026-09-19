@@ -11,7 +11,7 @@ class RssUnreadViewModel(app: WebReaderApp) : ViewModel() {
 
     private val repository = app.rssRepository
 
-    val unreadArticles = repository.unreadArticles.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val unreadArticles = repository.unreadArticles.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     fun markAllAsRead() {
         viewModelScope.launch { repository.markAllAsRead() }

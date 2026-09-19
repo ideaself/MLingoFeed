@@ -21,12 +21,12 @@ import kotlinx.coroutines.withContext
 
 class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
-    val dictionaries = app.settingsManager.dictionaries.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 100)
-    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 17f)
-    val themeMode = app.settingsManager.themeMode.stateIn(viewModelScope, SharingStarted.Eagerly, "system")
-    val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.Eagerly, 0L)
-    val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val dictionaries = app.settingsManager.dictionaries.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
+    val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 17f)
+    val themeMode = app.settingsManager.themeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "system")
+    val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
+    val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     var aiUrlInput by mutableStateOf("")
         private set

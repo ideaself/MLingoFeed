@@ -7,5 +7,5 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 
 class RssFavoritesViewModel(app: WebReaderApp) : ViewModel() {
-    val favorites = app.rssRepository.favoriteArticles.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val favorites = app.rssRepository.favoriteArticles.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 }

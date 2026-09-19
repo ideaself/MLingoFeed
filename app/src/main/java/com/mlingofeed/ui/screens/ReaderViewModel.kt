@@ -58,11 +58,11 @@ class ReaderViewModel(
         }
     }
 
-    val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.Eagerly, 100)
-    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
+    val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
+    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "Chinese")
 
     private val recordedUrls = mutableMapOf<Long, String>()
 

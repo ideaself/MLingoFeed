@@ -26,9 +26,9 @@ class WordBookViewModel(app: WebReaderApp) : ViewModel() {
     private val repository = app.wordBookRepository
     private val queryFlow = MutableStateFlow("")
 
-    val allWords = repository.allWords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val dueWords = repository.dueWords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
-    val masteredWords = repository.masteredWords.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
+    val allWords = repository.allWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val dueWords = repository.dueWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val masteredWords = repository.masteredWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     val searchResults: StateFlow<List<WordBookEntry>> = queryFlow
         .debounce(300)
