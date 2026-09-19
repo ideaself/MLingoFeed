@@ -54,8 +54,8 @@ class RssSyncWorker(
         createNotificationChannel()
 
         val intent = Intent(applicationContext, MainActivity::class.java).apply {
-            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_CLEAR_TASK
-            putExtra("navigate_to", "rss")
+            flags = Intent.FLAG_ACTIVITY_NEW_TASK or Intent.FLAG_ACTIVITY_SINGLE_TOP
+            putExtra(MainActivity.EXTRA_NAVIGATE_TO, MainActivity.DESTINATION_RSS)
         }
         val pendingIntent = PendingIntent.getActivity(
             applicationContext, 0, intent,

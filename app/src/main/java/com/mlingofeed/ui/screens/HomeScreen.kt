@@ -84,16 +84,8 @@ fun HomeScreen(
     onNavigateToSettings: () -> Unit,
     onNavigateToHistory: () -> Unit = {},
     onNavigateToRss: () -> Unit = {},
-    onNavigateToWordBook: () -> Unit = {},
-    sharedUrl: String? = null,
-    onSharedUrlConsumed: () -> Unit = {}
+    onNavigateToWordBook: () -> Unit = {}
 ) {
-    sharedUrl?.let { url ->
-        LaunchedEffect(url) {
-            onNavigateToReader(url)
-            onSharedUrlConsumed()
-        }
-    }
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: HomeViewModel = viewModel(factory = remember { AppViewModelFactory(app) })

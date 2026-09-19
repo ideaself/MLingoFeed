@@ -1,6 +1,8 @@
 package com.mlingofeed
 
+import android.net.Uri
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -23,9 +25,6 @@ import com.mlingofeed.ui.screens.RssUnreadScreen
 import com.mlingofeed.ui.screens.SettingsScreen
 import com.mlingofeed.ui.screens.WordBookScreen
 import com.mlingofeed.ui.screens.WordQuizScreen
-import java.net.URLDecoder
-import java.net.URLEncoder
-import java.nio.charset.StandardCharsets
 
 sealed class Screen(val route: String) {
     data object Home : Screen("home")
@@ -37,8 +36,9 @@ sealed class Screen(val route: String) {
     data object RssSubscriptions : Screen("rss")
     data object RssArticles : Screen("rss/{subscriptionId}/{title}") {
         fun createRoute(subscriptionId: Long, title: String): String {
-            val encodedTitle = URLEncoder.encode(title, StandardCharsets.UTF_8.toString())
-            return "rss/$subscriptionId/$encodedTitle"
+            // Navigation decodes path arguments itself, so encode exactly once (and with
+            // Uri.encode, whose output Uri.decode can reverse for every character).
+            return "rss/$subscriptionId/${Uri.encode(title)}"
         }
     }
     data object RssArticleDetail : Screen("rss/article/{articleId}") {
@@ -49,16 +49,36 @@ sealed class Screen(val route: String) {
     data object RssUnread : Screen("rss/unread")
     data object RssSettings : Screen("rss/settings")
     data object Reader : Screen("reader/{url}") {
-        fun createRoute(url: String): String {
-            val encoded = URLEncoder.encode(url, StandardCharsets.UTF_8.toString())
-            return "reader/$encoded"
-        }
+        fun createRoute(url: String): String = "reader/${Uri.encode(url)}"
     }
 }
 
 @Composable
-fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
+fun WebReaderNavHost(
+    sharedUrl: MutableState<String?>,
+    pendingDestination: MutableState<String?>
+) {
     val navController = rememberNavController()
+
+    val pendingUrl = sharedUrl.value
+    LaunchedEffect(pendingUrl) {
+        if (pendingUrl != null) {
+            navController.navigate(Screen.Reader.createRoute(pendingUrl)) {
+                launchSingleTop = true
+            }
+            sharedUrl.value = null
+        }
+    }
+
+    val destination = pendingDestination.value
+    LaunchedEffect(destination) {
+        if (destination == MainActivity.DESTINATION_RSS) {
+            navController.navigate(Screen.RssSubscriptions.route) {
+                launchSingleTop = true
+            }
+            pendingDestination.value = null
+        }
+    }
 
     NavHost(
         navController = navController,
@@ -80,9 +100,7 @@ fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
                 },
                 onNavigateToWordBook = {
                     navController.navigate(Screen.WordBook.route)
-                },
-                sharedUrl = sharedUrl.value,
-                onSharedUrlConsumed = { sharedUrl.value = null }
+                }
             )
         }
         composable(Screen.Settings.route) {
@@ -147,7 +165,7 @@ fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
             )
         ) { backStackEntry ->
             val subscriptionId = backStackEntry.arguments?.getLong("subscriptionId") ?: 0L
-            val title = URLDecoder.decode(backStackEntry.arguments?.getString("title") ?: "", StandardCharsets.UTF_8.toString())
+            val title = backStackEntry.arguments?.getString("title") ?: ""
             RssArticlesScreen(
                 subscriptionId = subscriptionId,
                 subscriptionTitle = title,
@@ -206,8 +224,7 @@ fun WebReaderNavHost(sharedUrl: MutableState<String?>) {
             route = Screen.Reader.route,
             arguments = listOf(navArgument("url") { type = NavType.StringType })
         ) { backStackEntry ->
-            val encodedUrl = backStackEntry.arguments?.getString("url") ?: ""
-            val url = URLDecoder.decode(encodedUrl, StandardCharsets.UTF_8.toString())
+            val url = backStackEntry.arguments?.getString("url") ?: ""
             ReaderScreen(
                 initialUrl = url,
                 onBack = { navController.popBackStack() },

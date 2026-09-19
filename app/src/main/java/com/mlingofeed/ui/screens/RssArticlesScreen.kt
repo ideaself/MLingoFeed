@@ -23,6 +23,7 @@ import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
@@ -34,8 +35,11 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -66,6 +70,7 @@ fun RssArticlesScreen(
     val articles by articleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
     val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
     val currentSub = subscriptions.find { it.id == subscriptionId }
+    var showMarkAllConfirm by remember { mutableStateOf(false) }
 
     val filteredArticles = remember(articles, vm.filterMode) {
         when (vm.filterMode) {
@@ -109,7 +114,7 @@ fun RssArticlesScreen(
                             )
                         }
                     }
-                    IconButton(onClick = { vm.markAllAsRead(subscriptionId) }) {
+                    IconButton(onClick = { showMarkAllConfirm = true }) {
                         Icon(Icons.Default.DoneAll, contentDescription = "Mark all read")
                     }
                     IconButton(onClick = {
@@ -171,6 +176,27 @@ fun RssArticlesScreen(
                 item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
+    }
+
+    if (showMarkAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { showMarkAllConfirm = false },
+            title = { Text("Mark all as read?") },
+            text = { Text("This marks every article in this feed as read.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.markAllAsRead(subscriptionId)
+                    showMarkAllConfirm = false
+                }) {
+                    Text("Mark all")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showMarkAllConfirm = false }) {
+                    Text("Cancel")
+                }
+            }
+        )
     }
 }
 
