@@ -13,7 +13,7 @@ Android web reader app: Kotlin + Jetpack Compose + Material 3, MVVM, single `:ap
 - Manual DI, no Hilt/Koin: `WebReaderApp` (Application) owns all repositories + `SettingsManager`; screens get them via `(context.applicationContext as WebReaderApp)`. Add new singletons there.
 - ViewModels: plain `ViewModel` classes taking `WebReaderApp` in the constructor, created via `AppViewModelFactory` and `viewModel(factory = remember { AppViewModelFactory(app) })`. Every screen with state has a VM registered in `AppViewModelFactory`'s `when`. Screens needing nav args (Reader, RssArticleDetail) use the `remember(arg) { vm.ensureInitialized(arg) }` pattern. Only view-layer state stays in screens (dialog text inputs, drag/swipe gesture state, snackbars).
 - Room 2.6.1 via KSP: `AppDatabase` version 8, `exportSchema = false`, `fallbackToDestructiveMigration()`. Schema change = bump `version`; data is wiped, no migration files.
-- Navigation: sealed class `Screen` in `WebReaderNavHost.kt`. URL/title args must be URL-encoded via `Screen.*.createRoute()` when navigating and decoded from nav args (see `Reader` / `RssArticles` routes).
+- Navigation: sealed class `Screen` in `WebReaderNavHost.kt`. URL/title args are encoded once with `Uri.encode` inside `Screen.*.createRoute()`; Navigation decodes path args automatically, so never call `URLDecoder.decode` on nav arguments (double decoding breaks `+` and crashes on `%`).
 - Reader mode is a WebView with injected JS extraction (`webview/` package) plus a JS↔Kotlin bridge (`WebAppInterface`). ReaderViewModel owns the tab list (ReaderTab holds the WebView); the screen's `AndroidView` factory creates/attaches WebViews.
 
 ## Runtime config gotchas
