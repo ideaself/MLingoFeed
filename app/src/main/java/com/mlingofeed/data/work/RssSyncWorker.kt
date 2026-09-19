@@ -23,6 +23,8 @@ import com.mlingofeed.R
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.repository.RssRepository
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import java.util.concurrent.TimeUnit
 
 class RssSyncWorker(
@@ -119,6 +121,18 @@ class RssSyncWorker(
 
         fun cancel(context: Context) {
             WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        }
+
+        /** True while the unique periodic sync work is enqueued or running. */
+        suspend fun isScheduled(context: Context): Boolean = withContext(Dispatchers.IO) {
+            try {
+                WorkManager.getInstance(context)
+                    .getWorkInfosForUniqueWork(WORK_NAME)
+                    .get()
+                    .any { !it.state.isFinished }
+            } catch (_: Exception) {
+                false
+            }
         }
     }
 }

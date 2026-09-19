@@ -28,6 +28,13 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val folders = repository.allFolders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val rules = repository.allRules.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
+    var syncEnabled by mutableStateOf(false)
+        private set
+
+    init {
+        viewModelScope.launch { syncEnabled = RssSyncWorker.isScheduled(app) }
+    }
+
     var showAddFolderDialog by mutableStateOf(false)
         private set
     var showAddRuleDialog by mutableStateOf(false)
@@ -106,10 +113,12 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun scheduleSync(context: Context) {
         RssSyncWorker.schedule(context)
+        syncEnabled = true
     }
 
     fun cancelSync(context: Context) {
         RssSyncWorker.cancel(context)
+        syncEnabled = false
     }
 
     fun importOpml(uri: Uri) {
@@ -139,14 +148,19 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun exportOpml(uri: Uri, content: String) {
         viewModelScope.launch {
-            try {
+            val success = try {
                 withContext(Dispatchers.IO) {
-                    app.contentResolver.openOutputStream(uri)?.use {
-                        it.write(content.toByteArray())
-                    }
+                    val stream = app.contentResolver.openOutputStream(uri)
+                        ?: return@withContext false
+                    stream.use { it.write(content.toByteArray()) }
+                    true
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (_: Exception) {
+                false
             }
+            Toast.makeText(app, if (success) "OPML exported" else "Export failed", Toast.LENGTH_SHORT).show()
         }
     }
 

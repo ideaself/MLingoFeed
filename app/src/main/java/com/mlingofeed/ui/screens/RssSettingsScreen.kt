@@ -74,6 +74,7 @@ fun RssSettingsScreen(
 
     val folders by vm.folders.collectAsStateWithLifecycle()
     val rules by vm.rules.collectAsStateWithLifecycle()
+    val syncEnabled = vm.syncEnabled
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -167,30 +168,17 @@ fun RssSettingsScreen(
 
             item {
                 Card(
-                    modifier = Modifier.fillMaxWidth().clickable { vm.cancelSync(context) },
-                    shape = RoundedCornerShape(12.dp)
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
-                        Spacer(modifier = Modifier.size(12.dp))
-                        Text("Disable background sync", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
-                    }
-                }
-                Spacer(modifier = Modifier.height(4.dp))
-            }
-
-            item {
-                Card(
                     modifier = Modifier.fillMaxWidth().clickable {
-                        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
-                            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
-                        ) {
-                            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                        if (syncEnabled) {
+                            vm.cancelSync(context)
+                        } else {
+                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+                                ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+                            ) {
+                                notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+                            }
+                            vm.scheduleSync(context)
                         }
-                        vm.scheduleSync(context)
                     },
                     shape = RoundedCornerShape(12.dp)
                 ) {
@@ -200,7 +188,16 @@ fun RssSettingsScreen(
                     ) {
                         Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
-                        Text("Enable background sync (1 hour)", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(
+                            text = if (syncEnabled) "Disable background sync" else "Enable background sync (1 hour)",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Text(
+                            text = if (syncEnabled) "On" else "Off",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (syncEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                        )
                     }
                 }
                 Spacer(modifier = Modifier.height(16.dp))

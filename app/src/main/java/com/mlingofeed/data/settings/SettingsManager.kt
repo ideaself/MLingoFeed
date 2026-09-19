@@ -38,6 +38,9 @@ class SettingsManager(private val context: Context) {
         val READING_TIME_SECONDS = stringPreferencesKey("reading_time_seconds")
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
 
+        private const val MAX_READING_SESSIONS = 500
+        private const val SESSION_RETENTION_DAYS = 60L
+
         private val defaultDictionariesJson: String by lazy { createDefaultDictionaries() }
 
         private fun createDefaultDictionaries(): String {
@@ -181,13 +184,24 @@ class SettingsManager(private val context: Context) {
         context.dataStore.edit { prefs ->
             val current = prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
             prefs[READING_TIME_SECONDS] = (current + durationSeconds).toString()
-            val json = prefs[READING_SESSIONS] ?: "[]"
-            val array = try { JSONArray(json) } catch (_: Exception) { JSONArray() }
-            if (array.length() >= 50) {
-                array.remove(0)
+
+            val cutoff = System.currentTimeMillis() - SESSION_RETENTION_DAYS * 24 * 60 * 60 * 1000
+            val sessions = mutableListOf<String>()
+            try {
+                val array = JSONArray(prefs[READING_SESSIONS] ?: "[]")
+                for (i in 0 until array.length()) {
+                    val entry = array.optString(i)
+                    val timestamp = entry.substringBefore(':').toLongOrNull() ?: continue
+                    if (timestamp >= cutoff) sessions.add(entry)
+                }
+            } catch (_: Exception) {
+                // Corrupt history: start over rather than fail the write.
             }
-            array.put("${System.currentTimeMillis()}:$durationSeconds")
-            prefs[READING_SESSIONS] = array.toString()
+            while (sessions.size >= MAX_READING_SESSIONS) {
+                sessions.removeAt(0)
+            }
+            sessions.add("${System.currentTimeMillis()}:$durationSeconds")
+            prefs[READING_SESSIONS] = JSONArray(sessions).toString()
         }
     }
 
@@ -219,8 +233,11 @@ class SettingsManager(private val context: Context) {
         )
     }
 
-    suspend fun importSettings(settings: Map<String, String>) {
-        context.dataStore.edit { prefs ->
+    /** Settings that are safe to write to an export file: the AI key is deliberately excluded. */
+    suspend fun getExportableSettings(): Map<String, String> =
+        getAllSettings().filterKeys { it != "ai_api_key" }
+
+    suspend fun importSettings(settings: Map<String, String>) {        context.dataStore.edit { prefs ->
             settings["dictionaries"]?.let { prefs[DICTIONARIES] = it }
             settings["ai_api_url"]?.let { prefs[AI_API_URL] = it }
             settings["ai_api_key"]?.let { prefs[AI_API_KEY] = it }

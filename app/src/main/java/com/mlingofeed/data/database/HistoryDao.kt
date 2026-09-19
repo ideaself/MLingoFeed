@@ -20,6 +20,6 @@ interface HistoryDao {
     @Query("DELETE FROM history")
     suspend fun clearAll()
 
-    @Query("DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY visitedAt DESC LIMIT 100)")
+    @Query("DELETE FROM history WHERE id NOT IN (SELECT id FROM history ORDER BY visitedAt DESC LIMIT 200)")
     suspend fun trimOld()
 }

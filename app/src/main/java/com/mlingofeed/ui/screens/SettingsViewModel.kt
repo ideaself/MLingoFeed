@@ -237,7 +237,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
             val ok = withContext(Dispatchers.IO) {
                 val bookmarks = app.bookmarkRepository.allBookmarks.first()
                 val subscriptions = app.rssRepository.allSubscriptions.first()
-                val settings = app.settingsManager.getAllSettings()
+                val settings = app.settingsManager.getExportableSettings()
                 ExportManager.exportToJson(app, uri, bookmarks, settings, subscriptions)
             }
             Toast.makeText(app, if (ok) "Export successful" else "Export failed", Toast.LENGTH_SHORT).show()
