@@ -11,7 +11,7 @@ fun createReaderWebView(
     context: Context,
     onWordTapped: (String) -> Unit,
     onSentenceLongPressed: (String) -> Unit,
-    onPageFinished: (String?) -> Unit,
+    onPageFinished: (url: String?, title: String?) -> Unit,
     onPageStarted: () -> Unit = {},
     selectionEnabled: () -> Boolean = { true }
 ): WebView {
@@ -38,7 +38,7 @@ fun createReaderWebView(
                 super.onPageFinished(view, url)
                 injectSelectionScript(view)
                 setSelectionScriptEnabled(view, selectionEnabled())
-                onPageFinished(view?.title)
+                onPageFinished(url, view?.title)
             }
 
             override fun shouldOverrideUrlLoading(view: WebView?, url: String?): Boolean {
@@ -367,6 +367,18 @@ fun clearPageTranslations(webView: WebView?) {
             existing.forEach(function(el) { el.remove(); });
             window.__wrTexts = [];
             window.__wrPickedUp = {};
+        })();
+        """.trimIndent(),
+        null
+    )
+}
+
+fun clearTranslationPlaceholders(webView: WebView?) {
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            var loadings = document.querySelectorAll('.__wr-translation-loading');
+            loadings.forEach(function(el) { el.remove(); });
         })();
         """.trimIndent(),
         null

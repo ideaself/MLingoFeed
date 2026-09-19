@@ -68,13 +68,26 @@ import kotlinx.coroutines.launch
 fun ReaderScreen(
     initialUrl: String,
     onBack: () -> Unit,
-    onGoHome: () -> Unit,
-    onOpenUrl: (String) -> Unit = {}
+    onGoHome: () -> Unit
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: ReaderViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
     LaunchedEffect(initialUrl) { vm.ensureInitialTab(initialUrl) }
+    LaunchedEffect(context) { vm.attachHost(context) }
+
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            when (event) {
+                Lifecycle.Event.ON_PAUSE -> vm.pauseWebViews()
+                Lifecycle.Event.ON_RESUME -> vm.resumeWebViews()
+                else -> {}
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
 
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
     val currentTab = vm.currentTab
@@ -181,7 +194,7 @@ fun ReaderScreen(
                 update = { container ->
                     val tab = vm.currentTab
                     val wv = tab?.takeIf { it.url != "about:blank" }?.webView
-                    if (wv != null) {
+                    if (wv != null && wv.context === container.context) {
                         if (wv.parent !== container) {
                             (wv.parent as? ViewGroup)?.removeView(wv)
                             container.removeAllViews()
@@ -238,7 +251,7 @@ fun ReaderScreen(
                 selectionEnabled = { vm.wordSelectionEnabled },
                 onWordTapped = { if (vm.wordSelectionEnabled) vm.openDictionary(it) },
                 onSentenceLongPressed = { vm.openTranslation(it) },
-                onPageFinished = { title -> vm.onPageLoaded(tab, targetUrl, title) }
+                onPageFinished = { url, title -> vm.onPageLoaded(tab, url, title) }
             )
             tab.webView = wv
             wv.loadUrl(targetUrl)

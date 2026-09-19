@@ -12,18 +12,22 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.webview.ReaderTab
 import com.mlingofeed.webview.clearPageTranslations
+import com.mlingofeed.webview.clearTranslationPlaceholders
 import com.mlingofeed.webview.injectTranslationStyles
 import com.mlingofeed.webview.prepareTranslationParagraphs
 import com.mlingofeed.webview.updateParagraphTranslation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
+import java.lang.ref.WeakReference
 
 class ReaderViewModel(
     private val app: WebReaderApp
@@ -59,12 +63,35 @@ class ReaderViewModel(
     }
 
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
-    val apiUrl = app.settingsManager.aiApiUrl.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val apiKey = app.settingsManager.aiApiKey.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val model = app.settingsManager.aiModel.stateIn(viewModelScope, SharingStarted.Eagerly, "")
-    val targetLang = app.settingsManager.translateTargetLang.stateIn(viewModelScope, SharingStarted.Eagerly, "Chinese")
 
     private val recordedUrls = mutableMapOf<Long, String>()
+    private var hostRef: WeakReference<Any>? = null
+
+    /**
+     * Called with the current Activity. WebViews are bound to the Activity that created them, so
+     * when the host is recreated (rotation, theme change) they must be dropped instead of being
+     * re-parented into the new Activity. The screen recreates them from [ReaderTab.url].
+     */
+    fun attachHost(host: Any) {
+        val previous = hostRef?.get()
+        if (previous === host) return
+        if (previous != null) {
+            tabs.forEach { tab ->
+                saveScrollPosition(tab)
+                tab.webView?.destroy()
+                tab.webView = null
+            }
+        }
+        hostRef = WeakReference(host)
+    }
+
+    fun pauseWebViews() {
+        tabs.forEach { it.webView?.onPause() }
+    }
+
+    fun resumeWebViews() {
+        tabs.forEach { it.webView?.onResume() }
+    }
 
     fun selectTab(index: Int) {
         selectedIndex = index
@@ -88,12 +115,19 @@ class ReaderViewModel(
         if (selectedIndex < 0) selectedIndex = 0
     }
 
-    fun onPageLoaded(tab: ReaderTab, url: String, title: String?) {
+    fun onPageLoaded(tab: ReaderTab, url: String?, title: String?) {
+        // In-page navigation (link clicks, redirects) changes the WebView URL; keep the tab in
+        // sync so history, bookmarks and scroll positions refer to the page actually shown.
+        val loadedUrl = url?.takeIf { it.isNotBlank() && it != "about:blank" }
+        if (loadedUrl != null && loadedUrl != tab.url) {
+            tab.url = loadedUrl
+        }
         if (title.isNullOrBlank() || title == "Loading...") return
-        if (recordedUrls[tab.id] == url && tab.title == title) return
-        recordedUrls[tab.id] = url
+        val currentUrl = loadedUrl ?: tab.url
+        if (recordedUrls[tab.id] == currentUrl && tab.title == title) return
+        recordedUrls[tab.id] = currentUrl
         tab.title = title
-        viewModelScope.launch { app.historyRepository.recordVisit(title, url) }
+        viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
     }
 
     private fun saveScrollPosition(tab: ReaderTab) {
@@ -165,75 +199,67 @@ class ReaderViewModel(
             clearPageTranslations(currentTab?.webView)
             return
         }
-        if (apiKey.value.isBlank()) return
         isTranslating = true
         translateProgress = "Preparing..."
 
         viewModelScope.launch {
-            val wv = currentTab?.webView
-            if (wv == null) {
+            try {
+                val wv = currentTab?.webView ?: return@launch
+                val settings = app.settingsManager.getAllSettings()
+                val apiKey = settings["ai_api_key"].orEmpty()
+                if (apiKey.isBlank()) {
+                    translateProgress = "Configure AI API Key in Settings"
+                    return@launch
+                }
+                val apiUrl = settings["ai_api_url"].orEmpty()
+                val model = settings["ai_model"].orEmpty()
+                val targetLang = settings["translate_target_lang"] ?: "Chinese"
+
+                val paraCount = withContext(Dispatchers.Main) {
+                    injectTranslationStyles(wv)
+                    withTimeoutOrNull(JS_CALLBACK_TIMEOUT_MS) {
+                        suspendCancellableCoroutine<Int> { cont ->
+                            prepareTranslationParagraphs(wv) { count ->
+                                if (cont.isActive) cont.resume(count)
+                            }
+                        }
+                    } ?: 0
+                }
+                if (paraCount == 0 || !isTranslating) return@launch
+                var currentIndex = 0
+                while (isTranslating && isActive && currentIndex < paraCount) {
+                    val text = withContext(Dispatchers.Main) {
+                        withTimeoutOrNull(JS_CALLBACK_TIMEOUT_MS) { getTextByIndex(wv, currentIndex) }
+                    }
+                    if (text == null) { currentIndex++; continue }
+                    translateProgress = "Translating ${currentIndex + 1}/$paraCount..."
+                    val translation = withContext(Dispatchers.IO) {
+                        try {
+                            app.chatRepository.translate(text, targetLang, apiUrl, apiKey, model)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            "Error: ${e.message}"
+                        }
+                    }
+                    withContext(Dispatchers.Main) {
+                        updateParagraphTranslation(wv, currentIndex, translation)
+                    }
+                    currentIndex++
+                    kotlinx.coroutines.delay(50)
+                }
+            } finally {
                 isTranslating = false
                 translateProgress = ""
-                return@launch
-            }
-            val paraCount = withContext(Dispatchers.Main) {
-                injectTranslationStyles(wv)
-                suspendCancellableCoroutine<Int> { cont ->
-                    prepareTranslationParagraphs(wv) { count ->
-                        if (cont.isActive) cont.resume(count)
-                    }
+                withContext(NonCancellable + Dispatchers.Main) {
+                    clearTranslationPlaceholders(currentTab?.webView)
                 }
             }
-            if (paraCount == 0 || !isTranslating) {
-                isTranslating = false
-                withContext(Dispatchers.Main) {
-                    wv.evaluateJavascript(
-                        """
-                        (function() {
-                            var loadings = document.querySelectorAll('.__wr-translation-loading');
-                            loadings.forEach(function(el) { el.remove(); });
-                        })();
-                        """.trimIndent(), null
-                    )
-                }
-                translateProgress = ""
-                return@launch
-            }
-            var currentIndex = 0
-            while (isTranslating && isActive && currentIndex < paraCount) {
-                val text = withContext(Dispatchers.Main) {
-                    getTextByIndex(wv, currentIndex)
-                }
-                if (text == null) { currentIndex++; continue }
-                translateProgress = "Translating ${currentIndex + 1}/$paraCount..."
-                val translation = withContext(Dispatchers.IO) {
-                    try {
-                        app.chatRepository.translate(text, targetLang.value, apiUrl.value, apiKey.value, model.value)
-                    } catch (e: CancellationException) {
-                        throw e
-                    } catch (e: Exception) {
-                        "Error: ${e.message}"
-                    }
-                }
-                withContext(Dispatchers.Main) {
-                    updateParagraphTranslation(wv, currentIndex, translation)
-                }
-                currentIndex++
-                kotlinx.coroutines.delay(50)
-            }
-            isTranslating = false
-            withContext(Dispatchers.Main) {
-                wv.evaluateJavascript(
-                    """
-                    (function() {
-                        var loadings = document.querySelectorAll('.__wr-translation-loading');
-                        loadings.forEach(function(el) { el.remove(); });
-                    })();
-                    """.trimIndent(), null
-                )
-            }
-            translateProgress = ""
         }
+    }
+
+    private companion object {
+        const val JS_CALLBACK_TIMEOUT_MS = 5_000L
     }
 }
 
