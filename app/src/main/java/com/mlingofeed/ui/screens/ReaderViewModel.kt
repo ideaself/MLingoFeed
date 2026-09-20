@@ -63,6 +63,8 @@ class ReaderViewModel(
     }
 
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
+    val desktopMode = app.settingsManager.readerDesktopMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val blockImages = app.settingsManager.readerBlockImages.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
@@ -203,6 +205,14 @@ class ReaderViewModel(
 
     fun toggleWordSelection() {
         wordSelectionEnabled = !wordSelectionEnabled
+    }
+
+    fun setDesktopMode(enabled: Boolean) {
+        viewModelScope.launch { app.settingsManager.setReaderDesktopMode(enabled) }
+    }
+
+    fun setBlockImages(enabled: Boolean) {
+        viewModelScope.launch { app.settingsManager.setReaderBlockImages(enabled) }
     }
 
     fun toggleBookmark() {

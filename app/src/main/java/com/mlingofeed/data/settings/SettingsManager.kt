@@ -39,6 +39,8 @@ class SettingsManager(private val context: Context) {
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
         val WORD_REVIEW_REMINDER = stringPreferencesKey("word_review_reminder")
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
+        val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
+        val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
 
         private const val MAX_READING_SESSIONS = 500
         private const val SESSION_RETENTION_DAYS = 60L
@@ -137,6 +139,14 @@ class SettingsManager(private val context: Context) {
         (prefs[RSS_SYNC_INTERVAL_HOURS]?.toLongOrNull() ?: 1L).coerceIn(1L, 24L)
     }
 
+    val readerDesktopMode: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[READER_DESKTOP_MODE] == "true"
+    }
+
+    val readerBlockImages: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[READER_BLOCK_IMAGES] == "true"
+    }
+
     /**
      * Applies [transform] to the currently persisted dictionaries inside the same DataStore
      * transaction, so concurrent edits cannot overwrite each other with a stale list.
@@ -182,6 +192,14 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setRssSyncIntervalHours(hours: Long) {
         context.dataStore.edit { prefs -> prefs[RSS_SYNC_INTERVAL_HOURS] = hours.toString() }
+    }
+
+    suspend fun setReaderDesktopMode(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[READER_DESKTOP_MODE] = enabled.toString() }
+    }
+
+    suspend fun setReaderBlockImages(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[READER_BLOCK_IMAGES] = enabled.toString() }
     }
 
     suspend fun addReadingTime(seconds: Long) {

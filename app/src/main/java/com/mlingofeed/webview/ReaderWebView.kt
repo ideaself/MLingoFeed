@@ -6,6 +6,9 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 
+const val DESKTOP_USER_AGENT =
+    "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+
 @SuppressLint("SetJavaScriptEnabled")
 fun createReaderWebView(
     context: Context,
@@ -385,8 +388,7 @@ fun clearTranslationPlaceholders(webView: WebView?) {
     )
 }
 
-fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
-    webView?.evaluateJavascript(
+fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {    webView?.evaluateJavascript(
         "window.__webReaderSetSelectionEnabled ? window.__webReaderSetSelectionEnabled($enabled) : null",
         null
     )

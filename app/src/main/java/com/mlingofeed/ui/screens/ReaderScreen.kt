@@ -1,6 +1,7 @@
 package com.mlingofeed.ui.screens
 
 import android.view.ViewGroup
+import android.webkit.WebSettings
 import android.widget.FrameLayout
 import androidx.activity.compose.BackHandler
 import androidx.compose.foundation.background
@@ -25,10 +26,17 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.KeyboardArrowDown
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -38,8 +46,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -58,6 +68,7 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.ui.components.ChatDialog
 import com.mlingofeed.ui.components.DictionaryPopup
 import com.mlingofeed.ui.components.TranslationPopup
+import com.mlingofeed.webview.DESKTOP_USER_AGENT
 import com.mlingofeed.webview.createReaderWebView
 import com.mlingofeed.webview.setSelectionScriptEnabled
 import kotlinx.coroutines.Job
@@ -100,6 +111,24 @@ fun ReaderScreen(
     }
 
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
+    val desktopMode by vm.desktopMode.collectAsStateWithLifecycle()
+    val blockImages by vm.blockImages.collectAsStateWithLifecycle()
+    var showReaderMenu by remember { mutableStateOf(false) }
+    var showFindBar by remember { mutableStateOf(false) }
+    var findQuery by remember { mutableStateOf("") }
+    var findMatches by remember { mutableIntStateOf(0) }
+
+    fun runFind(query: String) {
+        findQuery = query
+        val webView = vm.currentTab?.webView
+        if (query.isBlank()) {
+            webView?.clearMatches()
+            findMatches = 0
+        } else {
+            webView?.findAllAsync(query)
+        }
+    }
+
     val currentTab = vm.currentTab
     if (currentTab != null && currentTab.url != "about:blank") {
         ReadingTimer(app)
@@ -148,6 +177,49 @@ fun ReaderScreen(
                         IconButton(onClick = { vm.toggleBookmark() }) {
                             Icon(Icons.Default.BookmarkBorder, contentDescription = "Bookmark")
                         }
+                        Box {
+                            IconButton(onClick = { showReaderMenu = true }) {
+                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                            }
+                            DropdownMenu(
+                                expanded = showReaderMenu,
+                                onDismissRequest = { showReaderMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Find in page") },
+                                    leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        showFindBar = true
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (desktopMode) "Desktop site: on" else "Desktop site: off") },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        val enabled = !desktopMode
+                                        vm.setDesktopMode(enabled)
+                                        vm.currentTab?.webView?.let { webView ->
+                                            webView.settings.userAgentString =
+                                                if (enabled) DESKTOP_USER_AGENT else WebSettings.getDefaultUserAgent(context)
+                                            webView.reload()
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (blockImages) "Block images: on" else "Block images: off") },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        val enabled = !blockImages
+                                        vm.setBlockImages(enabled)
+                                        vm.currentTab?.webView?.let { webView ->
+                                            webView.settings.blockNetworkImage = enabled
+                                            webView.reload()
+                                        }
+                                    }
+                                )
+                            }
+                        }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
                 )
@@ -192,6 +264,47 @@ fun ReaderScreen(
                         }
                         IconButton(onClick = { vm.addTab("about:blank") }, modifier = Modifier.size(32.dp)) {
                             Icon(Icons.Default.Add, contentDescription = "New Tab", modifier = Modifier.size(18.dp))
+                        }
+                    }
+                }
+                if (showFindBar) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 4.dp),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        OutlinedTextField(
+                            value = findQuery,
+                            onValueChange = { runFind(it) },
+                            modifier = Modifier.weight(1f),
+                            singleLine = true,
+                            placeholder = { Text("Find in page") },
+                            trailingIcon = {
+                                if (findQuery.isNotBlank()) {
+                                    Text(
+                                        text = "$findMatches",
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            }
+                        )
+                        IconButton(
+                            onClick = { vm.currentTab?.webView?.findNext(false) },
+                            enabled = findQuery.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Previous match")
+                        }
+                        IconButton(
+                            onClick = { vm.currentTab?.webView?.findNext(true) },
+                            enabled = findQuery.isNotBlank()
+                        ) {
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Next match")
+                        }
+                        IconButton(onClick = {
+                            runFind("")
+                            showFindBar = false
+                        }) {
+                            Icon(Icons.Default.Close, contentDescription = "Close find")
                         }
                     }
                 }
@@ -251,7 +364,7 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize) {
+    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize, desktopMode, blockImages) {
         val tab = vm.currentTab ?: return@LaunchedEffect
         val targetUrl = tab.url
         if (targetUrl == "about:blank") return@LaunchedEffect
@@ -263,10 +376,16 @@ fun ReaderScreen(
                 onSentenceLongPressed = { vm.openTranslation(it) },
                 onPageFinished = { url, title -> vm.onPageLoaded(tab, url, title) }
             )
+            wv.setFindListener { total, _, _ -> findMatches = total }
             tab.webView = wv
             wv.loadUrl(targetUrl)
         }
-        tab.webView?.settings?.textZoom = fontSize
+        tab.webView?.settings?.let { settings ->
+            settings.textZoom = fontSize
+            settings.blockNetworkImage = blockImages
+            settings.userAgentString =
+                if (desktopMode) DESKTOP_USER_AGENT else WebSettings.getDefaultUserAgent(context)
+        }
         setSelectionScriptEnabled(tab.webView, vm.wordSelectionEnabled)
     }
 
