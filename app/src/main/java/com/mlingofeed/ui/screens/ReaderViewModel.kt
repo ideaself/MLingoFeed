@@ -3,6 +3,7 @@ package com.mlingofeed.ui.screens
 import android.speech.tts.TextToSpeech
 import android.speech.tts.UtteranceProgressListener
 import android.webkit.WebView
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
@@ -10,6 +11,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.mlingofeed.R
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.webview.ReaderTab
@@ -149,6 +151,7 @@ class ReaderViewModel(
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
     private var pendingSpeech: String? = null
+    private var ttsUnavailableNotified = false
 
     @Volatile
     private var currentSentences: List<String> = emptyList()
@@ -397,7 +400,12 @@ class ReaderViewModel(
         engine.stop()
         clearSentenceHighlight(currentTab?.webView)
         engine.setSpeechRate(ttsSpeed.value)
-        engine.language = if (ttsVoice.value == "uk") Locale.UK else Locale.US
+        val availability = engine.setLanguage(if (ttsVoice.value == "uk") Locale.UK else Locale.US)
+        if (availability < TextToSpeech.LANG_AVAILABLE) {
+            notifyTtsUnavailable()
+            return
+        }
+        ttsUnavailableNotified = false
         isSpeaking = true
         currentSentences = splitSentences(text)
         if (currentSentences.isEmpty()) {
@@ -414,6 +422,15 @@ class ReaderViewModel(
         text.split(Regex("(?<=[.!?。！？])\\s+|\\n+"))
             .map { it.trim() }
             .filter { it.length > 1 }
+
+    /** Tells the user why read-aloud did nothing instead of failing silently. */
+    private fun notifyTtsUnavailable() {
+        if (ttsUnavailableNotified) return
+        ttsUnavailableNotified = true
+        viewModelScope.launch(Dispatchers.Main) {
+            Toast.makeText(app, app.getString(R.string.tts_unavailable), Toast.LENGTH_LONG).show()
+        }
+    }
 
     private fun ensureTts(): TextToSpeech? {
         if (textToSpeech == null) {
@@ -444,13 +461,18 @@ class ReaderViewModel(
                         }
 
                         override fun onError(utteranceId: String?) {
+                            if (!isSpeaking) return
                             isSpeaking = false
+                            notifyTtsUnavailable()
                         }
                     })
                     pendingSpeech?.let { pending ->
                         pendingSpeech = null
                         speak(pending)
                     }
+                } else {
+                    pendingSpeech = null
+                    notifyTtsUnavailable()
                 }
             }
         }
