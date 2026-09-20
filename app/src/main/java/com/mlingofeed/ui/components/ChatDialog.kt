@@ -57,6 +57,11 @@ import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.text.buildAnnotatedString
 
 private val nextMessageId = AtomicLong(0)
 
@@ -278,6 +283,20 @@ fun ChatDialog(
     }
 }
 
+/** Renders `**bold**` spans from model replies; everything else stays plain text. */
+private fun markdownLite(text: String): AnnotatedString = buildAnnotatedString {
+    val boldRegex = Regex("\\*\\*(.+?)\\*\\*")
+    var index = 0
+    boldRegex.findAll(text).forEach { match ->
+        append(text.substring(index, match.range.first))
+        withStyle(SpanStyle(fontWeight = FontWeight.Bold)) {
+            append(match.groupValues[1])
+        }
+        index = match.range.last + 1
+    }
+    append(text.substring(index))
+}
+
 @Composable
 fun ChatBubble(message: ChatMessageItem) {
     val isUser = message.role == "user"
@@ -300,7 +319,7 @@ fun ChatBubble(message: ChatMessageItem) {
                 MaterialTheme.colorScheme.surfaceVariant
         ) {
             Text(
-                text = message.content,
+                text = markdownLite(message.content),
                 modifier = Modifier.padding(12.dp),
                 color = if (isUser)
                     MaterialTheme.colorScheme.onPrimary
