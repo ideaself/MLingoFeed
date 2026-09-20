@@ -74,6 +74,22 @@ if [[ "$DRY_RUN" == 1 ]]; then
     exit 0
 fi
 
+# --- helpers -----------------------------------------------------------------
+# GitHub is flaky from some networks; retry the publish steps instead of failing the release.
+retry() {
+    local attempts="$1" delay=5
+    shift
+    for ((i = 1; i <= attempts; i++)); do
+        if "$@"; then
+            return 0
+        fi
+        echo "  (attempt $i/$attempts failed; retrying in ${delay}s)" >&2
+        sleep "$delay"
+        delay=$((delay * 2))
+    done
+    return 1
+}
+
 # --- toolchain ---------------------------------------------------------------
 export JAVA_HOME="${JAVA_HOME:-$HOME/tools/jdk17}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/tools/android-sdk}"
@@ -114,14 +130,19 @@ if [[ "$NO_PUSH" == 1 ]]; then
     exit 0
 fi
 
-git push origin HEAD
-git push origin "$TAG"
+retry 5 git push origin HEAD
+retry 5 git push origin "$TAG"
 NOTES=$(mktemp)
 cat > "$NOTES" <<EOF
 ## MLingoFeed $VERSION
 
 已签名的正式构建 (versionCode $NEXT_CODE)。本次版本的改动见仓库提交历史。
 EOF
-gh release create "$TAG" "$APK_OUT" --title "MLingoFeed $VERSION" --notes-file "$NOTES"
+if ! retry 5 gh release create "$TAG" "$APK_OUT" --title "MLingoFeed $VERSION" --notes-file "$NOTES"; then
+    rm -f "$NOTES"
+    echo "Publishing failed after retries. Commit, tag and APK are local; finish with:" >&2
+    echo "  scripts/publish.sh $VERSION" >&2
+    exit 1
+fi
 rm -f "$NOTES"
 echo "Published: $(gh release view "$TAG" --json url -q .url)"
