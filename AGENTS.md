@@ -9,6 +9,11 @@ Android web reader app: Kotlin + Jetpack Compose + Material 3, MVVM, single `:ap
 - Build cache + configuration cache enabled in `gradle.properties` — first build after config changes stores a fresh entry.
 - Dependencies: Aliyun mirrors listed first in `settings.gradle.kts` with `RepositoriesMode.FAIL_ON_PROJECT_REPOS`. Add versions/deps in `gradle/libs.versions.toml`; never add `repositories {}` inside a module.
 
+## Release
+- Signing: `app/release.jks` + `MLINGOFEED_STORE_PASSWORD` / `MLINGOFEED_KEY_PASSWORD` / `MLINGOFEED_KEY_ALIAS` (alias `mlingofeed`) in `local.properties`. Both files are gitignored — **back them up**; losing them makes future updates impossible (signature mismatch on upgrade). Certificate: `CN=MLingoFeed`, SHA-256 `54b45bc08fd27b5dc14776739a33bcb5ddc8964816697438a5d11b437a7d2d62`.
+- One command: `scripts/release.sh <major.minor.patch>` — bumps `versionCode`/`versionName`, builds a signed release APK (falls back to a cached Gradle distribution when the wrapper cannot download one), verifies the signature, copies the APK to `build/releases/MLingoFeed-<version>.apk`, commits, tags `v<version>`, pushes and creates the GitHub release with `gh`. Flags: `--no-push` (stop after committing/tagging), `--dry-run` (print the plan). Requires a clean working tree.
+- Manual equivalent: bump the version in `app/build.gradle.kts`, run `assembleRelease`, then `git tag -a v<version> -m "MLingoFeed <version>"`, `git push origin HEAD v<version>` and `gh release create v<version> <apk> --title "MLingoFeed <version>"`.
+
 ## Architecture
 - Manual DI, no Hilt/Koin: `WebReaderApp` (Application) owns all repositories + `SettingsManager`; screens get them via `(context.applicationContext as WebReaderApp)`. Add new singletons there.
 - ViewModels: plain `ViewModel` classes taking `WebReaderApp` in the constructor, created via `AppViewModelFactory` and `viewModel(factory = remember { AppViewModelFactory(app) })`. Every screen with state has a VM registered in `AppViewModelFactory`'s `when`. Screens needing nav args (Reader, RssArticleDetail) use the `remember(arg) { vm.ensureInitialized(arg) }` pattern. Only view-layer state stays in screens (dialog text inputs, drag/swipe gesture state, snackbars).
