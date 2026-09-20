@@ -5,6 +5,8 @@ import com.mlingofeed.data.api.ChatRequest
 import com.mlingofeed.data.api.HttpClient
 import com.mlingofeed.data.api.TranslationApi
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.ensureActive
 import retrofit2.Retrofit
 import retrofit2.converter.gson.GsonConverterFactory
 import java.util.concurrent.TimeUnit
@@ -102,33 +104,43 @@ class ChatRepository {
             val source = body.source()
             val full = StringBuilder()
             val reasoning = StringBuilder()
-            while (true) {
-                val line = source.readUtf8Line() ?: break
-                if (!line.startsWith("data:")) continue
-                val payload = line.removePrefix("data:").trim()
-                if (payload.isEmpty()) continue
-                if (payload == "[DONE]") break
-                val deltaObject = try {
-                    org.json.JSONObject(payload)
-                        .optJSONArray("choices")
-                        ?.optJSONObject(0)
-                        ?.optJSONObject("delta")
-                } catch (_: Exception) {
-                    null
-                }
-                // JSON nulls (e.g. content while a reasoning model is still thinking) must not
-                // become the literal string "null".
-                val delta = (deltaObject?.opt("content") as? String).orEmpty()
-                if (delta.isNotEmpty()) {
-                    full.append(delta)
-                    onDelta(delta)
-                    continue
-                }
-                val thinking = (deltaObject?.opt("reasoning_content") as? String).orEmpty()
-                if (thinking.isNotEmpty()) reasoning.append(thinking)
+            // readUtf8Line() blocks and ignores coroutine cancellation, so closing the body from
+            // the cancelling thread is what actually stops an abandoned stream.
+            val cancellationHandler = kotlin.coroutines.coroutineContext[Job]?.invokeOnCompletion {
+                runCatching { body.close() }
             }
-            body.close()
-            full.toString().ifBlank { reasoning.toString().ifBlank { "No response" } }
+            try {
+                while (true) {
+                    kotlin.coroutines.coroutineContext.ensureActive()
+                    val line = source.readUtf8Line() ?: break
+                    if (!line.startsWith("data:")) continue
+                    val payload = line.removePrefix("data:").trim()
+                    if (payload.isEmpty()) continue
+                    if (payload == "[DONE]") break
+                    val deltaObject = try {
+                        org.json.JSONObject(payload)
+                            .optJSONArray("choices")
+                            ?.optJSONObject(0)
+                            ?.optJSONObject("delta")
+                    } catch (_: Exception) {
+                        null
+                    }
+                    // JSON nulls (e.g. content while a reasoning model is still thinking) must not
+                    // become the literal string "null".
+                    val delta = (deltaObject?.opt("content") as? String).orEmpty()
+                    if (delta.isNotEmpty()) {
+                        full.append(delta)
+                        onDelta(delta)
+                        continue
+                    }
+                    val thinking = (deltaObject?.opt("reasoning_content") as? String).orEmpty()
+                    if (thinking.isNotEmpty()) reasoning.append(thinking)
+                }
+                full.toString().ifBlank { reasoning.toString().ifBlank { "No response" } }
+            } finally {
+                cancellationHandler?.dispose()
+                runCatching { body.close() }
+            }
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
             "API Error ${e.code()}: $errorBody"

@@ -57,6 +57,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicLong
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
@@ -133,6 +134,27 @@ fun ChatDialog(
         isLoading = true
 
         scope.launch {
+            val streamed = StringBuilder()
+            val updatePending = AtomicBoolean(false)
+            var persisted = false
+            var assistantItem: ChatMessageItem? = null
+
+            fun pushStreamedText() {
+                val item = assistantItem ?: return
+                val text = streamed.toString()
+                val index = messages.indexOfFirst { it.id == item.id }
+                if (index >= 0) messages[index] = messages[index].copy(content = text)
+            }
+
+            fun persistAssistantReply() {
+                if (persisted) return
+                val item = assistantItem ?: return
+                val content = messages.firstOrNull { it.id == item.id }?.content.orEmpty()
+                if (content.isBlank()) return
+                persisted = true
+                app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", content) }
+            }
+
             try {
                 val chatMessages = mutableListOf<ChatMessage>()
                 if (messages.size <= 1 && initialContext.isNotEmpty()) {
@@ -147,9 +169,10 @@ fun ChatDialog(
                     chatMessages.add(ChatMessage(role = msg.role, content = msg.content))
                 }
 
-                val assistantItem = ChatMessageItem(role = "assistant", content = "")
-                messages.add(assistantItem)
-                val streamed = StringBuilder()
+                val item = ChatMessageItem(role = "assistant", content = "")
+                assistantItem = item
+                messages.add(item)
+
                 val response = withContext(Dispatchers.IO) {
                     app.chatRepository.streamChat(
                         messages = chatMessages,
@@ -158,22 +181,27 @@ fun ChatDialog(
                         model = model
                     ) { delta ->
                         streamed.append(delta)
-                        val text = streamed.toString()
-                        mainHandler.post {
-                            val index = messages.indexOfFirst { it.id == assistantItem.id }
-                            if (index >= 0) messages[index] = messages[index].copy(content = text)
+                        // Coalesce deltas: at most one pending UI update, however fast the stream is.
+                        if (updatePending.compareAndSet(false, true)) {
+                            mainHandler.post {
+                                updatePending.set(false)
+                                pushStreamedText()
+                            }
                         }
                     }
                 }
-                val index = messages.indexOfFirst { it.id == assistantItem.id }
+                val index = messages.indexOfFirst { it.id == item.id }
                 if (index >= 0) {
                     messages[index] = messages[index].copy(content = messages[index].content.ifBlank { response })
-                    val finalContent = messages[index].content
-                    app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", finalContent) }
                 }
+                persistAssistantReply()
             } catch (e: CancellationException) {
+                // Closing the dialog cancels the stream; keep whatever the reply got to so far.
+                persistAssistantReply()
                 throw e
             } catch (e: Exception) {
+                // Keep whatever partial reply arrived before the failure.
+                persistAssistantReply()
                 val errorText = "Error: ${e.message}"
                 messages.add(ChatMessageItem(role = "assistant", content = errorText))
                 app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", errorText) }
