@@ -39,9 +39,13 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -67,21 +71,11 @@ fun RssArticlesScreen(
     val app = context.applicationContext as WebReaderApp
     val vm: RssArticlesViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
 
-    val articleFlow = remember(subscriptionId) { app.rssRepository.getArticles(subscriptionId) }
-    val articles by articleFlow.collectAsStateWithLifecycle(initialValue = emptyList())
+    LaunchedEffect(subscriptionId) { vm.ensureInitialized(subscriptionId) }
+    val articles = vm.articles.collectAsLazyPagingItems()
     val subscriptions by vm.subscriptions.collectAsStateWithLifecycle()
     val currentSub = subscriptions.find { it.id == subscriptionId }
     var showMarkAllConfirm by remember { mutableStateOf(false) }
-
-    val filteredArticles = remember(articles, vm.filterMode) {
-        when (vm.filterMode) {
-            ArticleFilterMode.ALL -> articles
-            ArticleFilterMode.UNREAD -> articles.filter { !it.isRead }
-            ArticleFilterMode.FAVORITES -> articles.filter { it.isFavorite }
-        }
-    }
-    val unreadCount = remember(articles) { articles.count { !it.isRead } }
-    val favoriteCount = remember(articles) { articles.count { it.isFavorite } }
 
     Scaffold(
         topBar = {
@@ -128,11 +122,14 @@ fun RssArticlesScreen(
         }
     ) { padding ->
         PullToRefreshBox(
-            isRefreshing = vm.isRefreshing,
-            onRefresh = { vm.refresh(subscriptionId) },
+            isRefreshing = vm.isRefreshing || articles.loadState.refresh is LoadState.Loading,
+            onRefresh = {
+                vm.refresh(subscriptionId)
+                articles.refresh()
+            },
             modifier = Modifier.fillMaxSize().padding(padding)
         ) {
-            if (articles.isEmpty()) {
+            if (articles.itemCount == 0) {
                 Box(
                     modifier = Modifier.fillMaxSize(),
                     contentAlignment = Alignment.Center
@@ -153,31 +150,37 @@ fun RssArticlesScreen(
                             FilterChip(
                                 selected = vm.filterMode == ArticleFilterMode.ALL,
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.ALL) },
-                                label = { Text("All (${articles.size})") }
+                                label = { Text("All") }
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             FilterChip(
                                 selected = vm.filterMode == ArticleFilterMode.UNREAD,
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) },
-                                label = { Text("Unread ($unreadCount)") }
+                                label = { Text("Unread") }
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             FilterChip(
                                 selected = vm.filterMode == ArticleFilterMode.FAVORITES,
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.FAVORITES) },
-                                label = { Text("★ ($favoriteCount)") }
+                                label = { Text("★") }
                             )
                         }
                     }
 
-                    items(filteredArticles, key = { it.id }) { article ->
-                        RssArticleItem(
-                            article = article,
-                            onClick = { onNavigateToArticle(article.id) },
-                            onLongClick = { vm.toggleReadStatus(article.id) },
-                            onToggleFavorite = { vm.toggleFavorite(article.id) }
-                        )
-                        Spacer(modifier = Modifier.height(8.dp))
+                    items(
+                        count = articles.itemCount,
+                        key = articles.itemKey { it.id }
+                    ) { index ->
+                        val article = articles[index]
+                        if (article != null) {
+                            RssArticleItem(
+                                article = article,
+                                onClick = { onNavigateToArticle(article.id) },
+                                onLongClick = { vm.toggleReadStatus(article.id) },
+                                onToggleFavorite = { vm.toggleFavorite(article.id) }
+                            )
+                            Spacer(modifier = Modifier.height(8.dp))
+                        }
                     }
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }

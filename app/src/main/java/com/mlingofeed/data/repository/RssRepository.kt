@@ -1,6 +1,7 @@
 package com.mlingofeed.data.repository
 
 import androidx.room.withTransaction
+import androidx.paging.PagingSource
 import com.mlingofeed.data.escapeLikePattern
 import com.mlingofeed.data.api.HttpClient
 import com.mlingofeed.data.api.await
@@ -43,6 +44,13 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.getUnreadCountsBySubscription().map { list ->
             list.associate { it.subscriptionId to it.unreadCount }
         }
+
+    fun articlesPaged(subscriptionId: Long, unreadOnly: Boolean, favoritesOnly: Boolean): PagingSource<Int, RssArticle> =
+        rssDao.getArticlesPaged(
+            subscriptionId,
+            if (unreadOnly) 1 else 0,
+            if (favoritesOnly) 1 else 0
+        )
 
     fun getArticles(subscriptionId: Long): Flow<List<RssArticle>> =
         rssDao.getArticlesBySubscription(subscriptionId)

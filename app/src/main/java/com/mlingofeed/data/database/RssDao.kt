@@ -6,6 +6,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
 import androidx.room.Upsert
+import androidx.paging.PagingSource
 import kotlinx.coroutines.flow.Flow
 
 data class SubscriptionUnread(val subscriptionId: Long, val unreadCount: Int)
@@ -61,6 +62,14 @@ interface RssDao {
     // Articles
     @Query("SELECT * FROM rss_articles WHERE subscriptionId = :subscriptionId ORDER BY pubDate DESC LIMIT 200")
     fun getArticlesBySubscription(subscriptionId: Long): Flow<List<RssArticle>>
+
+    @Query(
+        "SELECT * FROM rss_articles WHERE subscriptionId = :subscriptionId " +
+            "AND (:unreadOnly = 0 OR isRead = 0) " +
+            "AND (:favoritesOnly = 0 OR isFavorite = 1) " +
+            "ORDER BY pubDate DESC"
+    )
+    fun getArticlesPaged(subscriptionId: Long, unreadOnly: Int, favoritesOnly: Int): PagingSource<Int, RssArticle>
 
     @Query("SELECT * FROM rss_articles ORDER BY pubDate DESC LIMIT 300")
     fun getAllArticles(): Flow<List<RssArticle>>
