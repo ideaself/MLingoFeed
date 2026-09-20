@@ -20,7 +20,7 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         RssRule::class,
         WordBookEntry::class
     ],
-    version = 9,
+    version = 10,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -34,8 +34,8 @@ abstract class AppDatabase : RoomDatabase() {
         private var INSTANCE: AppDatabase? = null
 
         /**
-         * Adds the full-text index over existing articles. Matches the FTS table and sync
-         * triggers Room creates for a fresh install (see the generated AppDatabase_Impl).
+         * Adds the FTS index (v9) — matches the FTS table and sync triggers Room creates for a
+         * fresh install (see the generated AppDatabase_Impl).
          */
         val MIGRATION_8_9 = object : Migration(8, 9) {
             override fun migrate(db: SupportSQLiteDatabase) {
@@ -48,6 +48,17 @@ abstract class AppDatabase : RoomDatabase() {
             }
         }
 
+        /**
+         * Adds word mnemonics and article "read later" flags. Column definitions match the
+         * generated schema for a fresh install (verified against sqlite pragma output).
+         */
+        val MIGRATION_9_10 = object : Migration(9, 10) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `word_book` ADD COLUMN `mnemonic` TEXT NOT NULL DEFAULT ''")
+                db.execSQL("ALTER TABLE `rss_articles` ADD COLUMN `isSaved` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun getDatabase(context: Context): AppDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
@@ -55,7 +66,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "webreader_database"
                 )
-                    .addMigrations(MIGRATION_8_9)
+                    .addMigrations(MIGRATION_8_9, MIGRATION_9_10)
                     .fallbackToDestructiveMigration()
                     .build()
                 INSTANCE = instance

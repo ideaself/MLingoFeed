@@ -19,6 +19,7 @@ import com.mlingofeed.ui.screens.RssArticleDetailScreen
 import com.mlingofeed.ui.screens.RssArticlesScreen
 import com.mlingofeed.ui.screens.RssFavoritesScreen
 import com.mlingofeed.ui.screens.RssSearchScreen
+import com.mlingofeed.ui.screens.RssSavedScreen
 import com.mlingofeed.ui.screens.RssSettingsScreen
 import com.mlingofeed.ui.screens.RssSubscriptionsScreen
 import com.mlingofeed.ui.screens.RssUnreadScreen
@@ -46,6 +47,7 @@ sealed class Screen(val route: String) {
     }
     data object RssSearch : Screen("rss/search")
     data object RssFavorites : Screen("rss/favorites")
+    data object RssSaved : Screen("rss/saved")
     data object RssUnread : Screen("rss/unread")
     data object RssSettings : Screen("rss/settings")
     data object Reader : Screen("reader/{url}") {
@@ -157,6 +159,9 @@ fun WebReaderNavHost(
                 onNavigateToUnread = {
                     navController.navigate(Screen.RssUnread.route)
                 },
+                onNavigateToSaved = {
+                    navController.navigate(Screen.RssSaved.route)
+                },
                 onNavigateToRssSettings = {
                     navController.navigate(Screen.RssSettings.route)
                 }
@@ -214,6 +219,14 @@ fun WebReaderNavHost(
         }
         composable(Screen.RssUnread.route) {
             RssUnreadScreen(
+                onBack = { navController.popBackStack() },
+                onNavigateToArticle = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                }
+            )
+        }
+        composable(Screen.RssSaved.route) {
+            RssSavedScreen(
                 onBack = { navController.popBackStack() },
                 onNavigateToArticle = { articleId ->
                     navController.navigate(Screen.RssArticleDetail.createRoute(articleId))

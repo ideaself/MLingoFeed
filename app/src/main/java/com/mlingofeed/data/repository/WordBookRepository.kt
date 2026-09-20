@@ -21,6 +21,10 @@ class WordBookRepository(private val dao: WordBookDao, private val database: App
         dao.toggleMastered(word)
     }
 
+    suspend fun updateMnemonic(word: String, mnemonic: String) {
+        dao.updateMnemonic(word, mnemonic)
+    }
+
     suspend fun addWord(
         word: String,
         definition: String = "",

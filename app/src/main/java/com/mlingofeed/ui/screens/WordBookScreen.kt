@@ -275,8 +275,10 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                         WordBookItem(
                             entry = entry,
                             expanded = isExpanded,
+                            mnemonicLoading = vm.mnemonicLoadingWord == entry.word,
                             onClick = { vm.toggleExpanded(entry.word) },
-                            onMasteredToggle = { vm.toggleMastered(entry) }
+                            onMasteredToggle = { vm.toggleMastered(entry) },
+                            onGenerateMnemonic = { vm.generateMnemonic(entry) }
                         )
                     }
                 }
@@ -381,8 +383,10 @@ private fun ExportOption(title: String, description: String, onClick: () -> Unit
 private fun WordBookItem(
     entry: WordBookEntry,
     expanded: Boolean,
+    mnemonicLoading: Boolean,
     onClick: () -> Unit,
-    onMasteredToggle: () -> Unit
+    onMasteredToggle: () -> Unit,
+    onGenerateMnemonic: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -459,6 +463,23 @@ private fun WordBookItem(
                     fontStyle = androidx.compose.ui.text.font.FontStyle.Italic,
                     lineHeight = 20.sp
                 )
+            }
+            if (entry.mnemonic.isNotEmpty()) {
+                Spacer(modifier = Modifier.height(6.dp))
+                Text(
+                    text = entry.mnemonic,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                    lineHeight = 20.sp
+                )
+            } else {
+                Spacer(modifier = Modifier.height(4.dp))
+                TextButton(onClick = onGenerateMnemonic, enabled = !mnemonicLoading) {
+                    Text(
+                        text = if (mnemonicLoading) "Generating..." else "AI mnemonic",
+                        style = MaterialTheme.typography.labelSmall
+                    )
+                }
             }
             Spacer(modifier = Modifier.height(4.dp))
             val dateStr = Instant.ofEpochMilli(entry.dateAdded).atZone(ZoneId.systemDefault()).format(DISPLAY_DATE_FORMATTER)

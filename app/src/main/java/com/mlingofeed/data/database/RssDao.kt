@@ -68,6 +68,9 @@ interface RssDao {
     @Query("SELECT * FROM rss_articles WHERE isFavorite = 1 ORDER BY pubDate DESC LIMIT 200")
     fun getFavoriteArticles(): Flow<List<RssArticle>>
 
+    @Query("SELECT * FROM rss_articles WHERE isSaved = 1 ORDER BY pubDate DESC LIMIT 300")
+    fun getSavedArticles(): Flow<List<RssArticle>>
+
     @Query("SELECT * FROM rss_articles WHERE isRead = 0 ORDER BY pubDate DESC LIMIT 300")
     fun getUnreadArticles(): Flow<List<RssArticle>>
 
@@ -97,6 +100,9 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isFavorite = NOT isFavorite WHERE id = :id")
     suspend fun toggleFavoriteStatus(id: Long)
 
+    @Query("UPDATE rss_articles SET isSaved = :isSaved WHERE id = :id")
+    suspend fun setSavedStatus(id: Long, isSaved: Boolean)
+
     @Query("UPDATE rss_articles SET isFavorite = :isFavorite WHERE id = :id")
     suspend fun setFavoriteStatus(id: Long, isFavorite: Boolean)
 
@@ -109,7 +115,7 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isRead = 1 WHERE isRead = 0")
     suspend fun markAllArticlesRead()
 
-    @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp AND isFavorite = 0 AND isRead = 1")
+    @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp AND isFavorite = 0 AND isRead = 1 AND isSaved = 0")
     suspend fun deleteOldArticles(timestamp: Long)
 
     @Query("SELECT subscriptionId, COUNT(*) AS unreadCount FROM rss_articles WHERE isRead = 0 GROUP BY subscriptionId")

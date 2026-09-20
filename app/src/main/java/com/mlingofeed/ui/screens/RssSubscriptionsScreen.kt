@@ -28,6 +28,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.RssFeed
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.AlertDialog
@@ -68,6 +69,7 @@ fun RssSubscriptionsScreen(
     onNavigateToSearch: () -> Unit,
     onNavigateToFavorites: () -> Unit,
     onNavigateToUnread: () -> Unit,
+    onNavigateToSaved: () -> Unit,
     onNavigateToRssSettings: () -> Unit
 ) {
     val context = LocalContext.current
@@ -140,6 +142,12 @@ fun RssSubscriptionsScreen(
                                 label = "Favorites",
                                 icon = Icons.Default.Bookmark,
                                 onClick = onNavigateToFavorites,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickFilterChip(
+                                label = "Saved",
+                                icon = Icons.Default.Schedule,
+                                onClick = onNavigateToSaved,
                                 modifier = Modifier.weight(1f)
                             )
                         }

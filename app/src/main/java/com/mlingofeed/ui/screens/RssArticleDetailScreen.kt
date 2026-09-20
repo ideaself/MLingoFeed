@@ -30,6 +30,7 @@ import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.OpenInBrowser
+import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
@@ -165,6 +166,13 @@ fun RssArticleDetailScreen(
                             }
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy link")
+                        }
+                        IconButton(onClick = { vm.toggleSaved(articleId) }) {
+                            Icon(
+                                imageVector = Icons.Default.Schedule,
+                                contentDescription = if (vm.isSaved) "Remove from read later" else "Save for later",
+                                tint = if (vm.isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                         Box {
                             IconButton(onClick = { showAiMenu = true }) {

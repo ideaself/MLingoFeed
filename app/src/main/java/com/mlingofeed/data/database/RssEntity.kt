@@ -3,6 +3,7 @@ package com.mlingofeed.data.database
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import androidx.room.ColumnInfo
 
 @Entity(tableName = "rss_folders")
 data class RssFolder(
@@ -46,6 +47,7 @@ data class RssArticle(
     val pubDate: Long = 0,
     val isRead: Boolean = false,
     val isFavorite: Boolean = false,
+    @ColumnInfo(defaultValue = "0") val isSaved: Boolean = false,
     val fetchedAt: Long = System.currentTimeMillis()
 )
 

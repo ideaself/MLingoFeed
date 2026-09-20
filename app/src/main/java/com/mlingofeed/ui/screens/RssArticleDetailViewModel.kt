@@ -34,6 +34,8 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         private set
     var isFavorite by mutableStateOf(false)
         private set
+    var isSaved by mutableStateOf(false)
+        private set
     var isLoadingContent by mutableStateOf(false)
         private set
     var fullContent by mutableStateOf<String?>(null)
@@ -78,6 +80,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private var initializedArticleId: Long? = null
     private var favoriteTouched = false
+    private var savedTouched = false
     private var translationGeneration = 0
 
     fun ensureLoaded(articleId: Long) {
@@ -95,6 +98,9 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             article = loaded
             if (!favoriteTouched) {
                 isFavorite = loaded.isFavorite
+            }
+            if (!savedTouched) {
+                isSaved = loaded.isSaved
             }
             if (!loaded.isRead) {
                 repository.markAsRead(articleId)
@@ -177,6 +183,14 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 isFavorite = !isFavorite
             }
         }
+    }
+
+    fun toggleSaved(articleId: Long) {
+        savedTouched = true
+        val newValue = !isSaved
+        isSaved = newValue
+        article = article?.copy(isSaved = newValue)
+        viewModelScope.launch { repository.setSaved(articleId, newValue) }
     }
 
     fun translateParagraph(index: Int, text: String) {

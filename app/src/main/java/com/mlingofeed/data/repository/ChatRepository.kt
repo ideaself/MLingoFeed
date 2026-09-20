@@ -202,4 +202,47 @@ Find 5-10 items. Return ONLY the JSON array, no other text."""
             "Error: ${e.message}"
         }
     }
+
+    suspend fun generateMnemonic(
+        word: String,
+        definition: String,
+        apiUrl: String,
+        apiKey: String,
+        model: String
+    ): String {
+        val messages = listOf(
+            ChatMessage(
+                role = "system",
+                content = """You are an English vocabulary tutor. Reply in Chinese with two short parts:
+1) 助记: a memory hook (词根词缀/联想/谐音) for the word.
+2) 例句: one simple English sentence using the word plus its Chinese translation.
+Keep the whole reply under 80 words. No markdown headings."""
+            ),
+            ChatMessage(
+                role = "user",
+                content = "Word: $word\nDefinition: $definition"
+            )
+        )
+
+        val request = ChatRequest(
+            model = model,
+            messages = messages,
+            stream = false,
+            temperature = 0.6
+        )
+
+        return try {
+            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            response.choices?.firstOrNull()?.message?.content ?: ""
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
 }

@@ -35,6 +35,7 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
     val allTags: Flow<List<RssTag>> = rssDao.getAllTags()
     val allRules: Flow<List<RssRule>> = rssDao.getAllRules()
     val favoriteArticles: Flow<List<RssArticle>> = rssDao.getFavoriteArticles()
+    val savedArticles: Flow<List<RssArticle>> = rssDao.getSavedArticles()
     val unreadArticles: Flow<List<RssArticle>> = rssDao.getUnreadArticles()
     val totalUnreadCount: Flow<Int> = rssDao.getTotalUnreadCount()
     private val refreshMutex = Mutex()
@@ -213,6 +214,10 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
 
     suspend fun toggleFavorite(id: Long) {
         rssDao.toggleFavoriteStatus(id)
+    }
+
+    suspend fun setSaved(id: Long, isSaved: Boolean) {
+        rssDao.setSavedStatus(id, isSaved)
     }
 
     suspend fun updateArticleContent(id: Long, content: String) {

@@ -105,6 +105,41 @@ class WordBookViewModel(private val app: WebReaderApp) : ViewModel() {
         importResult = null
     }
 
+    var mnemonicLoadingWord by mutableStateOf<String?>(null)
+        private set
+
+    fun generateMnemonic(entry: WordBookEntry) {
+        if (mnemonicLoadingWord != null) return
+        mnemonicLoadingWord = entry.word
+        viewModelScope.launch {
+            val settings = app.settingsManager.getAllSettings()
+            val apiKey = settings["ai_api_key"].orEmpty()
+            if (apiKey.isBlank()) {
+                mnemonicLoadingWord = null
+                return@launch
+            }
+            val result = withContext(Dispatchers.IO) {
+                try {
+                    app.chatRepository.generateMnemonic(
+                        word = entry.word,
+                        definition = entry.definition,
+                        apiUrl = settings["ai_api_url"].orEmpty(),
+                        apiKey = apiKey,
+                        model = settings["ai_model"].orEmpty()
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                }
+            }
+            if (result.isNotBlank()) {
+                repository.updateMnemonic(entry.word, result)
+            }
+            mnemonicLoadingWord = null
+        }
+    }
+
     fun toggleMastered(entry: WordBookEntry) {
         viewModelScope.launch { repository.toggleMastered(entry.word) }
     }

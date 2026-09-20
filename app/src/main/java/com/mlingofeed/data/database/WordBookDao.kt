@@ -34,6 +34,9 @@ interface WordBookDao {
     @Query("UPDATE word_book SET mastered = NOT mastered WHERE word = :word")
     suspend fun toggleMastered(word: String)
 
+    @Query("UPDATE word_book SET mnemonic = :mnemonic WHERE word = :word")
+    suspend fun updateMnemonic(word: String, mnemonic: String)
+
     @Delete
     suspend fun delete(entry: WordBookEntry)
 

@@ -10,6 +10,7 @@ import com.mlingofeed.ui.screens.RssArticleDetailViewModel
 import com.mlingofeed.ui.screens.RssArticlesViewModel
 import com.mlingofeed.ui.screens.RssFavoritesViewModel
 import com.mlingofeed.ui.screens.RssSearchViewModel
+import com.mlingofeed.ui.screens.RssSavedViewModel
 import com.mlingofeed.ui.screens.RssSettingsViewModel
 import com.mlingofeed.ui.screens.RssSubscriptionsViewModel
 import com.mlingofeed.ui.screens.RssUnreadViewModel
@@ -33,6 +34,8 @@ class AppViewModelFactory(private val app: WebReaderApp) : ViewModelProvider.Fac
             RssFavoritesViewModel(app) as T
         modelClass.isAssignableFrom(RssUnreadViewModel::class.java) ->
             RssUnreadViewModel(app) as T
+        modelClass.isAssignableFrom(RssSavedViewModel::class.java) ->
+            RssSavedViewModel(app) as T
         modelClass.isAssignableFrom(RssSearchViewModel::class.java) ->
             RssSearchViewModel(app) as T
         modelClass.isAssignableFrom(HistoryViewModel::class.java) ->
