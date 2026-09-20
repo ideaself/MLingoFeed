@@ -8,6 +8,8 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.WordBookEntry
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,9 +21,11 @@ import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
+import android.net.Uri
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
-class WordBookViewModel(app: WebReaderApp) : ViewModel() {
+class WordBookViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private val repository = app.wordBookRepository
     private val queryFlow = MutableStateFlow("")
@@ -45,6 +49,8 @@ class WordBookViewModel(app: WebReaderApp) : ViewModel() {
     var expandedWord by mutableStateOf<String?>(null)
         private set
     var showExportDialog by mutableStateOf(false)
+        private set
+    var importResult by mutableStateOf<Int?>(null)
         private set
 
     fun selectTab(index: Int) {
@@ -75,6 +81,28 @@ class WordBookViewModel(app: WebReaderApp) : ViewModel() {
 
     fun deleteWord(word: String) {
         viewModelScope.launch { repository.deleteWord(word) }
+    }
+
+    fun importWords(uri: Uri) {
+        viewModelScope.launch {
+            val imported = try {
+                withContext(Dispatchers.IO) {
+                    val content = app.contentResolver.openInputStream(uri)?.use { input ->
+                        input.bufferedReader().readText()
+                    } ?: return@withContext -1
+                    repository.importWords(content)
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                -1
+            }
+            importResult = imported
+        }
+    }
+
+    fun consumeImportResult() {
+        importResult = null
     }
 
     fun toggleMastered(entry: WordBookEntry) {

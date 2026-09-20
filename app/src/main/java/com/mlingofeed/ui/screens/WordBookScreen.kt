@@ -1,6 +1,8 @@
 package com.mlingofeed.ui.screens
 
 import android.content.Intent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -22,6 +24,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.FileUpload
 import androidx.compose.material.icons.filled.Quiz
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
@@ -136,6 +139,23 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
     val scope = rememberCoroutineScope()
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val importLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.OpenDocument()
+    ) { uri ->
+        if (uri != null) vm.importWords(uri)
+    }
+
+    LaunchedEffect(vm.importResult) {
+        val result = vm.importResult ?: return@LaunchedEffect
+        val message = when {
+            result < 0 -> "Import failed: could not read file"
+            result == 0 -> "No new words found"
+            else -> "Imported $result words"
+        }
+        snackbarHostState.showSnackbar(message)
+        vm.consumeImportResult()
+    }
+
     val allWords by vm.allWords.collectAsStateWithLifecycle()
     val dueWords by vm.dueWords.collectAsStateWithLifecycle()
     val masteredWords by vm.masteredWords.collectAsStateWithLifecycle()
@@ -161,6 +181,9 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                     actions = {
                         IconButton(onClick = onNavigateToQuiz) {
                             Icon(Icons.Default.Quiz, contentDescription = "Quiz")
+                        }
+                        IconButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
+                            Icon(Icons.Default.FileUpload, contentDescription = "Import words")
                         }
                         IconButton(onClick = { vm.openExportDialog() }) {
                             Icon(Icons.Default.Share, contentDescription = "Export")

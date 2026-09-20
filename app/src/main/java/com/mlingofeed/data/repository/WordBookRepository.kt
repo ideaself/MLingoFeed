@@ -89,6 +89,28 @@ class WordBookRepository(private val dao: WordBookDao, private val database: App
 
     suspend fun deleteWord(word: String) = dao.deleteByWord(word)
 
+    /**
+     * Imports words from CSV/Anki text. Existing words are kept; their definition is only
+     * backfilled when it was empty. Returns the number of newly added words.
+     */
+    suspend fun importWords(content: String): Int {
+        val entries = WordBookImporter.parse(content)
+        if (entries.isEmpty()) return 0
+        return database.withTransaction {
+            var imported = 0
+            entries.forEach { (word, definition) ->
+                val existing = dao.getWord(word)
+                if (existing == null) {
+                    dao.insert(WordBookEntry(word = word, definition = definition))
+                    imported++
+                } else if (existing.definition.isBlank() && definition.isNotBlank()) {
+                    dao.update(existing.copy(definition = definition))
+                }
+            }
+            imported
+        }
+    }
+
     suspend fun isWordSaved(word: String): Boolean = dao.getWord(word) != null
 
     suspend fun getTotalCount(): Int = dao.getTotalCount()
