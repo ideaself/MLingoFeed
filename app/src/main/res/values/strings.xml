@@ -299,4 +299,11 @@
     <string name="us_pronunciation">US pronunciation</string>
     <string name="uk_pronunciation">UK pronunciation</string>
     <string name="web_dictionary">Web dictionary</string>
+    <string name="ai_summary">AI summary</string>
+    <string name="summarizing">Summarizing...</string>
+    <string name="filter_all">All</string>
+    <string name="filter_last_7_days">Last 7 days</string>
+    <string name="filter_last_30_days">Last 30 days</string>
+    <string name="filter_source">Source</string>
+    <string name="ai_explain">AI details</string>
 </resources>

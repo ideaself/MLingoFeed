@@ -296,4 +296,11 @@
     <string name="us_pronunciation">美式发音</string>
     <string name="uk_pronunciation">英式发音</string>
     <string name="web_dictionary">网页词典</string>
+    <string name="ai_summary">AI 摘要</string>
+    <string name="summarizing">正在生成摘要…</string>
+    <string name="filter_all">全部</string>
+    <string name="filter_last_7_days">近 7 天</string>
+    <string name="filter_last_30_days">近 30 天</string>
+    <string name="filter_source">来源</string>
+    <string name="ai_explain">AI 详解</string>
 </resources>

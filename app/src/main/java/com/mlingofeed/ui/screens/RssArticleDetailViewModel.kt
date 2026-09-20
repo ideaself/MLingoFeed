@@ -67,6 +67,10 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         private set
     var isAnalyzing by mutableStateOf(false)
         private set
+    var summary by mutableStateOf("")
+        private set
+    var isSummarizing by mutableStateOf(false)
+        private set
     val translatedParagraphs = mutableStateMapOf<Int, String>()
     val translatingParagraphs = mutableStateMapOf<Int, Boolean>()
 
@@ -295,6 +299,38 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun dismissAiPanel() {
         showAiPanel = false
+    }
+
+    fun summarizeArticle() {
+        if (isSummarizing) return
+        val text = (fullContent?.takeIf { it.isNotBlank() } ?: article?.description.orEmpty()).trim()
+        if (text.isBlank()) return
+        isSummarizing = true
+        summary = ""
+        viewModelScope.launch {
+            val settings = app.settingsManager.getAllSettings()
+            val apiKey = settings["ai_api_key"].orEmpty()
+            if (apiKey.isBlank()) {
+                summary = app.getString(R.string.please_configure_ai_api_key_in_settings)
+                isSummarizing = false
+                return@launch
+            }
+            summary = withContext(Dispatchers.IO) {
+                try {
+                    app.chatRepository.summarize(
+                        text = text,
+                        apiUrl = settings["ai_api_url"].orEmpty(),
+                        apiKey = apiKey,
+                        model = settings["ai_model"].orEmpty()
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                }
+            }
+            isSummarizing = false
+        }
     }
 
     private fun runAiTool(

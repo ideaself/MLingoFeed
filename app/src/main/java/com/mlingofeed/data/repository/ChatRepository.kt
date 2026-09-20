@@ -245,4 +245,66 @@ Keep the whole reply under 80 words. No markdown headings."""
             "Error: ${e.message}"
         }
     }
+
+    suspend fun summarize(
+        text: String,
+        apiUrl: String,
+        apiKey: String,
+        model: String
+    ): String {
+        val truncated = if (text.length > 4000) text.substring(0, 4000) else text
+        val messages = listOf(
+            ChatMessage(
+                role = "system",
+                content = "You are a news editor. Summarize the article in 2-3 sentences of Chinese. " +
+                    "Plain text only, no markdown, no headings, no bullet lists."
+            ),
+            ChatMessage(role = "user", content = truncated)
+        )
+        val request = ChatRequest(model = model, messages = messages, stream = false, temperature = 0.3)
+        return try {
+            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            response.choices?.firstOrNull()?.message?.content ?: ""
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
+
+    suspend fun explainWord(
+        word: String,
+        definition: String,
+        apiUrl: String,
+        apiKey: String,
+        model: String
+    ): String {
+        val messages = listOf(
+            ChatMessage(
+                role = "system",
+                content = "You are an English vocabulary tutor. Reply in Chinese covering: 常见搭配 (2-3), " +
+                    "同义词/反义词, and 使用注意 or CEFR 词频. Keep under 100 words. Plain text, no markdown."
+            ),
+            ChatMessage(role = "user", content = "Word: $word\nDefinition: $definition")
+        )
+        val request = ChatRequest(model = model, messages = messages, stream = false, temperature = 0.5)
+        return try {
+            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            response.choices?.firstOrNull()?.message?.content ?: ""
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
 }

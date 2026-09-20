@@ -79,6 +79,15 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 private val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
 private val EXPORT_DATETIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
@@ -170,6 +179,19 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
         else -> masteredWords
     }
 
+    var filterDays by remember { mutableStateOf<Int?>(null) }
+    var filterSource by remember { mutableStateOf<String?>(null) }
+    val wordSources = remember(allWords) {
+        allWords.map { it.sourceTitle }.filter { it.isNotBlank() }.distinct().take(20)
+    }
+    val filteredWords = remember(displayWords, filterDays, filterSource) {
+        val cutoff = filterDays?.let { System.currentTimeMillis() - it * 24L * 60L * 60L * 1000L }
+        displayWords.filter { entry ->
+            (cutoff == null || entry.dateAdded >= cutoff) &&
+                (filterSource == null || entry.sourceTitle == filterSource)
+        }
+    }
+
     Scaffold(
         topBar = {
             Column {
@@ -225,11 +247,67 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                         Text(stringResource(R.string.wordbook_tab_mastered, masteredWords.size), modifier = Modifier.padding(12.dp))
                     }
                 }
+
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 4.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    FilterChip(
+                        selected = filterDays == null && filterSource == null,
+                        onClick = { filterDays = null; filterSource = null },
+                        label = { Text(stringResource(R.string.filter_all)) }
+                    )
+                    FilterChip(
+                        selected = filterDays == 7,
+                        onClick = { filterDays = if (filterDays == 7) null else 7 },
+                        label = { Text(stringResource(R.string.filter_last_7_days)) }
+                    )
+                    FilterChip(
+                        selected = filterDays == 30,
+                        onClick = { filterDays = if (filterDays == 30) null else 30 },
+                        label = { Text(stringResource(R.string.filter_last_30_days)) }
+                    )
+                    if (wordSources.isNotEmpty()) {
+                        Box {
+                            var showSourceMenu by remember { mutableStateOf(false) }
+                            FilterChip(
+                                selected = filterSource != null,
+                                onClick = { showSourceMenu = true },
+                                label = {
+                                    Text(
+                                        text = filterSource ?: stringResource(R.string.filter_source),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis
+                                    )
+                                }
+                            )
+                            DropdownMenu(
+                                expanded = showSourceMenu,
+                                onDismissRequest = { showSourceMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.filter_all)) },
+                                    onClick = { filterSource = null; showSourceMenu = false }
+                                )
+                                wordSources.forEach { source ->
+                                    DropdownMenuItem(
+                                        text = { Text(source, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                                        onClick = { filterSource = source; showSourceMenu = false }
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
             }
         },
         snackbarHost = { SnackbarHost(snackbarHostState) }
     ) { innerPadding ->
-        if (displayWords.isEmpty()) {
+        if (filteredWords.isEmpty()) {
             Box(
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 contentAlignment = Alignment.Center
@@ -248,7 +326,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                 modifier = Modifier.fillMaxSize().padding(innerPadding),
                 verticalArrangement = Arrangement.spacedBy(2.dp)
             ) {
-                items(displayWords, key = { it.id }) { entry ->
+                items(filteredWords, key = { it.id }) { entry ->
                     val isExpanded by remember(entry) { derivedStateOf { vm.expandedWord == entry.word } }
                     val dismissState = rememberSwipeToDismissBoxState(
                         confirmValueChange = {
@@ -280,7 +358,8 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                             mnemonicLoading = vm.mnemonicLoadingWord == entry.word,
                             onClick = { vm.toggleExpanded(entry.word) },
                             onMasteredToggle = { vm.toggleMastered(entry) },
-                            onGenerateMnemonic = { vm.generateMnemonic(entry) }
+                            onGenerateMnemonic = { vm.generateMnemonic(entry) },
+                            onExplainWord = { vm.explainWord(entry) }
                         )
                     }
                 }
@@ -290,7 +369,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
 
     if (vm.showExportDialog) {
         ExportDialog(
-            words = displayWords,
+            words = filteredWords,
             onDismiss = { vm.dismissExportDialog() },
             onExport = { content, type, subject ->
                 val intent = Intent(Intent.ACTION_SEND).apply {
@@ -300,6 +379,36 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                 }
                 context.startActivity(Intent.createChooser(intent, "Export Words"))
                 vm.dismissExportDialog()
+            }
+        )
+    }
+
+    if (vm.wordDetailWord.isNotEmpty()) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissWordDetail() },
+            title = { Text(vm.wordDetailWord) },
+            text = {
+                if (vm.isLoadingWordDetail) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 380.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(vm.wordDetailText, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissWordDetail() }) {
+                    Text(stringResource(R.string.close))
+                }
             }
         )
     }
@@ -388,7 +497,8 @@ private fun WordBookItem(
     mnemonicLoading: Boolean,
     onClick: () -> Unit,
     onMasteredToggle: () -> Unit,
-    onGenerateMnemonic: () -> Unit
+    onGenerateMnemonic: () -> Unit,
+    onExplainWord: () -> Unit
 ) {
     Column(
         modifier = Modifier
@@ -474,11 +584,19 @@ private fun WordBookItem(
                     color = MaterialTheme.colorScheme.primary,
                     lineHeight = 20.sp
                 )
-            } else {
-                Spacer(modifier = Modifier.height(4.dp))
-                TextButton(onClick = onGenerateMnemonic, enabled = !mnemonicLoading) {
+            }
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (entry.mnemonic.isEmpty()) {
+                    TextButton(onClick = onGenerateMnemonic, enabled = !mnemonicLoading) {
+                        Text(
+                            text = if (mnemonicLoading) stringResource(R.string.generating) else stringResource(R.string.ai_mnemonic),
+                            style = MaterialTheme.typography.labelSmall
+                        )
+                    }
+                }
+                TextButton(onClick = onExplainWord) {
                     Text(
-                        text = if (mnemonicLoading) stringResource(R.string.generating) else stringResource(R.string.ai_mnemonic),
+                        text = stringResource(R.string.ai_explain),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }

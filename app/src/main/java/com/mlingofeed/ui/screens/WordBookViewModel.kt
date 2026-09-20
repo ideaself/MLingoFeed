@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import android.net.Uri
+import com.mlingofeed.R
 
 @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
 class WordBookViewModel(private val app: WebReaderApp) : ViewModel() {
@@ -107,6 +108,50 @@ class WordBookViewModel(private val app: WebReaderApp) : ViewModel() {
 
     var mnemonicLoadingWord by mutableStateOf<String?>(null)
         private set
+
+    var wordDetailWord by mutableStateOf("")
+        private set
+    var wordDetailText by mutableStateOf("")
+        private set
+    var isLoadingWordDetail by mutableStateOf(false)
+        private set
+
+    fun explainWord(entry: WordBookEntry) {
+        if (isLoadingWordDetail) return
+        wordDetailWord = entry.word
+        wordDetailText = ""
+        isLoadingWordDetail = true
+        viewModelScope.launch {
+            val settings = app.settingsManager.getAllSettings()
+            val apiKey = settings["ai_api_key"].orEmpty()
+            if (apiKey.isBlank()) {
+                wordDetailText = app.getString(R.string.please_configure_ai_api_key_in_settings)
+                isLoadingWordDetail = false
+                return@launch
+            }
+            wordDetailText = withContext(Dispatchers.IO) {
+                try {
+                    app.chatRepository.explainWord(
+                        word = entry.word,
+                        definition = entry.definition,
+                        apiUrl = settings["ai_api_url"].orEmpty(),
+                        apiKey = apiKey,
+                        model = settings["ai_model"].orEmpty()
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                }
+            }
+            isLoadingWordDetail = false
+        }
+    }
+
+    fun dismissWordDetail() {
+        wordDetailWord = ""
+        wordDetailText = ""
+    }
 
     fun generateMnemonic(entry: WordBookEntry) {
         if (mnemonicLoadingWord != null) return

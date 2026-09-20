@@ -84,6 +84,7 @@ import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Surface
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -294,6 +295,45 @@ fun RssArticleDetailScreen(
                                 onClick = { showTagDialog = true },
                                 label = { Text(stringResource(R.string.tag)) }
                             )
+                        }
+
+                        if (vm.summary.isNotEmpty()) {
+                            Spacer(modifier = Modifier.height(8.dp))
+                            Surface(
+                                shape = RoundedCornerShape(12.dp),
+                                color = MaterialTheme.colorScheme.secondaryContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Column(modifier = Modifier.padding(12.dp)) {
+                                    Text(
+                                        text = stringResource(R.string.ai_summary),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                    Spacer(modifier = Modifier.height(4.dp))
+                                    Text(
+                                        text = vm.summary,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                                    )
+                                }
+                            }
+                        } else {
+                            TextButton(
+                                onClick = { vm.summarizeArticle() },
+                                enabled = !vm.isSummarizing
+                            ) {
+                                Icon(
+                                    Icons.Default.AutoAwesome,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(16.dp)
+                                )
+                                Spacer(modifier = Modifier.width(4.dp))
+                                Text(
+                                    text = if (vm.isSummarizing) stringResource(R.string.summarizing) else stringResource(R.string.ai_summary),
+                                    style = MaterialTheme.typography.labelMedium
+                                )
+                            }
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
