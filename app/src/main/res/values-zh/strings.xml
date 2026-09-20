@@ -303,4 +303,7 @@
     <string name="filter_last_30_days">近 30 天</string>
     <string name="filter_source">来源</string>
     <string name="ai_explain">AI 详解</string>
+    <string name="quiz_listening">听力</string>
+    <string name="listening_hint">点击喇叭播放,选出正确释义</string>
+    <string name="play_pronunciation">播放发音</string>
 </resources>

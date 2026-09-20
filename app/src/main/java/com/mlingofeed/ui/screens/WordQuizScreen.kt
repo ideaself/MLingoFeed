@@ -66,6 +66,11 @@ import com.mlingofeed.data.database.WordBookEntry
 import kotlin.math.abs
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.runtime.DisposableEffect
+import com.mlingofeed.data.api.PronunciationPlayer
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -137,6 +142,7 @@ fun WordQuizScreen(onBack: () -> Unit) {
                 FilterChip(stringResource(R.string.flashcard), vm.quizMode == "flashcard") { vm.startQuiz("flashcard", quizDeck) }
                 FilterChip(stringResource(R.string.multiple_choice), vm.quizMode == "multiple") { vm.startQuiz("multiple", quizDeck) }
                 FilterChip(stringResource(R.string.spelling), vm.quizMode == "spelling") { vm.startQuiz("spelling", quizDeck) }
+                FilterChip(stringResource(R.string.quiz_listening), vm.quizMode == "listening") { vm.startQuiz("listening", quizDeck) }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -181,6 +187,12 @@ fun WordQuizScreen(onBack: () -> Unit) {
                         isCorrect = vm.isCorrect,
                         onInputChange = { vm.updateInput(it) },
                         onSubmit = { vm.submitSpelling(currentWord) }
+                    )
+                    "listening" -> ListeningContent(
+                        word = currentWord,
+                        options = options,
+                        selectedWord = vm.selectedOptionWord,
+                        onSelect = { selected -> vm.selectOption(currentWord, selected) }
                     )
                 }
             }
@@ -342,7 +354,84 @@ private fun MultipleChoiceContent(
 
         Spacer(modifier = Modifier.height(16.dp))
 
-        options.forEach { option ->
+        QuizOptionList(word = word, options = options, selectedWord = selectedWord, onSelect = onSelect)
+    }
+}
+
+@Composable
+private fun ListeningContent(
+    word: WordBookEntry,
+    options: List<WordBookEntry>,
+    selectedWord: String?,
+    onSelect: (WordBookEntry) -> Unit
+) {
+    val player = remember { PronunciationPlayer() }
+    DisposableEffect(Unit) {
+        onDispose { player.release() }
+    }
+    var isPlaying by remember { mutableStateOf(false) }
+
+    fun playWord() {
+        player.play(
+            word = word.word,
+            onStart = { isPlaying = true },
+            onFinish = { isPlaying = false }
+        )
+    }
+
+    LaunchedEffect(word.word) {
+        playWord()
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant)
+        ) {
+            Column(
+                modifier = Modifier.padding(24.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                IconButton(
+                    onClick = { playWord() },
+                    enabled = !isPlaying,
+                    modifier = Modifier.size(72.dp)
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.VolumeUp,
+                        contentDescription = stringResource(R.string.play_pronunciation),
+                        modifier = Modifier.size(44.dp),
+                        tint = MaterialTheme.colorScheme.primary
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text(
+                    text = stringResource(R.string.listening_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.outline
+                )
+            }
+        }
+
+        Spacer(modifier = Modifier.height(16.dp))
+
+        QuizOptionList(word = word, options = options, selectedWord = selectedWord, onSelect = onSelect)
+    }
+}
+
+@Composable
+private fun QuizOptionList(
+    word: WordBookEntry,
+    options: List<WordBookEntry>,
+    selectedWord: String?,
+    onSelect: (WordBookEntry) -> Unit
+) {
+    val isAnswered = selectedWord != null
+    options.forEach { option ->
             val isCorrectOption = option.word == word.word
             val isSelected = option.word == selectedWord
 
@@ -382,7 +471,6 @@ private fun MultipleChoiceContent(
             }
         }
     }
-}
 
 @Composable
 private fun SpellingContent(

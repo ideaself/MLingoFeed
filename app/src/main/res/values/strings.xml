@@ -306,4 +306,7 @@
     <string name="filter_last_30_days">Last 30 days</string>
     <string name="filter_source">Source</string>
     <string name="ai_explain">AI details</string>
+    <string name="quiz_listening">Listening</string>
+    <string name="listening_hint">Tap the speaker, then choose the meaning</string>
+    <string name="play_pronunciation">Play pronunciation</string>
 </resources>
