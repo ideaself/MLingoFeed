@@ -21,6 +21,10 @@ jobs:
       # ubuntu-latest ships the Android SDK (ANDROID_HOME); setup-android@v3 currently
       # fails on the runners while installing the removed "tools" package.
 
+      # The China mirrors in settings.gradle.kts are slow/unreliable from GitHub runners.
+      - name: Use upstream Maven repositories on the runner
+        run: sed -i '/maven.aliyun.com/d' settings.gradle.kts
+
       - name: Unit tests
         run: ./gradlew testDebugUnitTest --console=plain
 
