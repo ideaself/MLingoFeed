@@ -49,6 +49,7 @@ class SettingsManager(private val context: Context) {
         val READER_TTS_SPEED = stringPreferencesKey("reader_tts_speed")
         val READER_TTS_VOICE = stringPreferencesKey("reader_tts_voice")
         val READER_DARK_WEB = stringPreferencesKey("reader_dark_web")
+        val READER_PURIFY = stringPreferencesKey("reader_purify")
         val READER_HIGHLIGHT_WORDS = stringPreferencesKey("reader_highlight_words")
         val READER_TABS = stringPreferencesKey("reader_tabs")
         val READER_SELECTED_TAB = stringPreferencesKey("reader_selected_tab")
@@ -186,6 +187,10 @@ class SettingsManager(private val context: Context) {
         prefs[READER_DARK_WEB] == "true"
     }
 
+    val readerPurify: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[READER_PURIFY] == "true"
+    }
+
     /**
      * Applies [transform] to the currently persisted dictionaries inside the same DataStore
      * transaction, so concurrent edits cannot overwrite each other with a stale list.
@@ -267,6 +272,10 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setReaderDarkWeb(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[READER_DARK_WEB] = enabled.toString() }
+    }
+
+    suspend fun setReaderPurify(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[READER_PURIFY] = enabled.toString() }
     }
 
     suspend fun setReaderTabs(tabsJson: String, selectedIndex: Int) {

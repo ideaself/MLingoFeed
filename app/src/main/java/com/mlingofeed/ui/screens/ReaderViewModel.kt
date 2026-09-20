@@ -138,6 +138,7 @@ class ReaderViewModel(
     val ttsSpeed = app.settingsManager.readerTtsSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.0f)
     val ttsVoice = app.settingsManager.readerTtsVoice.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "us")
     val darkWeb = app.settingsManager.readerDarkWeb.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val purify = app.settingsManager.readerPurify.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
@@ -223,7 +224,7 @@ class ReaderViewModel(
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
         persistTabs()
-        applyReadingAppearance(tab.webView, lineHeight.value, serifFont.value, darkWeb.value)
+        applyReadingAppearance(tab.webView, lineHeight.value, serifFont.value, darkWeb.value, purify.value)
         if (highlightWords.value) {
             viewModelScope.launch {
                 val words = app.wordBookRepository.getWordTexts()
@@ -326,14 +327,14 @@ class ReaderViewModel(
     fun setLineHeight(value: Float) {
         viewModelScope.launch {
             app.settingsManager.setReaderLineHeight(value)
-            currentTab?.webView?.let { applyReadingAppearance(it, value, serifFont.value, darkWeb.value) }
+            currentTab?.webView?.let { applyReadingAppearance(it, value, serifFont.value, darkWeb.value, purify.value) }
         }
     }
 
     fun setSerifFont(enabled: Boolean) {
         viewModelScope.launch {
             app.settingsManager.setReaderSerifFont(enabled)
-            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled, darkWeb.value) }
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled, darkWeb.value, purify.value) }
         }
     }
 
@@ -355,7 +356,14 @@ class ReaderViewModel(
     fun setDarkWeb(enabled: Boolean) {
         viewModelScope.launch {
             app.settingsManager.setReaderDarkWeb(enabled)
-            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, serifFont.value, enabled) }
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, serifFont.value, enabled, purify.value) }
+        }
+    }
+
+    fun setPurify(enabled: Boolean) {
+        viewModelScope.launch {
+            app.settingsManager.setReaderPurify(enabled)
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, serifFont.value, darkWeb.value, enabled) }
         }
     }
 

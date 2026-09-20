@@ -45,6 +45,15 @@ interface TranslationApi {
         @retrofit2.http.Header("Authorization") authorization: String
     ): ChatResponse
 
+    @retrofit2.http.Streaming
+    @Headers("Content-Type: application/json")
+    @POST
+    suspend fun chatStream(
+        @Url url: String,
+        @Body request: ChatRequest,
+        @retrofit2.http.Header("Authorization") authorization: String
+    ): okhttp3.ResponseBody
+
     @retrofit2.http.GET
     suspend fun getModels(
         @Url url: String,

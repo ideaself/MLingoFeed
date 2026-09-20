@@ -85,6 +85,57 @@ class ChatRepository {
         }
     }
 
+    /**
+     * Streams a chat completion (OpenAI-style SSE) and invokes [onDelta] for each text fragment.
+     * Returns the full reply, or a localised error string when the call fails.
+     */
+    suspend fun streamChat(
+        messages: List<ChatMessage>,
+        apiUrl: String,
+        apiKey: String,
+        model: String,
+        onDelta: (String) -> Unit
+    ): String {
+        val request = ChatRequest(model = model, messages = messages, stream = true)
+        return try {
+            val body = api.chatStream(apiUrl, request, "Bearer $apiKey")
+            val source = body.source()
+            val full = StringBuilder()
+            while (true) {
+                val line = source.readUtf8Line() ?: break
+                if (!line.startsWith("data:")) continue
+                val payload = line.removePrefix("data:").trim()
+                if (payload.isEmpty()) continue
+                if (payload == "[DONE]") break
+                val delta = try {
+                    org.json.JSONObject(payload)
+                        .optJSONArray("choices")
+                        ?.optJSONObject(0)
+                        ?.optJSONObject("delta")
+                        ?.optString("content")
+                        .orEmpty()
+                } catch (_: Exception) {
+                    ""
+                }
+                if (delta.isNotEmpty()) {
+                    full.append(delta)
+                    onDelta(delta)
+                }
+            }
+            body.close()
+            full.toString().ifBlank { "No response" }
+        } catch (e: HttpException) {
+            val errorBody = e.response()?.errorBody()?.string() ?: e.message()
+            "API Error ${e.code()}: $errorBody"
+        } catch (e: IOException) {
+            "Network error: ${e.message}"
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            "Error: ${e.message}"
+        }
+    }
+
     suspend fun fetchModels(baseApiUrl: String, apiKey: String): List<String> {
         val modelsUrl = if (baseApiUrl.contains("/chat/completions")) {
             baseApiUrl.replace("/chat/completions", "/models")

@@ -318,4 +318,6 @@
     <string name="daily_goal_progress">今日 %1$d / %2$d 分钟</string>
     <string name="daily_goal_setting">每日阅读目标</string>
     <string name="minutes_short">%1$d 分钟</string>
+    <string name="purify_on">正文净化:开</string>
+    <string name="purify_off">正文净化:关</string>
 </resources>

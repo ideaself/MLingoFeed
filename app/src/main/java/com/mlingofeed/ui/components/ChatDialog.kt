@@ -143,17 +143,29 @@ fun ChatDialog(
                     chatMessages.add(ChatMessage(role = msg.role, content = msg.content))
                 }
 
+                val assistantItem = ChatMessageItem(role = "assistant", content = "")
+                messages.add(assistantItem)
                 val response = withContext(Dispatchers.IO) {
-                    app.chatRepository.chat(
+                    app.chatRepository.streamChat(
                         messages = chatMessages,
                         apiUrl = apiUrl,
                         apiKey = apiKey,
                         model = model
-                    )
+                    ) { delta ->
+                        val index = messages.indexOfFirst { it.id == assistantItem.id }
+                        if (index >= 0) {
+                            messages[index] = messages[index].copy(content = messages[index].content + delta)
+                        }
+                    }
                 }
-
-                messages.add(ChatMessageItem(role = "assistant", content = response))
-                app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", response) }
+                val index = messages.indexOfFirst { it.id == assistantItem.id }
+                if (index >= 0) {
+                    if (messages[index].content.isBlank()) {
+                        messages[index] = assistantItem.copy(content = response)
+                    }
+                    val finalContent = messages[index].content
+                    app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", finalContent) }
+                }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
