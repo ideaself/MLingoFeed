@@ -79,7 +79,9 @@ export JAVA_HOME="${JAVA_HOME:-$HOME/tools/jdk17}"
 export ANDROID_HOME="${ANDROID_HOME:-$HOME/tools/android-sdk}"
 export PATH="$JAVA_HOME/bin:$PATH"
 GRADLE="./gradlew"
-if ! ./gradlew --version >/dev/null 2>&1; then
+# The wrapper blocks for minutes when it cannot reach services.gradle.org, so give it a
+# short window and then fall back to an already downloaded distribution.
+if ! timeout 60 ./gradlew --version >/dev/null 2>&1; then
     for candidate in "$HOME"/.gradle/wrapper/dists/gradle-*-bin/*/gradle-*/bin/gradle; do
         if [[ -x "$candidate" ]]; then
             GRADLE="$candidate"
