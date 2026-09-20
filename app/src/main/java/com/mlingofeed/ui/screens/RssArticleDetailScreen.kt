@@ -1,6 +1,7 @@
 package com.mlingofeed.ui.screens
 
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -9,23 +10,30 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Translate
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
@@ -88,6 +96,7 @@ fun RssArticleDetailScreen(
     }
 
     val articleData = vm.article
+    var showAiMenu by remember { mutableStateOf(false) }
 
     Scaffold(
         topBar = {
@@ -147,6 +156,30 @@ fun RssArticleDetailScreen(
                             }
                         }) {
                             Icon(Icons.Default.ContentCopy, contentDescription = "Copy link")
+                        }
+                        Box {
+                            IconButton(onClick = { showAiMenu = true }) {
+                                Icon(Icons.Default.AutoAwesome, contentDescription = "AI tools")
+                            }
+                            DropdownMenu(
+                                expanded = showAiMenu,
+                                onDismissRequest = { showAiMenu = false }
+                            ) {
+                                DropdownMenuItem(
+                                    text = { Text("Analyze difficulty") },
+                                    onClick = {
+                                        showAiMenu = false
+                                        vm.analyzeDifficulty()
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text("Find collocations") },
+                                    onClick = {
+                                        showAiMenu = false
+                                        vm.extractCollocations()
+                                    }
+                                )
+                            }
                         }
                     }
                 )
@@ -227,10 +260,10 @@ fun RssArticleDetailScreen(
                             fontSize = rssFontSize,
                             isTranslating = vm.translatingParagraphs[index] == true,
                             translation = vm.translatedParagraphs[index],
-                            onWordTap = { word ->
+                            onWordTap = { word, sentence ->
                                 val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
                                 if (clean.length >= 2) {
-                                    vm.openDictionary(clean)
+                                    vm.openDictionary(clean, sentence)
                                 }
                             },
                             onSentenceLongPress = { sentence ->
@@ -246,10 +279,10 @@ fun RssArticleDetailScreen(
                         ParagraphText(
                             text = articleData.description.trim(),
                             fontSize = rssFontSize,
-                            onWordTap = { word ->
+                            onWordTap = { word, sentence ->
                                 val clean = word.replace(Regex("[^a-zA-Z\\-']"), "")
                                 if (clean.length >= 2) {
-                                    vm.openDictionary(clean)
+                                    vm.openDictionary(clean, sentence)
                                 }
                             },
                             onSentenceLongPress = { sentence ->
@@ -267,13 +300,49 @@ fun RssArticleDetailScreen(
     }
 
     if (vm.showDictionary) {
-        DictionaryPopup(word = vm.selectedWord, onDismiss = { vm.dismissDictionary() }, onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) })
+        DictionaryPopup(
+            word = vm.selectedWord,
+            exampleSentence = vm.selectedSentence,
+            sourceUrl = articleData?.link.orEmpty(),
+            sourceTitle = articleData?.title.orEmpty(),
+            onDismiss = { vm.dismissDictionary() },
+            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) }
+        )
     }
     if (vm.showTranslation) {
         TranslationPopup(text = vm.selectedSentence, onDismiss = { vm.dismissTranslation() }, onOpenChat = { vm.dismissTranslation(); vm.openChat(vm.selectedSentence) })
     }
     if (vm.showChat) {
         ChatDialog(initialContext = vm.selectedSentence.ifEmpty { vm.selectedWord }, onDismiss = { vm.dismissChat() })
+    }
+    if (vm.showAiPanel) {
+        AlertDialog(
+            onDismissRequest = { vm.dismissAiPanel() },
+            title = { Text(vm.aiPanelTitle) },
+            text = {
+                if (vm.isAnalyzing) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.Center
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    Column(
+                        modifier = Modifier
+                            .heightIn(max = 420.dp)
+                            .verticalScroll(rememberScrollState())
+                    ) {
+                        Text(vm.aiPanelContent, style = MaterialTheme.typography.bodyMedium)
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.dismissAiPanel() }) {
+                    Text("Close")
+                }
+            }
+        )
     }
 }
 
@@ -284,7 +353,7 @@ private fun ParagraphBlock(
     fontSize: Float,
     isTranslating: Boolean,
     translation: String?,
-    onWordTap: (String) -> Unit,
+    onWordTap: (word: String, sentence: String) -> Unit,
     onSentenceLongPress: (String) -> Unit,
     onTranslateParagraph: () -> Unit
 ) {
@@ -355,7 +424,7 @@ private fun ParagraphBlock(
 private fun ParagraphText(
     text: String,
     fontSize: Float,
-    onWordTap: (String) -> Unit,
+    onWordTap: (word: String, sentence: String) -> Unit,
     onSentenceLongPress: (String) -> Unit
 ) {
     var layoutResult by remember { mutableStateOf<TextLayoutResult?>(null) }
@@ -372,7 +441,7 @@ private fun ParagraphText(
                         layoutResult?.let { layout ->
                             val charIndex = layout.getOffsetForPosition(offset)
                             extractWordAtOffset(text, charIndex)?.let { word ->
-                                onWordTap(word)
+                                onWordTap(word, extractSentenceAtOffset(text, charIndex))
                             }
                         }
                     },

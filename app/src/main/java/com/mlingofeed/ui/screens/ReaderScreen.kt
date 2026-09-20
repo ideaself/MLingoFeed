@@ -259,7 +259,7 @@ fun ReaderScreen(
             val wv = createReaderWebView(
                 context = context,
                 selectionEnabled = { vm.wordSelectionEnabled },
-                onWordTapped = { if (vm.wordSelectionEnabled) vm.openDictionary(it) },
+                onWordTapped = { word, sentence -> if (vm.wordSelectionEnabled) vm.openDictionary(word, sentence) },
                 onSentenceLongPressed = { vm.openTranslation(it) },
                 onPageFinished = { url, title -> vm.onPageLoaded(tab, url, title) }
             )
@@ -275,7 +275,14 @@ fun ReaderScreen(
     }
 
     if (vm.showDictionary) {
-        DictionaryPopup(word = vm.selectedWord, onDismiss = { vm.dismissDictionary() }, onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) })
+        DictionaryPopup(
+            word = vm.selectedWord,
+            exampleSentence = vm.selectedSentence,
+            sourceUrl = currentTab?.url.orEmpty(),
+            sourceTitle = currentTab?.title.orEmpty(),
+            onDismiss = { vm.dismissDictionary() },
+            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) }
+        )
     }
     if (vm.showTranslation) {
         TranslationPopup(text = vm.selectedSentence, onDismiss = { vm.dismissTranslation() }, onOpenChat = { vm.dismissTranslation(); vm.openChat(vm.selectedSentence) })

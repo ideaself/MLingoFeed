@@ -30,7 +30,19 @@ class WordBookRepository(private val dao: WordBookDao, private val database: App
         sourceTitle: String = ""
     ): Long = database.withTransaction {
         val existing = dao.getWord(word)
-        if (existing != null) return@withTransaction existing.id
+        if (existing != null) {
+            // Backfill context on previously saved words that lack it.
+            if (existing.exampleSentence.isBlank() && exampleSentence.isNotBlank()) {
+                dao.update(
+                    existing.copy(
+                        exampleSentence = exampleSentence,
+                        sourceUrl = sourceUrl.ifBlank { existing.sourceUrl },
+                        sourceTitle = sourceTitle.ifBlank { existing.sourceTitle }
+                    )
+                )
+            }
+            return@withTransaction existing.id
+        }
 
         dao.insert(
             WordBookEntry(

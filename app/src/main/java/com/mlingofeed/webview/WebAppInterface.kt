@@ -3,12 +3,12 @@ package com.mlingofeed.webview
 import android.webkit.JavascriptInterface
 
 class WebAppInterface(
-    private val onWordTapped: (String) -> Unit,
+    private val onWordTapped: (word: String, sentence: String) -> Unit,
     private val onSentenceLongPressed: (String) -> Unit
 ) {
     @JavascriptInterface
-    fun onWordSelected(word: String) {
-        onWordTapped(word)
+    fun onWordSelected(word: String, sentence: String) {
+        onWordTapped(word, sentence)
     }
 
     @JavascriptInterface

@@ -171,8 +171,11 @@ class ReaderViewModel(
         super.onCleared()
     }
 
-    fun openDictionary(word: String) {
+    fun openDictionary(word: String, sentence: String = "") {
         selectedWord = word
+        if (sentence.isNotBlank()) {
+            selectedSentence = sentence
+        }
         showDictionary = true
     }
 

@@ -70,7 +70,10 @@ data class DictionaryResult(
 fun DictionaryPopup(
     word: String,
     onDismiss: () -> Unit,
-    onOpenChat: () -> Unit
+    onOpenChat: () -> Unit,
+    exampleSentence: String = "",
+    sourceUrl: String = "",
+    sourceTitle: String = ""
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
@@ -189,9 +192,15 @@ fun DictionaryPopup(
                                     isSaved = false
                                 } else {
                                     val def = results.firstOrNull()?.definition ?: ""
+                                    // Only attach the captured context when the user saves the
+                                    // word they originally tapped.
+                                    val contextSentence = if (searchWord == word) exampleSentence else ""
                                     app.wordBookRepository.addWord(
                                         word = searchWord,
-                                        definition = def
+                                        definition = def,
+                                        exampleSentence = contextSentence,
+                                        sourceUrl = sourceUrl,
+                                        sourceTitle = sourceTitle
                                     )
                                     isSaved = true
                                 }

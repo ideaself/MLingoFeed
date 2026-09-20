@@ -9,7 +9,7 @@ import android.webkit.WebViewClient
 @SuppressLint("SetJavaScriptEnabled")
 fun createReaderWebView(
     context: Context,
-    onWordTapped: (String) -> Unit,
+    onWordTapped: (word: String, sentence: String) -> Unit,
     onSentenceLongPressed: (String) -> Unit,
     onPageFinished: (url: String?, title: String?) -> Unit,
     onPageStarted: () -> Unit = {},
@@ -159,7 +159,7 @@ fun injectSelectionScript(webView: WebView?) {
                         var touch = e.changedTouches[0];
                         var result = getWordAtPoint(touch.clientX, touch.clientY);
                         if (result && result.word) {
-                            Android.onWordSelected(result.word);
+                            Android.onWordSelected(result.word, result.sentence || '');
                         }
                     }
                     isLongPress = false;
@@ -170,7 +170,7 @@ fun injectSelectionScript(webView: WebView?) {
                     if (!enabled) return;
                     var result = getWordAtPoint(e.clientX, e.clientY);
                     if (result && result.word) {
-                        Android.onWordSelected(result.word);
+                        Android.onWordSelected(result.word, result.sentence || '');
                     }
                 }, true);
             })();

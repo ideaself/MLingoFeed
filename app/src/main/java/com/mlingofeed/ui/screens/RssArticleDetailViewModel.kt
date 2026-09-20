@@ -15,6 +15,8 @@ import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 
 class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
@@ -47,6 +49,14 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
     var translateProgress by mutableStateOf("")
         private set
     var articleNotFound by mutableStateOf(false)
+        private set
+    var showAiPanel by mutableStateOf(false)
+        private set
+    var aiPanelTitle by mutableStateOf("")
+        private set
+    var aiPanelContent by mutableStateOf("")
+        private set
+    var isAnalyzing by mutableStateOf(false)
         private set
     val translatedParagraphs = mutableStateMapOf<Int, String>()
     val translatingParagraphs = mutableStateMapOf<Int, Boolean>()
@@ -87,8 +97,11 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         }
     }
 
-    fun openDictionary(word: String) {
+    fun openDictionary(word: String, sentence: String = "") {
         selectedWord = word
+        if (sentence.isNotBlank()) {
+            selectedSentence = sentence
+        }
         showDictionary = true
     }
 
@@ -206,6 +219,129 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             } catch (e: Exception) {
                 "Error: ${e.message}"
             }
+        }
+    }
+
+    fun analyzeDifficulty() {
+        runAiTool(
+            title = "Difficulty Analysis",
+            format = ::formatDifficulty
+        ) { text, apiUrl, apiKey, model ->
+            app.chatRepository.analyzeDifficulty(text, apiUrl, apiKey, model)
+        }
+    }
+
+    fun extractCollocations() {
+        runAiTool(
+            title = "Collocations & Idioms",
+            format = ::formatCollocations
+        ) { text, apiUrl, apiKey, model ->
+            app.chatRepository.detectCollocations(text, apiUrl, apiKey, model)
+        }
+    }
+
+    fun dismissAiPanel() {
+        showAiPanel = false
+    }
+
+    private fun runAiTool(
+        title: String,
+        format: (String) -> String,
+        call: suspend (text: String, apiUrl: String, apiKey: String, model: String) -> String
+    ) {
+        val text = (fullContent?.takeIf { it.isNotBlank() } ?: article?.description.orEmpty()).trim()
+        if (text.isBlank()) return
+        aiPanelTitle = title
+        aiPanelContent = ""
+        isAnalyzing = true
+        showAiPanel = true
+        viewModelScope.launch {
+            val settings = app.settingsManager.getAllSettings()
+            val apiKey = settings["ai_api_key"].orEmpty()
+            if (apiKey.isBlank()) {
+                aiPanelContent = "Please configure AI API Key in Settings"
+                isAnalyzing = false
+                return@launch
+            }
+            val raw = withContext(Dispatchers.IO) {
+                try {
+                    call(
+                        text,
+                        settings["ai_api_url"].orEmpty(),
+                        apiKey,
+                        settings["ai_model"].orEmpty()
+                    )
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    "Error: ${e.message}"
+                }
+            }
+            aiPanelContent = format(raw)
+            isAnalyzing = false
+        }
+    }
+
+    private fun formatDifficulty(raw: String): String {
+        return try {
+            val obj = JSONObject(raw)
+            buildString {
+                append("CEFR: ").append(obj.optString("cefrLevel", "-"))
+                append("  ·  ").append(obj.optString("difficulty", "-")).append('\n')
+                append("Words: ").append(obj.optString("wordCount", "-"))
+                append("  ·  Avg sentence: ").append(obj.optString("avgSentenceLength", "-")).append('\n')
+                val suggestions = obj.optJSONArray("suggestions")
+                if (suggestions != null && suggestions.length() > 0) {
+                    append('\n').append("Suggestions:").append('\n')
+                    for (i in 0 until suggestions.length()) {
+                        append("• ").append(suggestions.optString(i)).append('\n')
+                    }
+                }
+                val vocabulary = obj.optJSONArray("keyVocabulary")
+                if (vocabulary != null && vocabulary.length() > 0) {
+                    append('\n').append("Key vocabulary:").append('\n')
+                    for (i in 0 until vocabulary.length()) {
+                        append("• ").append(renderVocabularyItem(vocabulary.opt(i))).append('\n')
+                    }
+                }
+            }.trim()
+        } catch (_: Exception) {
+            raw
+        }
+    }
+
+    private fun renderVocabularyItem(item: Any?): String = when (item) {
+        null -> ""
+        is JSONObject -> {
+            val word = item.optString("word").ifBlank { item.optString("term") }
+            val meaning = item.optString("definition").ifBlank { item.optString("meaning") }
+            listOf(word, meaning).filter { it.isNotBlank() }.joinToString(" — ")
+        }
+        else -> item.toString()
+    }
+
+    private fun formatCollocations(raw: String): String {
+        return try {
+            val array = JSONArray(raw)
+            if (array.length() == 0) return raw
+            buildString {
+                for (i in 0 until array.length()) {
+                    val obj = array.optJSONObject(i) ?: continue
+                    val phrase = obj.optString("phrase")
+                    if (phrase.isBlank()) continue
+                    append("• ").append(phrase)
+                    val type = obj.optString("type")
+                    if (type.isNotBlank()) append("  [").append(type).append(']')
+                    append('\n')
+                    val meaning = obj.optString("meaning")
+                    if (meaning.isNotBlank()) append("   ").append(meaning).append('\n')
+                    val example = obj.optString("example")
+                    if (example.isNotBlank()) append("   e.g. ").append(example).append('\n')
+                    if (i < array.length() - 1) append('\n')
+                }
+            }.trim()
+        } catch (_: Exception) {
+            raw
         }
     }
 }
