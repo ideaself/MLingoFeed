@@ -1,5 +1,6 @@
 package com.mlingofeed.ui.screens
 
+import android.widget.Toast
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateMapOf
 import androidx.compose.runtime.mutableStateOf
@@ -111,14 +112,32 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 repository.markAsRead(articleId)
             }
             if (loaded.content.isBlank()) {
-                isLoadingContent = true
-                val content = RssParser.fetchFullContent(loaded.link)
-                repository.updateArticleContent(articleId, content)
-                fullContent = content
-                isLoadingContent = false
+                fetchFullContent(articleId, loaded.link)
             } else {
                 fullContent = loaded.content
             }
+        }
+    }
+
+    /** Re-fetches the body, e.g. after the extractor improved or when the page markup changed. */
+    fun reloadContent() {
+        val current = article ?: return
+        if (isLoadingContent) return
+        viewModelScope.launch { fetchFullContent(current.id, current.link) }
+    }
+
+    private suspend fun fetchFullContent(articleId: Long, link: String) {
+        isLoadingContent = true
+        try {
+            val content = RssParser.fetchFullContent(link)
+            if (content.isNotBlank()) {
+                repository.updateArticleContent(articleId, content)
+                fullContent = content
+            } else {
+                Toast.makeText(app, app.getString(R.string.content_reload_failed), Toast.LENGTH_SHORT).show()
+            }
+        } finally {
+            isLoadingContent = false
         }
     }
 

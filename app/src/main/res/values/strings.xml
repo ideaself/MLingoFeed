@@ -314,6 +314,8 @@
     <string name="tts_speed">Reading speed</string>
     <string name="tts_voice">Reading voice</string>
     <string name="tts_unavailable">Read aloud needs a text-to-speech engine with English voices. Check the system speech settings.</string>
+    <string name="reload_content">Re-extract article</string>
+    <string name="content_reload_failed">Couldn\'t extract the article body. Check the network and try again.</string>
     <string name="link_options">Link</string>
     <string name="open_in_new_tab">Open in new tab</string>
     <string name="vocabulary_growth">Vocabulary growth (8 weeks)</string>

@@ -311,6 +311,8 @@
     <string name="tts_speed">朗读语速</string>
     <string name="tts_voice">朗读发音</string>
     <string name="tts_unavailable">朗读需要支持英语的系统语音引擎,请在系统设置中检查/安装语音数据</string>
+    <string name="reload_content">重新提取正文</string>
+    <string name="content_reload_failed">正文提取失败,请检查网络后重试</string>
     <string name="link_options">链接</string>
     <string name="open_in_new_tab">在新标签页打开</string>
     <string name="vocabulary_growth">词汇增长(8 周)</string>
