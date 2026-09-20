@@ -48,6 +48,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
+import android.os.Handler
+import android.os.Looper
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.api.ChatMessage
 import kotlinx.coroutines.CancellationException
@@ -87,6 +89,8 @@ fun ChatDialog(
     var inputText by remember { mutableStateOf("") }
     val messages = remember { mutableStateListOf<ChatMessageItem>() }
     var isLoading by remember { mutableStateOf(false) }
+    // SSE deltas arrive on an IO thread, but Compose state may only be written on the main thread.
+    val mainHandler = remember { Handler(Looper.getMainLooper()) }
 
     LaunchedEffect(Unit) {
         if (messages.isEmpty()) {
@@ -145,6 +149,7 @@ fun ChatDialog(
 
                 val assistantItem = ChatMessageItem(role = "assistant", content = "")
                 messages.add(assistantItem)
+                val streamed = StringBuilder()
                 val response = withContext(Dispatchers.IO) {
                     app.chatRepository.streamChat(
                         messages = chatMessages,
@@ -152,17 +157,17 @@ fun ChatDialog(
                         apiKey = apiKey,
                         model = model
                     ) { delta ->
-                        val index = messages.indexOfFirst { it.id == assistantItem.id }
-                        if (index >= 0) {
-                            messages[index] = messages[index].copy(content = messages[index].content + delta)
+                        streamed.append(delta)
+                        val text = streamed.toString()
+                        mainHandler.post {
+                            val index = messages.indexOfFirst { it.id == assistantItem.id }
+                            if (index >= 0) messages[index] = messages[index].copy(content = text)
                         }
                     }
                 }
                 val index = messages.indexOfFirst { it.id == assistantItem.id }
                 if (index >= 0) {
-                    if (messages[index].content.isBlank()) {
-                        messages[index] = assistantItem.copy(content = response)
-                    }
+                    messages[index] = messages[index].copy(content = messages[index].content.ifBlank { response })
                     val finalContent = messages[index].content
                     app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", finalContent) }
                 }
