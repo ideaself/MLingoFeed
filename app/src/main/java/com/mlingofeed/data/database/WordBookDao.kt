@@ -51,4 +51,7 @@ interface WordBookDao {
 
     @Query("SELECT COUNT(*) FROM word_book WHERE dateAdded >= :startTime AND dateAdded <= :endTime")
     suspend fun getWordsAddedBetween(startTime: Long, endTime: Long): Int
+
+    @Query("SELECT word FROM word_book ORDER BY dateAdded DESC LIMIT 500")
+    suspend fun getWordTexts(): List<String>
 }

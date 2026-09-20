@@ -193,8 +193,17 @@ fun DictionaryPopup(
                                 } else {
                                     val def = results.firstOrNull()?.definition ?: ""
                                     // Only attach the captured context when the user saves the
-                                    // word they originally tapped.
-                                    val contextSentence = if (searchWord == word) exampleSentence else ""
+                                    // word they originally tapped, and only when it looks like a
+                                    // real sentence (not the bare word or a stray fragment).
+                                    val contextSentence = if (
+                                        searchWord == word &&
+                                        exampleSentence.length >= 15 &&
+                                        exampleSentence.contains(' ')
+                                    ) {
+                                        exampleSentence
+                                    } else {
+                                        ""
+                                    }
                                     app.wordBookRepository.addWord(
                                         word = searchWord,
                                         definition = def,

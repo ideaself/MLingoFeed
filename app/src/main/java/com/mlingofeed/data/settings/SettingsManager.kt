@@ -41,6 +41,7 @@ class SettingsManager(private val context: Context) {
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
         val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
+        val READER_HIGHLIGHT_WORDS = stringPreferencesKey("reader_highlight_words")
         val READER_TABS = stringPreferencesKey("reader_tabs")
         val READER_SELECTED_TAB = stringPreferencesKey("reader_selected_tab")
 
@@ -149,6 +150,10 @@ class SettingsManager(private val context: Context) {
         prefs[READER_BLOCK_IMAGES] == "true"
     }
 
+    val readerHighlightWords: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[READER_HIGHLIGHT_WORDS] == "true"
+    }
+
     /**
      * Applies [transform] to the currently persisted dictionaries inside the same DataStore
      * transaction, so concurrent edits cannot overwrite each other with a stale list.
@@ -202,6 +207,10 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setReaderBlockImages(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[READER_BLOCK_IMAGES] = enabled.toString() }
+    }
+
+    suspend fun setReaderHighlightWords(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[READER_HIGHLIGHT_WORDS] = enabled.toString() }
     }
 
     suspend fun setReaderTabs(tabsJson: String, selectedIndex: Int) {

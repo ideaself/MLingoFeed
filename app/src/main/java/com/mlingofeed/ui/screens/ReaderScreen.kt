@@ -113,6 +113,7 @@ fun ReaderScreen(
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
     val desktopMode by vm.desktopMode.collectAsStateWithLifecycle()
     val blockImages by vm.blockImages.collectAsStateWithLifecycle()
+    val highlightWords by vm.highlightWords.collectAsStateWithLifecycle()
     var showReaderMenu by remember { mutableStateOf(false) }
     var showFindBar by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
@@ -216,6 +217,13 @@ fun ReaderScreen(
                                             webView.settings.blockNetworkImage = enabled
                                             webView.reload()
                                         }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (highlightWords) "Highlight saved words: on" else "Highlight saved words: off") },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        vm.setHighlightWords(!highlightWords)
                                     }
                                 )
                             }

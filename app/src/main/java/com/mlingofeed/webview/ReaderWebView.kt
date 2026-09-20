@@ -5,6 +5,7 @@ import android.content.Context
 import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import org.json.JSONArray
 
 const val DESKTOP_USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -109,14 +110,28 @@ fun injectSelectionScript(webView: WebView?) {
                     var word = text.substring(start, end);
                     if (word.length === 0) return null;
 
-                    var before = text.substring(0, start);
+                    // When the word is inside a saved-word highlight, read the sentence from the
+                    // enclosing block so the context is not just the highlighted span.
+                    var sentenceSource = text;
+                    var wordOffset = start;
+                    var parentEl = textNode.parentElement;
+                    if (parentEl && parentEl.classList && parentEl.classList.contains('__wr-saved-word')) {
+                        var block = parentEl.closest('p, li, td, th, blockquote, dd, figcaption') || parentEl.parentElement;
+                        if (block) {
+                            sentenceSource = block.textContent || text;
+                            var wordIndex = sentenceSource.toLowerCase().indexOf(word.toLowerCase());
+                            wordOffset = wordIndex >= 0 ? wordIndex : 0;
+                        }
+                    }
+
+                    var before = sentenceSource.substring(0, wordOffset);
                     var sentenceStart = Math.max(
                         before.lastIndexOf('.') + 1,
                         before.lastIndexOf('!') + 1,
                         before.lastIndexOf('?') + 1,
                         before.lastIndexOf('\\n') + 1
                     );
-                    var sentence = text.substring(sentenceStart).split(/[.!?\\n]/)[0].trim();
+                    var sentence = sentenceSource.substring(sentenceStart).split(/[.!?\\n]/)[0].trim();
 
                     return { word: word, sentence: sentence };
                 }
@@ -388,8 +403,112 @@ fun clearTranslationPlaceholders(webView: WebView?) {
     )
 }
 
-fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {    webView?.evaluateJavascript(
+fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
+    webView?.evaluateJavascript(
         "window.__webReaderSetSelectionEnabled ? window.__webReaderSetSelectionEnabled($enabled) : null",
+        null
+    )
+}
+
+/**
+ * Marks saved word-book words in the page. Passing [enabled] = false unwraps any previous
+ * highlights. Words are matched on word boundaries, case-insensitively.
+ */
+fun highlightSavedWords(webView: WebView?, words: List<String>, enabled: Boolean) {
+    val cleanedWords = words
+        .map { it.trim().lowercase() }
+        .filter { it.length >= 2 }
+        .distinct()
+        .take(500)
+    val wordsJson = JSONArray(cleanedWords).toString()
+
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            if ($enabled) {
+                if (!document.getElementById('__wr-saved-word-style')) {
+                    var style = document.createElement('style');
+                    style.id = '__wr-saved-word-style';
+                    style.textContent = '.__wr-saved-word{background:rgba(255,214,0,.35);border-bottom:1px solid rgba(255,160,0,.8);border-radius:2px}';
+                    document.head.appendChild(style);
+                }
+            } else {
+                var style = document.getElementById('__wr-saved-word-style');
+                if (style) style.remove();
+            }
+
+            var existing = document.querySelectorAll('.__wr-saved-word');
+            for (var i = existing.length - 1; i >= 0; i--) {
+                var mark = existing[i];
+                var parent = mark.parentNode;
+                if (!parent) continue;
+                parent.replaceChild(document.createTextNode(mark.textContent), mark);
+                parent.normalize();
+            }
+            if (!$enabled || !document.body) return;
+
+            var words = $wordsJson;
+            if (!words || !words.length) return;
+
+            var lookup = {};
+            for (var i = 0; i < words.length; i++) lookup[words[i]] = true;
+
+            var pattern;
+            try {
+                // Lookarounds instead of \b so tokens like "c++" (ending in a non-word
+                // character) still match, while "hellos" does not match "hello".
+                pattern = new RegExp('(?<![A-Za-z0-9_])(?:' + words.map(function(w) {
+                    return w.replace(/[.*+?^$(){}|[\]\\]/g, '\\${'$'}&');
+                }).join('|') + ')(?![A-Za-z0-9_])', 'gi');
+            } catch (e) {
+                return;
+            }
+
+            var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT, {
+                acceptNode: function(node) {
+                    if (!node.nodeValue || node.nodeValue.length < 2) return NodeFilter.FILTER_REJECT;
+                    var el = node.parentElement;
+                    if (!el) return NodeFilter.FILTER_REJECT;
+                    var tag = el.tagName;
+                    if (tag === 'SCRIPT' || tag === 'STYLE' || tag === 'NOSCRIPT' || tag === 'TEXTAREA' ||
+                        tag === 'INPUT' || tag === 'CODE' || tag === 'PRE') return NodeFilter.FILTER_REJECT;
+                    if (el.closest('.__wr-saved-word')) return NodeFilter.FILTER_REJECT;
+                    pattern.lastIndex = 0;
+                    return pattern.test(node.nodeValue) ? NodeFilter.FILTER_ACCEPT : NodeFilter.FILTER_REJECT;
+                }
+            });
+
+            var nodes = [];
+            while (walker.nextNode()) nodes.push(walker.currentNode);
+
+            for (var n = 0; n < nodes.length; n++) {
+                var textNode = nodes[n];
+                var text = textNode.nodeValue;
+                pattern.lastIndex = 0;
+                var fragment = document.createDocumentFragment();
+                var lastIndex = 0;
+                var match;
+                while ((match = pattern.exec(text)) !== null) {
+                    if (!lookup[match[0].toLowerCase()]) continue;
+                    if (match.index > lastIndex) {
+                        fragment.appendChild(document.createTextNode(text.substring(lastIndex, match.index)));
+                    }
+                    var span = document.createElement('span');
+                    span.className = '__wr-saved-word';
+                    span.textContent = match[0];
+                    fragment.appendChild(span);
+                    lastIndex = match.index + match[0].length;
+                }
+                if (lastIndex === 0) continue;
+                if (lastIndex < text.length) {
+                    fragment.appendChild(document.createTextNode(text.substring(lastIndex)));
+                }
+                if (textNode.parentNode) {
+                    textNode.parentNode.replaceChild(fragment, textNode);
+                }
+            }
+        })();
+        """.trimIndent(),
         null
     )
 }

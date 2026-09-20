@@ -13,6 +13,7 @@ import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.webview.ReaderTab
 import com.mlingofeed.webview.clearPageTranslations
 import com.mlingofeed.webview.clearTranslationPlaceholders
+import com.mlingofeed.webview.highlightSavedWords
 import com.mlingofeed.webview.injectTranslationStyles
 import com.mlingofeed.webview.prepareTranslationParagraphs
 import com.mlingofeed.webview.updateParagraphTranslation
@@ -124,6 +125,7 @@ class ReaderViewModel(
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
     val desktopMode = app.settingsManager.readerDesktopMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val blockImages = app.settingsManager.readerBlockImages.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val highlightWords = app.settingsManager.readerHighlightWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
@@ -198,6 +200,12 @@ class ReaderViewModel(
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
         persistTabs()
+        if (highlightWords.value) {
+            viewModelScope.launch {
+                val words = app.wordBookRepository.getWordTexts()
+                highlightSavedWords(tab.webView, words, true)
+            }
+        }
     }
 
     /** Restores the saved reading position the first time a bookmarked URL loads in a tab. */
@@ -276,6 +284,16 @@ class ReaderViewModel(
 
     fun setBlockImages(enabled: Boolean) {
         viewModelScope.launch { app.settingsManager.setReaderBlockImages(enabled) }
+    }
+
+    fun setHighlightWords(enabled: Boolean) {
+        viewModelScope.launch {
+            app.settingsManager.setReaderHighlightWords(enabled)
+            currentTab?.webView?.let { webView ->
+                val words = if (enabled) app.wordBookRepository.getWordTexts() else emptyList()
+                highlightSavedWords(webView, words, enabled)
+            }
+        }
     }
 
     fun toggleBookmark() {
