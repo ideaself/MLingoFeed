@@ -80,6 +80,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -115,7 +117,7 @@ fun RssArticleDetailScreen(
                     title = {
                         Column {
                             Text(
-                                text = articleData?.title ?: "Article",
+                                text = articleData?.title ?: stringResource(R.string.article_fallback),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -131,7 +133,7 @@ fun RssArticleDetailScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
                     actions = {
@@ -139,7 +141,7 @@ fun RssArticleDetailScreen(
                             if (vm.isTranslatingAll) {
                                 Text(text = "\u23F9", style = MaterialTheme.typography.titleMedium)
                             } else {
-                                Icon(Icons.Default.Translate, contentDescription = "Translate all")
+                                Icon(Icons.Default.Translate, contentDescription = stringResource(R.string.translate_all))
                             }
                         }
                         IconButton(onClick = {
@@ -153,44 +155,44 @@ fun RssArticleDetailScreen(
                                 context.startActivity(android.content.Intent.createChooser(shareIntent, "Share article"))
                             }
                         }) {
-                            Icon(Icons.Default.Share, contentDescription = "Share")
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share))
                         }
                         IconButton(onClick = {
                             vm.article?.let { onOpenExternal(it.link) }
                         }) {
-                            Icon(Icons.Default.OpenInBrowser, contentDescription = "Open in browser")
+                            Icon(Icons.Default.OpenInBrowser, contentDescription = stringResource(R.string.open_in_browser))
                         }
                         IconButton(onClick = {
                             vm.article?.let { a ->
                                 clipboardManager.setText(AnnotatedString(a.link))
                             }
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy link")
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy_link))
                         }
                         IconButton(onClick = { vm.toggleSaved(articleId) }) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
-                                contentDescription = if (vm.isSaved) "Remove from read later" else "Save for later",
+                                contentDescription = if (vm.isSaved) stringResource(R.string.remove_from_read_later) else stringResource(R.string.save_for_later),
                                 tint = if (vm.isSaved) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         Box {
                             IconButton(onClick = { showAiMenu = true }) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = "AI tools")
+                                Icon(Icons.Default.AutoAwesome, contentDescription = stringResource(R.string.ai_tools))
                             }
                             DropdownMenu(
                                 expanded = showAiMenu,
                                 onDismissRequest = { showAiMenu = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Analyze difficulty") },
+                                    text = { Text(stringResource(R.string.analyze_difficulty)) },
                                     onClick = {
                                         showAiMenu = false
                                         vm.analyzeDifficulty()
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text("Find collocations") },
+                                    text = { Text(stringResource(R.string.find_collocations)) },
                                     onClick = {
                                         showAiMenu = false
                                         vm.extractCollocations()
@@ -207,7 +209,7 @@ fun RssArticleDetailScreen(
                 FloatingActionButton(onClick = { vm.toggleFavorite(articleId) }) {
                     Icon(
                         if (vm.isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                        contentDescription = if (vm.isFavorite) "Remove from favorites" else "Add to favorites"
+                        contentDescription = if (vm.isFavorite) stringResource(R.string.remove_from_favorites) else stringResource(R.string.add_to_favorites)
                     )
                 }
             }
@@ -217,7 +219,7 @@ fun RssArticleDetailScreen(
             Box(modifier = Modifier.fillMaxSize().padding(padding), contentAlignment = Alignment.Center) {
                 if (vm.articleNotFound) {
                     Text(
-                        text = "Article not found",
+                        text = stringResource(R.string.article_not_found),
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -269,7 +271,7 @@ fun RssArticleDetailScreen(
                                     trailingIcon = {
                                         Icon(
                                             Icons.Default.Close,
-                                            contentDescription = "Remove tag",
+                                            contentDescription = stringResource(R.string.remove_tag),
                                             modifier = Modifier.size(14.dp)
                                         )
                                     }
@@ -277,7 +279,7 @@ fun RssArticleDetailScreen(
                             }
                             AssistChip(
                                 onClick = { showTagDialog = true },
-                                label = { Text("+ Tag") }
+                                label = { Text(stringResource(R.string.tag)) }
                             )
                         }
 
@@ -291,7 +293,7 @@ fun RssArticleDetailScreen(
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                                 CircularProgressIndicator(modifier = Modifier.size(32.dp))
                                 Spacer(modifier = Modifier.height(8.dp))
-                                Text("Loading full content...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Text(stringResource(R.string.loading_full_content), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             }
                         }
                     }
@@ -362,7 +364,7 @@ fun RssArticleDetailScreen(
         var newTagName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { showTagDialog = false },
-            title = { Text("Tags") },
+            title = { Text(stringResource(R.string.tags)) },
             text = {
                 Column(
                     modifier = Modifier
@@ -371,7 +373,7 @@ fun RssArticleDetailScreen(
                 ) {
                     if (allTags.isEmpty()) {
                         Text(
-                            "No tags yet. Create one below.",
+                            stringResource(R.string.no_tags_yet_create_one_below),
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -403,7 +405,7 @@ fun RssArticleDetailScreen(
                         OutlinedTextField(
                             value = newTagName,
                             onValueChange = { newTagName = it },
-                            label = { Text("New tag") },
+                            label = { Text(stringResource(R.string.new_tag)) },
                             singleLine = true,
                             modifier = Modifier.weight(1f)
                         )
@@ -417,14 +419,14 @@ fun RssArticleDetailScreen(
                             },
                             enabled = newTagName.isNotBlank()
                         ) {
-                            Text("Add")
+                            Text(stringResource(R.string.add))
                         }
                     }
                 }
             },
             confirmButton = {
                 TextButton(onClick = { showTagDialog = false }) {
-                    Text("Done")
+                    Text(stringResource(R.string.done))
                 }
             }
         )
@@ -454,7 +456,7 @@ fun RssArticleDetailScreen(
             },
             confirmButton = {
                 TextButton(onClick = { vm.dismissAiPanel() }) {
-                    Text("Close")
+                    Text(stringResource(R.string.close))
                 }
             }
         )
@@ -496,7 +498,7 @@ private fun ParagraphBlock(
                 )
                 Spacer(modifier = Modifier.width(4.dp))
                 Text(
-                    if (isTranslating) "Translating..." else "Translate",
+                    if (isTranslating) "Translating..." else stringResource(R.string.translate),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -511,7 +513,7 @@ private fun ParagraphBlock(
                 ) {
                     CircularProgressIndicator(modifier = Modifier.size(14.dp), strokeWidth = 2.dp)
                     Spacer(modifier = Modifier.width(8.dp))
-                    Text("Translating...", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.translating), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
                 Spacer(modifier = Modifier.height(4.dp))
             }

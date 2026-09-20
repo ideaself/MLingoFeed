@@ -38,6 +38,8 @@ import androidx.compose.ui.window.DialogProperties
 import com.mlingofeed.WebReaderApp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @Composable
 fun TranslationPopup(
@@ -59,7 +61,7 @@ fun TranslationPopup(
         val settings = app.settingsManager.getAllSettings()
         val apiKey = settings["ai_api_key"].orEmpty()
         if (apiKey.isBlank()) {
-            translation = "Please configure AI API Key in Settings"
+            translation = context.getString(R.string.please_configure_ai_api_key_in_settings)
             isLoading = false
             return@LaunchedEffect
         }
@@ -91,20 +93,20 @@ fun TranslationPopup(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "Translation",
+                        text = stringResource(R.string.translation),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Row {
                         IconButton(onClick = {
                             clipboardManager.setText(AnnotatedString(text))
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy))
                         }
                         IconButton(onClick = onOpenChat) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat")
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = stringResource(R.string.chat))
                         }
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
                     }
                 }

@@ -63,6 +63,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.data.database.RssRule
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -108,10 +110,10 @@ fun RssSettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("RSS Settings") },
+                title = { Text(stringResource(R.string.rss_settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -121,7 +123,7 @@ fun RssSettingsScreen(
             modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
         ) {
             item {
-                Text("Data Management", style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 8.dp))
+                Text(stringResource(R.string.data_management), style = MaterialTheme.typography.titleSmall, modifier = Modifier.padding(vertical = 8.dp))
             }
 
             item {
@@ -141,7 +143,7 @@ fun RssSettingsScreen(
                     ) {
                         Icon(Icons.Default.Upload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
-                        Text("Import OPML", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.import_opml), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -163,7 +165,7 @@ fun RssSettingsScreen(
                     ) {
                         Icon(Icons.Default.Upload, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
-                        Text("Export OPML", style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+                        Text(stringResource(R.string.export_opml), style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                     }
                 }
                 Spacer(modifier = Modifier.height(4.dp))
@@ -192,12 +194,12 @@ fun RssSettingsScreen(
                         Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
                         Text(
-                            text = if (syncEnabled) "Disable background sync" else "Enable background sync (every ${syncIntervalHours}h)",
+                            text = if (syncEnabled) stringResource(R.string.disable_background_sync) else stringResource(R.string.sync_enable_with_interval, syncIntervalHours),
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f)
                         )
                         Text(
-                            text = if (syncEnabled) "On" else "Off",
+                            text = if (syncEnabled) stringResource(R.string.state_on) else stringResource(R.string.state_off),
                             style = MaterialTheme.typography.labelMedium,
                             color = if (syncEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -210,7 +212,7 @@ fun RssSettingsScreen(
                 item {
                     Column {
                         Text(
-                            "Sync interval",
+                            stringResource(R.string.sync_interval),
                             style = MaterialTheme.typography.labelMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -220,7 +222,7 @@ fun RssSettingsScreen(
                                 FilterChip(
                                     selected = syncIntervalHours == hours,
                                     onClick = { vm.setSyncInterval(context, hours) },
-                                    label = { Text("${hours}h") }
+                                    label = { Text(stringResource(R.string.sync_hours_short, hours)) }
                                 )
                             }
                         }
@@ -234,9 +236,9 @@ fun RssSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Folders", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.folders), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                     IconButton(onClick = { vm.openAddFolderDialog() }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add folder")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_folder))
                     }
                 }
             }
@@ -254,10 +256,10 @@ fun RssSettingsScreen(
                         Spacer(modifier = Modifier.size(8.dp))
                         Text(folder.name, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
                         IconButton(onClick = { vm.requestEditFolder(folder.id) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
                         }
                         IconButton(onClick = { vm.deleteFolder(folder.id) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -270,9 +272,9 @@ fun RssSettingsScreen(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("Automation Rules", style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
+                    Text(stringResource(R.string.automation_rules), style = MaterialTheme.typography.titleSmall, modifier = Modifier.weight(1f))
                     IconButton(onClick = { vm.openAddRuleDialog() }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add rule")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_rule))
                     }
                 }
             }
@@ -280,7 +282,7 @@ fun RssSettingsScreen(
             if (rules.isEmpty()) {
                 item {
                     Text(
-                        "No rules yet. Create rules to automatically tag or mark articles as read.",
+                        stringResource(R.string.no_rules_yet_create_rules_to_automatically_tag_o),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(vertical = 8.dp)
@@ -302,7 +304,7 @@ fun RssSettingsScreen(
                         Column(modifier = Modifier.weight(1f)) {
                             Text(rule.name, style = MaterialTheme.typography.bodyLarge)
                             Text(
-                                "When keyword \"${rule.keyword}\" → ${rule.action.replace("_", " ")}",
+                                stringResource(R.string.rule_description, rule.keyword, rule.action.replace("_", " ")),
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -312,10 +314,10 @@ fun RssSettingsScreen(
                             onCheckedChange = { vm.toggleRule(rule.id, it) }
                         )
                         IconButton(onClick = { vm.requestEditRule(rule) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp))
+                            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp))
                         }
                         IconButton(onClick = { vm.deleteRule(rule.id) }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                            Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
                         }
                     }
                 }
@@ -329,12 +331,12 @@ fun RssSettingsScreen(
         var folderName by remember { mutableStateOf("") }
         AlertDialog(
             onDismissRequest = { vm.closeAddFolderDialog() },
-            title = { Text("Add Folder") },
+            title = { Text(stringResource(R.string.add_folder_2)) },
             text = {
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = { folderName = it },
-                    label = { Text("Folder Name") },
+                    label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true
                 )
             },
@@ -343,10 +345,10 @@ fun RssSettingsScreen(
                     if (folderName.isNotBlank()) {
                         vm.addFolder(folderName)
                     }
-                }, enabled = folderName.isNotBlank()) { Text("Add") }
+                }, enabled = folderName.isNotBlank()) { Text(stringResource(R.string.add)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.closeAddFolderDialog() }) { Text("Cancel") }
+                TextButton(onClick = { vm.closeAddFolderDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -356,12 +358,12 @@ fun RssSettingsScreen(
         var folderName by remember { mutableStateOf(folder?.name ?: "") }
         AlertDialog(
             onDismissRequest = { vm.cancelEditFolder() },
-            title = { Text("Edit Folder") },
+            title = { Text(stringResource(R.string.edit_folder)) },
             text = {
                 OutlinedTextField(
                     value = folderName,
                     onValueChange = { folderName = it },
-                    label = { Text("Folder Name") },
+                    label = { Text(stringResource(R.string.folder_name)) },
                     singleLine = true
                 )
             },
@@ -370,10 +372,10 @@ fun RssSettingsScreen(
                     if (folderName.isNotBlank()) {
                         vm.renameFolder(folderId, folderName)
                     }
-                }, enabled = folderName.isNotBlank()) { Text("Save") }
+                }, enabled = folderName.isNotBlank()) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.cancelEditFolder() }) { Text("Cancel") }
+                TextButton(onClick = { vm.cancelEditFolder() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -385,24 +387,24 @@ fun RssSettingsScreen(
 
         AlertDialog(
             onDismissRequest = { vm.closeAddRuleDialog() },
-            title = { Text("Add Rule") },
+            title = { Text(stringResource(R.string.add_rule_2)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = ruleName,
                         onValueChange = { ruleName = it },
-                        label = { Text("Rule Name") },
+                        label = { Text(stringResource(R.string.rule_name)) },
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = keyword,
                         onValueChange = { keyword = it },
-                        label = { Text("Keyword") },
+                        label = { Text(stringResource(R.string.keyword)) },
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Action", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.action), style = MaterialTheme.typography.labelSmall)
                     Row(
                         modifier = Modifier.clickable { action = "mark_read" }.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -411,7 +413,7 @@ fun RssSettingsScreen(
                             selected = action == "mark_read",
                             onClick = { action = "mark_read" }
                         )
-                        Text("Auto mark as read")
+                        Text(stringResource(R.string.auto_mark_as_read))
                     }
                     Row(
                         modifier = Modifier.clickable { action = "favorite" }.fillMaxWidth(),
@@ -421,7 +423,7 @@ fun RssSettingsScreen(
                             selected = action == "favorite",
                             onClick = { action = "favorite" }
                         )
-                        Text("Auto favorite")
+                        Text(stringResource(R.string.auto_favorite))
                     }
                 }
             },
@@ -430,10 +432,10 @@ fun RssSettingsScreen(
                     if (ruleName.isNotBlank() && keyword.isNotBlank()) {
                         vm.addRule(ruleName, keyword, action)
                     }
-                }, enabled = ruleName.isNotBlank() && keyword.isNotBlank()) { Text("Add") }
+                }, enabled = ruleName.isNotBlank() && keyword.isNotBlank()) { Text(stringResource(R.string.add)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.closeAddRuleDialog() }) { Text("Cancel") }
+                TextButton(onClick = { vm.closeAddRuleDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -445,24 +447,24 @@ fun RssSettingsScreen(
 
         AlertDialog(
             onDismissRequest = { vm.cancelEditRule() },
-            title = { Text("Edit Rule") },
+            title = { Text(stringResource(R.string.edit_rule)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = ruleName,
                         onValueChange = { ruleName = it },
-                        label = { Text("Rule Name") },
+                        label = { Text(stringResource(R.string.rule_name)) },
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
                     OutlinedTextField(
                         value = keyword,
                         onValueChange = { keyword = it },
-                        label = { Text("Keyword") },
+                        label = { Text(stringResource(R.string.keyword)) },
                         singleLine = true
                     )
                     Spacer(modifier = Modifier.height(8.dp))
-                    Text("Action", style = MaterialTheme.typography.labelSmall)
+                    Text(stringResource(R.string.action), style = MaterialTheme.typography.labelSmall)
                     Row(
                         modifier = Modifier.clickable { action = "mark_read" }.fillMaxWidth(),
                         verticalAlignment = Alignment.CenterVertically
@@ -471,7 +473,7 @@ fun RssSettingsScreen(
                             selected = action == "mark_read",
                             onClick = { action = "mark_read" }
                         )
-                        Text("Auto mark as read")
+                        Text(stringResource(R.string.auto_mark_as_read))
                     }
                     Row(
                         modifier = Modifier.clickable { action = "favorite" }.fillMaxWidth(),
@@ -481,7 +483,7 @@ fun RssSettingsScreen(
                             selected = action == "favorite",
                             onClick = { action = "favorite" }
                         )
-                        Text("Auto favorite")
+                        Text(stringResource(R.string.auto_favorite))
                     }
                 }
             },
@@ -490,10 +492,10 @@ fun RssSettingsScreen(
                     if (ruleName.isNotBlank() && keyword.isNotBlank()) {
                         vm.updateRule(rule, ruleName, keyword, action)
                     }
-                }, enabled = ruleName.isNotBlank() && keyword.isNotBlank()) { Text("Save") }
+                }, enabled = ruleName.isNotBlank() && keyword.isNotBlank()) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.cancelEditRule() }) { Text("Cancel") }
+                TextButton(onClick = { vm.cancelEditRule() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }

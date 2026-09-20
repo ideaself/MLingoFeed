@@ -58,6 +58,8 @@ import kotlinx.coroutines.awaitAll
 import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 data class DictionaryResult(
     val name: String,
@@ -110,8 +112,8 @@ fun DictionaryPopup(
         if (!dictionariesLoaded) return@LaunchedEffect
         if (enabledDicts.isEmpty()) {
             results = listOf(DictionaryResult(
-                name = "No Dictionary",
-                definition = "Please configure at least one dictionary in Settings",
+                name = context.getString(R.string.no_dictionary),
+                definition = context.getString(R.string.please_configure_at_least_one_dictionary_in_sett),
                 isLoading = false
             ))
             return@LaunchedEffect
@@ -161,7 +163,7 @@ fun DictionaryPopup(
                         OutlinedTextField(
                             value = editableWord,
                             onValueChange = { editableWord = it },
-                            label = { Text("Word") },
+                            label = { Text(stringResource(R.string.word)) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
@@ -174,7 +176,7 @@ fun DictionaryPopup(
                             )
                         )
                         Text(
-                            text = if (hasMultipleDicts) "${results.size} dictionaries" else results.firstOrNull()?.name ?: "",
+                            text = if (hasMultipleDicts) stringResource(R.string.dict_count, results.size) else results.firstOrNull()?.name ?: "",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -183,7 +185,7 @@ fun DictionaryPopup(
                         IconButton(onClick = {
                             clipboardManager.setText(AnnotatedString(searchWord))
                         }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy))
                         }
                         IconButton(onClick = {
                             scope.launch {
@@ -217,15 +219,15 @@ fun DictionaryPopup(
                         }) {
                             Icon(
                                 if (isSaved) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
-                                contentDescription = if (isSaved) "Remove from word book" else "Save to word book",
+                                contentDescription = if (isSaved) stringResource(R.string.remove_from_word_book) else stringResource(R.string.save_to_word_book),
                                 tint = if (isSaved) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.onSurfaceVariant
                             )
                         }
                         IconButton(onClick = onOpenChat) {
-                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = "Chat")
+                            Icon(Icons.AutoMirrored.Filled.Chat, contentDescription = stringResource(R.string.chat))
                         }
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
                     }
                 }
@@ -278,7 +280,7 @@ fun DictionaryPopup(
 private fun ResultContent(result: DictionaryResult?) {
     when {
         result == null -> {
-            Text("No result", style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.no_result), style = MaterialTheme.typography.bodyMedium)
         }
         result.isLoading -> {
             Row(
@@ -309,7 +311,7 @@ private fun ResultContent(result: DictionaryResult?) {
         }
         else -> {
             Text(
-                text = "No definition found",
+                text = stringResource(R.string.no_definition_found),
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )

@@ -33,6 +33,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -48,10 +50,10 @@ fun RssFavoritesScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Favorites") },
+                title = { Text(stringResource(R.string.favorites)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -63,7 +65,7 @@ fun RssFavoritesScreen(
             ) {
                 Spacer(modifier = Modifier.height(100.dp))
                 Text(
-                    "No favorites yet.\nLong press an article and tap the bookmark icon.",
+                    stringResource(R.string.no_favorites_yet_nlong_press_an_article_and_tap_),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)

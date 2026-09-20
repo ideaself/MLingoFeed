@@ -32,6 +32,8 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -47,10 +49,10 @@ fun RssSavedScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Read Later") },
+                title = { Text(stringResource(R.string.read_later)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -62,7 +64,7 @@ fun RssSavedScreen(
             ) {
                 Spacer(modifier = Modifier.height(100.dp))
                 Text(
-                    "Nothing saved for later yet.\nOpen an article and tap the clock icon.",
+                    stringResource(R.string.nothing_saved_for_later_yet_nopen_an_article_and),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)

@@ -76,6 +76,8 @@ import com.mlingofeed.data.database.Bookmark
 import kotlinx.coroutines.flow.distinctUntilChanged
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -114,23 +116,23 @@ fun HomeScreen(
             actions = {
                 if (vm.hasReordered) {
                     TextButton(onClick = { vm.saveOrder() }) {
-                        Text("Save")
+                        Text(stringResource(R.string.save))
                     }
                 }
                 IconButton(onClick = { vm.openAddDialog() }) {
-                    Icon(Icons.Default.Add, contentDescription = "Add Bookmark")
+                    Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add_bookmark))
                 }
                 IconButton(onClick = onNavigateToRss) {
-                    Icon(Icons.Default.RssFeed, contentDescription = "RSS")
+                    Icon(Icons.Default.RssFeed, contentDescription = stringResource(R.string.rss))
                 }
                 IconButton(onClick = onNavigateToWordBook) {
-                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = "Word Book")
+                    Icon(Icons.AutoMirrored.Filled.MenuBook, contentDescription = stringResource(R.string.word_book))
                 }
                 IconButton(onClick = onNavigateToHistory) {
-                    Icon(Icons.Default.History, contentDescription = "History")
+                    Icon(Icons.Default.History, contentDescription = stringResource(R.string.history))
                 }
                 IconButton(onClick = onNavigateToSettings) {
-                    Icon(Icons.Default.Settings, contentDescription = "Settings")
+                    Icon(Icons.Default.Settings, contentDescription = stringResource(R.string.settings))
                 }
             }
         )
@@ -149,7 +151,7 @@ fun HomeScreen(
                         FilterChip(
                             selected = vm.selectedCategory.isEmpty(),
                             onClick = { vm.clearCategory() },
-                            label = { Text("All") }
+                            label = { Text(stringResource(R.string.all)) }
                         )
                     }
                     items(categories, key = { it }) { category: String ->
@@ -217,7 +219,7 @@ fun HomeScreen(
                             ) {
                                 Icon(
                                     Icons.Default.Delete,
-                                    contentDescription = "Delete",
+                                    contentDescription = stringResource(R.string.delete),
                                     tint = MaterialTheme.colorScheme.error
                                 )
                             }
@@ -261,7 +263,7 @@ fun HomeScreen(
                                     }
                                     AsyncImage(
                                         model = faviconRequest,
-                                        contentDescription = "Favicon",
+                                        contentDescription = stringResource(R.string.favicon),
                                         modifier = Modifier
                                             .size(32.dp)
                                             .clip(RoundedCornerShape(4.dp))
@@ -297,7 +299,7 @@ fun HomeScreen(
                                             onDismissRequest = { showMenu = false }
                                         ) {
                                             androidx.compose.material3.DropdownMenuItem(
-                                                text = { Text("Share") },
+                                                text = { Text(stringResource(R.string.share)) },
                                                 onClick = {
                                                     showMenu = false
                                                     val shareIntent = Intent(Intent.ACTION_SEND).apply {
@@ -305,12 +307,12 @@ fun HomeScreen(
                                                         putExtra(Intent.EXTRA_SUBJECT, bookmark.title)
                                                         putExtra(Intent.EXTRA_TEXT, bookmark.url)
                                                     }
-                                                    context.startActivity(Intent.createChooser(shareIntent, "Share via"))
+                                                    context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_via)))
                                                 }
                                             )
                                             if (categories.isNotEmpty()) {
                                                 androidx.compose.material3.DropdownMenuItem(
-                                                    text = { Text("Move to category") },
+                                                    text = { Text(stringResource(R.string.move_to_category)) },
                                                     onClick = {
                                                         showMenu = false
                                                         vm.requestCategoryChange(bookmark)
@@ -318,7 +320,7 @@ fun HomeScreen(
                                                 )
                                             }
                                             androidx.compose.material3.DropdownMenuItem(
-                                                text = { Text("Delete", color = MaterialTheme.colorScheme.error) },
+                                                text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
                                                 onClick = {
                                                     showMenu = false
                                                     vm.requestDelete(bookmark)
@@ -328,7 +330,7 @@ fun HomeScreen(
                                     }
                                     Icon(
                                         Icons.Default.DragHandle,
-                                        contentDescription = "Drag",
+                                        contentDescription = stringResource(R.string.drag),
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                 }
@@ -343,16 +345,16 @@ fun HomeScreen(
     vm.bookmarkToDelete?.let { bookmark ->
         AlertDialog(
             onDismissRequest = { vm.cancelDelete() },
-            title = { Text("Delete Bookmark") },
-            text = { Text("Are you sure you want to delete \"${bookmark.title}\"?") },
+            title = { Text(stringResource(R.string.delete_bookmark)) },
+            text = { Text(stringResource(R.string.bookmark_delete_confirm, bookmark.title)) },
             confirmButton = {
                 TextButton(onClick = { vm.deleteBookmark(bookmark) }) {
-                    Text("Delete", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { vm.cancelDelete() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -364,7 +366,7 @@ fun HomeScreen(
         var showNewCategoryField by remember { mutableStateOf(false) }
         AlertDialog(
             onDismissRequest = { vm.cancelCategoryChange() },
-            title = { Text("Change Category") },
+            title = { Text(stringResource(R.string.change_category)) },
             text = {
                 Column {
                     if (categories.isNotEmpty()) {
@@ -390,23 +392,23 @@ fun HomeScreen(
                         ) {
                             RadioButton(selected = selectedCat == "", onClick = { selectedCat = "" })
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("None")
+                            Text(stringResource(R.string.none))
                         }
                     } else {
-                        Text("No categories yet. Create one below.")
+                        Text(stringResource(R.string.no_categories_yet_create_one_below))
                     }
                     Spacer(modifier = Modifier.height(8.dp))
                     if (showNewCategoryField) {
                         OutlinedTextField(
                             value = newCategoryInput,
                             onValueChange = { newCategoryInput = it },
-                            label = { Text("New category") },
+                            label = { Text(stringResource(R.string.new_category)) },
                             modifier = Modifier.fillMaxWidth(),
                             singleLine = true
                         )
                     } else {
                         TextButton(onClick = { showNewCategoryField = true }) {
-                            Text("+ New category")
+                            Text(stringResource(R.string.new_category_2))
                         }
                     }
                 }
@@ -416,12 +418,12 @@ fun HomeScreen(
                     val cat = if (showNewCategoryField && newCategoryInput.isNotBlank()) newCategoryInput.trim() else selectedCat
                     vm.changeCategory(bookmark, cat)
                 }) {
-                    Text("Save")
+                    Text(stringResource(R.string.save))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { vm.cancelCategoryChange() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -448,13 +450,13 @@ fun AddBookmarkDialog(
 
     androidx.compose.material3.AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Add Bookmark") },
+        title = { Text(stringResource(R.string.add_bookmark)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
-                    label = { Text("URL") },
+                    label = { Text(stringResource(R.string.url)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -462,7 +464,7 @@ fun AddBookmarkDialog(
                 OutlinedTextField(
                     value = title,
                     onValueChange = { title = it },
-                    label = { Text("Title (auto-fetched if empty)") },
+                    label = { Text(stringResource(R.string.title_auto_fetched_if_empty)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -470,7 +472,7 @@ fun AddBookmarkDialog(
                 OutlinedTextField(
                     value = category,
                     onValueChange = { category = it },
-                    label = { Text("Category (optional)") },
+                    label = { Text(stringResource(R.string.category_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true
                 )
@@ -490,12 +492,12 @@ fun AddBookmarkDialog(
                 },
                 enabled = url.isNotBlank()
             ) {
-                Text("Add")
+                Text(stringResource(R.string.add))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )

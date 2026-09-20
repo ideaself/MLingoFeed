@@ -43,6 +43,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssArticle
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,10 +62,10 @@ fun RssSearchScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Search Articles") },
+                title = { Text(stringResource(R.string.search_articles)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 }
             )
@@ -76,12 +78,12 @@ fun RssSearchScreen(
                 value = vm.searchQuery,
                 onValueChange = { vm.onQueryChange(it) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("Search in titles, descriptions, and content...") },
+                placeholder = { Text(stringResource(R.string.search_in_titles_descriptions_and_content)) },
                 leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                 trailingIcon = {
                     if (vm.searchQuery.isNotEmpty()) {
                         IconButton(onClick = { vm.clearQuery() }) {
-                            Icon(Icons.Default.Clear, contentDescription = "Clear")
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.clear))
                         }
                     }
                 },
@@ -94,19 +96,19 @@ fun RssSearchScreen(
 
             if (vm.searchQuery.isBlank()) {
                 Text(
-                    "Enter keywords to search across all articles",
+                    stringResource(R.string.enter_keywords_to_search_across_all_articles),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else if (searchResults.isEmpty()) {
                 Text(
-                    "No results for \"${vm.searchQuery}\"",
+                    stringResource(R.string.no_results_for, vm.searchQuery),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             } else {
                 Text(
-                    "${searchResults.size} results",
+                    stringResource(R.string.results_count, searchResults.size),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 8.dp)

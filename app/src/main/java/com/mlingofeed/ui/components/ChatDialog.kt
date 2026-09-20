@@ -55,6 +55,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 private val nextMessageId = AtomicLong(0)
 
@@ -169,17 +171,17 @@ fun ChatDialog(
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "AI Chat",
+                        text = stringResource(R.string.ai_chat),
                         style = MaterialTheme.typography.titleMedium
                     )
                     Row {
                         TextButton(onClick = {
                             messages.clear()
                         }) {
-                            Text("Clear")
+                            Text(stringResource(R.string.clear))
                         }
                         IconButton(onClick = onDismiss) {
-                            Icon(Icons.Default.Close, contentDescription = "Close")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
                     }
                 }
@@ -201,7 +203,7 @@ fun ChatDialog(
                                 )
                             ) {
                                 Text(
-                                    text = "Context: $initialContext",
+                                    text = stringResource(R.string.chat_context, initialContext),
                                     modifier = Modifier.padding(12.dp),
                                     style = MaterialTheme.typography.bodySmall
                                 )
@@ -256,7 +258,7 @@ fun ChatDialog(
                         value = inputText,
                         onValueChange = { inputText = it },
                         modifier = Modifier.weight(1f),
-                        placeholder = { Text("Ask anything...") },
+                        placeholder = { Text(stringResource(R.string.ask_anything)) },
                         singleLine = false,
                         maxLines = 3
                     )
@@ -267,7 +269,7 @@ fun ChatDialog(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.Send,
-                            contentDescription = "Send"
+                            contentDescription = stringResource(R.string.send)
                         )
                     }
                 }

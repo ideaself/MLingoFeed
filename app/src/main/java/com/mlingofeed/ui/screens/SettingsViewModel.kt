@@ -19,6 +19,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import com.mlingofeed.R
 
 class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
@@ -96,13 +97,13 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
             app.settingsManager.setAiApiKey(aiKeyInput)
             app.settingsManager.setAiModel(aiModelInput)
             app.settingsManager.setTranslateTargetLang(targetLangInput)
-            Toast.makeText(app, "Settings saved", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, app.getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
     }
 
     fun fetchModels() {
         if (aiKeyInput.isBlank()) {
-            Toast.makeText(app, "Please enter API Key first", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, app.getString(R.string.please_enter_api_key_first), Toast.LENGTH_SHORT).show()
             return
         }
         isLoadingModels = true
@@ -156,7 +157,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     fun resetReadingTime() {
         viewModelScope.launch {
             app.settingsManager.resetReadingTime()
-            Toast.makeText(app, "Reading time reset", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, app.getString(R.string.reading_time_reset), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -268,7 +269,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
                 val settings = app.settingsManager.getExportableSettings()
                 ExportManager.exportToJson(app, uri, bookmarks, settings, subscriptions)
             }
-            Toast.makeText(app, if (ok) "Export successful" else "Export failed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, if (ok) app.getString(R.string.export_successful) else app.getString(R.string.export_failed), Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -276,7 +277,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
         viewModelScope.launch {
             val data = withContext(Dispatchers.IO) { ExportManager.importFromJson(app, uri) }
             if (data == null) {
-                Toast.makeText(app, "Import failed: invalid file", Toast.LENGTH_SHORT).show()
+                Toast.makeText(app, app.getString(R.string.import_failed_invalid_file), Toast.LENGTH_SHORT).show()
                 return@launch
             }
             pendingImportData = data
@@ -305,7 +306,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
             if (data.settings.isNotEmpty()) {
                 app.settingsManager.importSettings(data.settings)
             }
-            Toast.makeText(app, "Import successful", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, app.getString(R.string.import_successful), Toast.LENGTH_SHORT).show()
         }
         showImportConfirm = false
         pendingImportData = null

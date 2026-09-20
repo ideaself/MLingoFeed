@@ -64,6 +64,8 @@ import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.WordBookEntry
 import kotlin.math.abs
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -98,10 +100,10 @@ fun WordQuizScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Word Quiz") },
+                title = { Text(stringResource(R.string.word_quiz)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -120,9 +122,9 @@ fun WordQuizScreen(onBack: () -> Unit) {
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No words to quiz", style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.no_words_to_quiz), style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Add words to your Word Book first", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                        Text(stringResource(R.string.add_words_to_your_word_book_first), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     }
                 }
                 return@Scaffold
@@ -132,9 +134,9 @@ fun WordQuizScreen(onBack: () -> Unit) {
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                FilterChip("Flashcard", vm.quizMode == "flashcard") { vm.startQuiz("flashcard", quizDeck) }
-                FilterChip("Multiple Choice", vm.quizMode == "multiple") { vm.startQuiz("multiple", quizDeck) }
-                FilterChip("Spelling", vm.quizMode == "spelling") { vm.startQuiz("spelling", quizDeck) }
+                FilterChip(stringResource(R.string.flashcard), vm.quizMode == "flashcard") { vm.startQuiz("flashcard", quizDeck) }
+                FilterChip(stringResource(R.string.multiple_choice), vm.quizMode == "multiple") { vm.startQuiz("multiple", quizDeck) }
+                FilterChip(stringResource(R.string.spelling), vm.quizMode == "spelling") { vm.startQuiz("spelling", quizDeck) }
             }
 
             Spacer(modifier = Modifier.height(8.dp))
@@ -144,7 +146,7 @@ fun WordQuizScreen(onBack: () -> Unit) {
                 horizontalArrangement = Arrangement.SpaceBetween
             ) {
                 Text("${vm.currentIndex + 1} / ${vm.quizWords.size}", style = MaterialTheme.typography.labelMedium)
-                Text("Correct: ${vm.correctCount}", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.quiz_correct, vm.correctCount), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
             }
 
             Spacer(modifier = Modifier.height(16.dp))
@@ -255,7 +257,7 @@ private fun FlashcardContent(
                             Text(word.phonetic, style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.outline)
                         }
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("Tap to reveal", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                        Text(stringResource(R.string.tap_to_reveal), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
                     } else {
                         Text(
                             text = word.word,
@@ -287,7 +289,7 @@ private fun FlashcardContent(
             ) {
                 Icon(Icons.Default.Close, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Don't Know")
+                Text(stringResource(R.string.don_t_know))
             }
             Spacer(modifier = Modifier.width(16.dp))
             Button(
@@ -297,7 +299,7 @@ private fun FlashcardContent(
             ) {
                 Icon(Icons.Default.Check, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Know")
+                Text(stringResource(R.string.know))
             }
         }
     }
@@ -334,7 +336,7 @@ private fun MultipleChoiceContent(
                     Text(word.phonetic, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                 }
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Choose the correct definition:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text(stringResource(R.string.choose_the_correct_definition), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
         }
 
@@ -410,7 +412,7 @@ private fun SpellingContent(
                     lineHeight = 24.sp
                 )
                 Spacer(modifier = Modifier.height(8.dp))
-                Text("Type the word:", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
+                Text(stringResource(R.string.type_the_word), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.outline)
             }
         }
 
@@ -419,7 +421,7 @@ private fun SpellingContent(
         OutlinedTextField(
             value = input,
             onValueChange = onInputChange,
-            label = { Text("Your answer") },
+            label = { Text(stringResource(R.string.your_answer)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
             keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
@@ -427,8 +429,8 @@ private fun SpellingContent(
             isError = isCorrect == false,
             supportingText = {
                 when (isCorrect) {
-                    true -> Text("Correct!", color = MaterialTheme.colorScheme.primary)
-                    false -> Text("Answer: ${word.word}", color = MaterialTheme.colorScheme.error)
+                    true -> Text(stringResource(R.string.correct), color = MaterialTheme.colorScheme.primary)
+                    false -> Text(stringResource(R.string.quiz_answer, word.word), color = MaterialTheme.colorScheme.error)
                     null -> {}
                 }
             }
@@ -441,7 +443,7 @@ private fun SpellingContent(
             enabled = input.isNotBlank() && isCorrect == null,
             modifier = Modifier.fillMaxWidth().height(48.dp)
         ) {
-            Text("Submit")
+            Text(stringResource(R.string.submit))
         }
     }
 }
@@ -461,7 +463,7 @@ private fun QuizCompleteContent(
         val percentage = if (total > 0) (correct * 100 / total) else 0
 
         Text(
-            text = "Quiz Complete!",
+            text = stringResource(R.string.quiz_complete),
             style = MaterialTheme.typography.headlineMedium,
             fontWeight = FontWeight.Bold
         )
@@ -476,7 +478,7 @@ private fun QuizCompleteContent(
         )
 
         Text(
-            text = "$percentage% correct",
+            text = stringResource(R.string.quiz_percent, percentage),
             style = MaterialTheme.typography.titleMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant
         )
@@ -489,10 +491,10 @@ private fun QuizCompleteContent(
             OutlinedButton(onClick = onRestart) {
                 Icon(Icons.Default.Refresh, contentDescription = null)
                 Spacer(modifier = Modifier.width(4.dp))
-                Text("Retry")
+                Text(stringResource(R.string.retry))
             }
             Button(onClick = onBack) {
-                Text("Done")
+                Text(stringResource(R.string.done))
             }
         }
     }

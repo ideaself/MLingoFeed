@@ -77,6 +77,8 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 private val DISPLAY_DATE_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
 private val EXPORT_DATETIME_FORMATTER: DateTimeFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault())
@@ -148,9 +150,9 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
     LaunchedEffect(vm.importResult) {
         val result = vm.importResult ?: return@LaunchedEffect
         val message = when {
-            result < 0 -> "Import failed: could not read file"
-            result == 0 -> "No new words found"
-            else -> "Imported $result words"
+            result < 0 -> context.getString(R.string.import_failed_could_not_read_file)
+            result == 0 -> context.getString(R.string.no_new_words_found)
+            else -> context.getString(R.string.imported_words, result)
         }
         snackbarHostState.showSnackbar(message)
         vm.consumeImportResult()
@@ -172,21 +174,21 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
         topBar = {
             Column {
                 TopAppBar(
-                    title = { Text("Word Book") },
+                    title = { Text(stringResource(R.string.word_book)) },
                     navigationIcon = {
                         IconButton(onClick = onBack) {
-                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                         }
                     },
                     actions = {
                         IconButton(onClick = onNavigateToQuiz) {
-                            Icon(Icons.Default.Quiz, contentDescription = "Quiz")
+                            Icon(Icons.Default.Quiz, contentDescription = stringResource(R.string.quiz))
                         }
                         IconButton(onClick = { importLauncher.launch(arrayOf("*/*")) }) {
-                            Icon(Icons.Default.FileUpload, contentDescription = "Import words")
+                            Icon(Icons.Default.FileUpload, contentDescription = stringResource(R.string.import_words))
                         }
                         IconButton(onClick = { vm.openExportDialog() }) {
-                            Icon(Icons.Default.Share, contentDescription = "Export")
+                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.export))
                         }
                     },
                     colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -195,12 +197,12 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                 TextField(
                     value = vm.searchQuery,
                     onValueChange = { vm.onQueryChange(it) },
-                    placeholder = { Text("Search words...") },
+                    placeholder = { Text(stringResource(R.string.search_words)) },
                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                     trailingIcon = {
                         if (vm.searchQuery.isNotEmpty()) {
                             IconButton(onClick = { vm.clearQuery() }) {
-                                Icon(Icons.Default.Close, contentDescription = "Clear")
+                                Icon(Icons.Default.Close, contentDescription = stringResource(R.string.clear))
                             }
                         }
                     },
@@ -214,13 +216,13 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
 
                 TabRow(selectedTabIndex = vm.selectedTab) {
                     Tab(selected = vm.selectedTab == 0, onClick = { vm.selectTab(0) }) {
-                        Text("All (${allWords.size})", modifier = Modifier.padding(12.dp))
+                        Text(stringResource(R.string.wordbook_tab_all, allWords.size), modifier = Modifier.padding(12.dp))
                     }
                     Tab(selected = vm.selectedTab == 1, onClick = { vm.selectTab(1) }) {
-                        Text("Due (${dueWords.size})", modifier = Modifier.padding(12.dp))
+                        Text(stringResource(R.string.wordbook_tab_due, dueWords.size), modifier = Modifier.padding(12.dp))
                     }
                     Tab(selected = vm.selectedTab == 2, onClick = { vm.selectTab(2) }) {
-                        Text("Mastered (${masteredWords.size})", modifier = Modifier.padding(12.dp))
+                        Text(stringResource(R.string.wordbook_tab_mastered, masteredWords.size), modifier = Modifier.padding(12.dp))
                     }
                 }
             }
@@ -234,9 +236,9 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
             ) {
                 Text(
                     text = when (vm.selectedTab) {
-                        1 -> "No words due for review"
-                        2 -> "No mastered words yet"
-                        else -> if (vm.searchQuery.isNotBlank()) "No matching words" else "No words saved yet"
+                        1 -> stringResource(R.string.no_words_due_for_review)
+                        2 -> stringResource(R.string.no_mastered_words_yet)
+                        else -> if (vm.searchQuery.isNotBlank()) stringResource(R.string.no_matching_words) else stringResource(R.string.no_words_saved_yet)
                     },
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -253,7 +255,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                             if (it == SwipeToDismissBoxValue.EndToStart) {
                                 scope.launch {
                                     vm.deleteWord(entry.word)
-                                    snackbarHostState.showSnackbar("Deleted '${entry.word}'")
+                                    snackbarHostState.showSnackbar(context.getString(R.string.word_deleted, entry.word))
                                 }
                                 true
                             } else false
@@ -267,7 +269,7 @@ fun WordBookScreen(onBack: () -> Unit, onNavigateToQuiz: () -> Unit = {}) {
                                 modifier = Modifier.fillMaxSize().background(MaterialTheme.colorScheme.errorContainer).padding(horizontal = 20.dp),
                                 contentAlignment = Alignment.CenterEnd
                             ) {
-                                Icon(Icons.Default.Delete, contentDescription = "Delete", tint = MaterialTheme.colorScheme.onErrorContainer)
+                                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), tint = MaterialTheme.colorScheme.onErrorContainer)
                             }
                         },
                         enableDismissFromStartToEnd = false
@@ -312,15 +314,15 @@ private fun ExportDialog(
     val scope = rememberCoroutineScope()
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Export Words") },
+        title = { Text(stringResource(R.string.export_words)) },
         text = {
             Column {
-                Text("Choose export format:", style = MaterialTheme.typography.bodyMedium)
+                Text(stringResource(R.string.choose_export_format), style = MaterialTheme.typography.bodyMedium)
                 Spacer(modifier = Modifier.height(16.dp))
 
                 ExportOption(
-                    title = "CSV",
-                    description = "Compatible with Excel, Google Sheets",
+                    title = stringResource(R.string.csv),
+                    description = stringResource(R.string.compatible_with_excel_google_sheets),
                     onClick = {
                         scope.launch {
                             val csv = withContext(Dispatchers.Default) { buildCsvExport(words) }
@@ -332,8 +334,8 @@ private fun ExportDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ExportOption(
-                    title = "Markdown",
-                    description = "Formatted text for note-taking apps",
+                    title = stringResource(R.string.markdown),
+                    description = stringResource(R.string.formatted_text_for_note_taking_apps),
                     onClick = {
                         scope.launch {
                             val md = withContext(Dispatchers.Default) { buildMarkdownExport(words) }
@@ -345,8 +347,8 @@ private fun ExportDialog(
                 Spacer(modifier = Modifier.height(8.dp))
 
                 ExportOption(
-                    title = "Anki Flashcards",
-                    description = "Tab-separated for Anki import",
+                    title = stringResource(R.string.anki_flashcards),
+                    description = stringResource(R.string.tab_separated_for_anki_import),
                     onClick = {
                         scope.launch {
                             val anki = withContext(Dispatchers.Default) { buildAnkiExport(words) }
@@ -359,7 +361,7 @@ private fun ExportDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -438,7 +440,7 @@ private fun WordBookItem(
             IconButton(onClick = onMasteredToggle, modifier = Modifier.size(36.dp)) {
                 Icon(
                     Icons.Default.CheckCircle,
-                    contentDescription = if (entry.mastered) "Mark as not mastered" else "Mark as mastered",
+                    contentDescription = if (entry.mastered) stringResource(R.string.mark_as_not_mastered) else stringResource(R.string.mark_as_mastered),
                     tint = if (entry.mastered) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
                     modifier = Modifier.size(22.dp)
                 )
@@ -476,7 +478,7 @@ private fun WordBookItem(
                 Spacer(modifier = Modifier.height(4.dp))
                 TextButton(onClick = onGenerateMnemonic, enabled = !mnemonicLoading) {
                     Text(
-                        text = if (mnemonicLoading) "Generating..." else "AI mnemonic",
+                        text = if (mnemonicLoading) stringResource(R.string.generating) else stringResource(R.string.ai_mnemonic),
                         style = MaterialTheme.typography.labelSmall
                     )
                 }
@@ -484,7 +486,7 @@ private fun WordBookItem(
             Spacer(modifier = Modifier.height(4.dp))
             val dateStr = Instant.ofEpochMilli(entry.dateAdded).atZone(ZoneId.systemDefault()).format(DISPLAY_DATE_FORMATTER)
             Text(
-                text = "Added: $dateStr",
+                text = stringResource(R.string.added_date, dateStr),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.outline
             )

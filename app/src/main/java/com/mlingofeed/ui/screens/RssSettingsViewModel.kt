@@ -21,6 +21,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import com.mlingofeed.R
 
 class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
@@ -158,7 +159,7 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
             } catch (_: Exception) {
                 false
             }
-            Toast.makeText(app, if (success) "OPML imported" else "Import failed: invalid file", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, if (success) app.getString(R.string.opml_imported) else "Import failed: invalid file", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -176,7 +177,7 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
             } catch (_: Exception) {
                 false
             }
-            Toast.makeText(app, if (success) "OPML exported" else "Export failed", Toast.LENGTH_SHORT).show()
+            Toast.makeText(app, if (success) "OPML exported" else app.getString(R.string.export_failed), Toast.LENGTH_SHORT).show()
         }
     }
 

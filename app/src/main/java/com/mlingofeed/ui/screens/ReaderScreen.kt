@@ -74,6 +74,8 @@ import com.mlingofeed.webview.createReaderWebView
 import com.mlingofeed.webview.setSelectionScriptEnabled
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -151,7 +153,7 @@ fun ReaderScreen(
                     title = {
                         Column {
                             Text(
-                                text = currentTab?.title ?: "Loading...",
+                                text = currentTab?.title ?: stringResource(R.string.loading),
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
@@ -167,7 +169,7 @@ fun ReaderScreen(
                     },
                     navigationIcon = {
                         IconButton(onClick = onGoHome) {
-                            Icon(Icons.Default.Home, contentDescription = "Home")
+                            Icon(Icons.Default.Home, contentDescription = stringResource(R.string.home))
                         }
                     },
                     actions = {
@@ -179,18 +181,18 @@ fun ReaderScreen(
                             )
                         }
                         IconButton(onClick = { vm.toggleBookmark() }) {
-                            Icon(Icons.Default.BookmarkBorder, contentDescription = "Bookmark")
+                            Icon(Icons.Default.BookmarkBorder, contentDescription = stringResource(R.string.bookmark))
                         }
                         Box {
                             IconButton(onClick = { showReaderMenu = true }) {
-                                Icon(Icons.Default.MoreVert, contentDescription = "More options")
+                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(
                                 expanded = showReaderMenu,
                                 onDismissRequest = { showReaderMenu = false }
                             ) {
                                 DropdownMenuItem(
-                                    text = { Text("Find in page") },
+                                    text = { Text(stringResource(R.string.find_in_page)) },
                                     leadingIcon = { Icon(Icons.Default.Search, contentDescription = null) },
                                     onClick = {
                                         showReaderMenu = false
@@ -198,7 +200,7 @@ fun ReaderScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (desktopMode) "Desktop site: on" else "Desktop site: off") },
+                                    text = { Text(if (desktopMode) stringResource(R.string.desktop_site_on) else stringResource(R.string.desktop_site_off)) },
                                     onClick = {
                                         showReaderMenu = false
                                         val enabled = !desktopMode
@@ -211,7 +213,7 @@ fun ReaderScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (blockImages) "Block images: on" else "Block images: off") },
+                                    text = { Text(if (blockImages) stringResource(R.string.block_images_on) else stringResource(R.string.block_images_off)) },
                                     onClick = {
                                         showReaderMenu = false
                                         val enabled = !blockImages
@@ -223,14 +225,14 @@ fun ReaderScreen(
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (highlightWords) "Highlight saved words: on" else "Highlight saved words: off") },
+                                    text = { Text(if (highlightWords) stringResource(R.string.highlight_saved_words_on) else stringResource(R.string.highlight_saved_words_off)) },
                                     onClick = {
                                         showReaderMenu = false
                                         vm.setHighlightWords(!highlightWords)
                                     }
                                 )
                                 DropdownMenuItem(
-                                    text = { Text(if (vm.isSpeaking) "Stop reading" else "Read aloud") },
+                                    text = { Text(if (vm.isSpeaking) stringResource(R.string.stop_reading) else stringResource(R.string.read_aloud)) },
                                     onClick = {
                                         showReaderMenu = false
                                         vm.toggleReadAloud()
@@ -273,7 +275,7 @@ fun ReaderScreen(
                                     )
                                     if (vm.tabs.size > 1) {
                                         IconButton(onClick = { vm.closeTab(index) }, modifier = Modifier.size(20.dp)) {
-                                            Icon(Icons.Default.Close, contentDescription = "Close", modifier = Modifier.size(14.dp),
+                                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close), modifier = Modifier.size(14.dp),
                                                 tint = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant)
                                         }
                                     }
@@ -281,7 +283,7 @@ fun ReaderScreen(
                             }
                         }
                         IconButton(onClick = { vm.addTab("about:blank") }, modifier = Modifier.size(32.dp)) {
-                            Icon(Icons.Default.Add, contentDescription = "New Tab", modifier = Modifier.size(18.dp))
+                            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.new_tab), modifier = Modifier.size(18.dp))
                         }
                     }
                 }
@@ -295,7 +297,7 @@ fun ReaderScreen(
                             onValueChange = { runFind(it) },
                             modifier = Modifier.weight(1f),
                             singleLine = true,
-                            placeholder = { Text("Find in page") },
+                            placeholder = { Text(stringResource(R.string.find_in_page)) },
                             trailingIcon = {
                                 if (findQuery.isNotBlank()) {
                                     Text(
@@ -310,19 +312,19 @@ fun ReaderScreen(
                             onClick = { vm.currentTab?.webView?.findNext(false) },
                             enabled = findQuery.isNotBlank()
                         ) {
-                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Previous match")
+                            Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.previous_match))
                         }
                         IconButton(
                             onClick = { vm.currentTab?.webView?.findNext(true) },
                             enabled = findQuery.isNotBlank()
                         ) {
-                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Next match")
+                            Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.next_match))
                         }
                         IconButton(onClick = {
                             runFind("")
                             showFindBar = false
                         }) {
-                            Icon(Icons.Default.Close, contentDescription = "Close find")
+                            Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close_find))
                         }
                     }
                 }
@@ -435,10 +437,10 @@ private fun NewTabPage(app: WebReaderApp, onOpenUrl: (String) -> Unit) {
     val bookmarks by app.bookmarkRepository.allBookmarks.collectAsStateWithLifecycle(initialValue = emptyList())
 
     Column(modifier = Modifier.fillMaxSize().padding(16.dp)) {
-        Text("Quick Access", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 12.dp))
+        Text(stringResource(R.string.quick_access), style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(bottom = 12.dp))
 
         if (bookmarks.isEmpty()) {
-            Text("No bookmarks yet. Add bookmarks from the home screen.",
+            Text(stringResource(R.string.no_bookmarks_yet_add_bookmarks_from_the_home_scr),
                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         } else {
             LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {

@@ -54,6 +54,8 @@ import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -72,8 +74,8 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
         val dayFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.getDefault())
         history.groupBy { item ->
             when {
-                item.visitedAt >= todayStart -> "Today"
-                item.visitedAt >= yesterdayStart -> "Yesterday"
+                item.visitedAt >= todayStart -> context.getString(R.string.today)
+                item.visitedAt >= yesterdayStart -> context.getString(R.string.yesterday)
                 else -> Instant.ofEpochMilli(item.visitedAt).atZone(zone).format(dayFormatter)
             }
         }
@@ -82,16 +84,16 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("History") },
+                title = { Text(stringResource(R.string.history)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (history.isNotEmpty()) {
                         IconButton(onClick = { showClearConfirm = true }) {
-                            Icon(Icons.Default.DeleteSweep, contentDescription = "Clear all")
+                            Icon(Icons.Default.DeleteSweep, contentDescription = stringResource(R.string.clear_all))
                         }
                     }
                 }
@@ -114,7 +116,7 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
                 )
                 Spacer(modifier = Modifier.height(16.dp))
                 Text(
-                    "No history yet",
+                    stringResource(R.string.no_history_yet),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -146,7 +148,7 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
                                     putExtra(Intent.EXTRA_SUBJECT, item.title)
                                     putExtra(Intent.EXTRA_TEXT, item.url)
                                 }
-                                context.startActivity(Intent.createChooser(shareIntent, "Share via"))
+                                context.startActivity(Intent.createChooser(shareIntent, context.getString(R.string.share_via)))
                             }
                         )
                         Spacer(modifier = Modifier.height(6.dp))
@@ -162,19 +164,19 @@ fun HistoryScreen(onBack: () -> Unit, onNavigateToReader: (String) -> Unit) {
     if (showClearConfirm) {
         AlertDialog(
             onDismissRequest = { showClearConfirm = false },
-            title = { Text("Clear history?") },
-            text = { Text("This deletes all ${history.size} history entries.") },
+            title = { Text(stringResource(R.string.clear_history)) },
+            text = { Text(stringResource(R.string.history_delete_confirm, history.size)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.clearAll()
                     showClearConfirm = false
                 }) {
-                    Text("Clear", color = MaterialTheme.colorScheme.error)
+                    Text(stringResource(R.string.clear), color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showClearConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -211,7 +213,7 @@ private fun HistoryItem(
         ) {
             AsyncImage(
                 model = faviconRequest,
-                contentDescription = "Favicon",
+                contentDescription = stringResource(R.string.favicon),
                 modifier = Modifier
                     .size(28.dp)
                     .clip(RoundedCornerShape(4.dp))
@@ -249,7 +251,7 @@ private fun HistoryItem(
                 IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
                     Icon(
                         Icons.Default.Delete,
-                        contentDescription = "Delete",
+                        contentDescription = stringResource(R.string.delete),
                         tint = MaterialTheme.colorScheme.error,
                         modifier = Modifier.size(18.dp)
                     )

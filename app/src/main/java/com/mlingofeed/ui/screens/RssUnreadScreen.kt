@@ -37,6 +37,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -53,16 +55,16 @@ fun RssUnreadScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Unread (${unreadArticles.size})") },
+                title = { Text(stringResource(R.string.unread_count, unreadArticles.size)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     if (unreadArticles.isNotEmpty()) {
                         IconButton(onClick = { showMarkAllConfirm = true }) {
-                            Icon(Icons.Default.CheckCircle, contentDescription = "Mark all read")
+                            Icon(Icons.Default.CheckCircle, contentDescription = stringResource(R.string.mark_all_read))
                         }
                     }
                 }
@@ -75,7 +77,7 @@ fun RssUnreadScreen(
             ) {
                 Spacer(modifier = Modifier.height(100.dp))
                 Text(
-                    "All caught up!\nNo unread articles.",
+                    stringResource(R.string.all_caught_up_nno_unread_articles),
                     style = MaterialTheme.typography.bodyLarge,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(horizontal = 16.dp)
@@ -119,19 +121,19 @@ fun RssUnreadScreen(
     if (showMarkAllConfirm) {
         AlertDialog(
             onDismissRequest = { showMarkAllConfirm = false },
-            title = { Text("Mark all as read?") },
-            text = { Text("This marks all ${unreadArticles.size} unread articles as read.") },
+            title = { Text(stringResource(R.string.mark_all_as_read)) },
+            text = { Text(stringResource(R.string.unread_mark_all_confirm, unreadArticles.size)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.markAllAsRead()
                     showMarkAllConfirm = false
                 }) {
-                    Text("Mark all")
+                    Text(stringResource(R.string.mark_all))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showMarkAllConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )

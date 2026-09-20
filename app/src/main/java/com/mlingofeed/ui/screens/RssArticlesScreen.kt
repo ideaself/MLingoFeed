@@ -57,6 +57,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssArticle
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -83,39 +85,39 @@ fun RssArticlesScreen(
                 title = { Text(subscriptionTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     Box {
                         IconButton(onClick = { vm.toggleFilterMenu() }) {
-                            Icon(Icons.Default.FilterList, contentDescription = "Filter")
+                            Icon(Icons.Default.FilterList, contentDescription = stringResource(R.string.filter))
                         }
                         DropdownMenu(
                             expanded = vm.showFilterMenu,
                             onDismissRequest = { vm.dismissFilterMenu() }
                         ) {
                             DropdownMenuItem(
-                                text = { Text("All") },
+                                text = { Text(stringResource(R.string.all)) },
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.ALL) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Unread") },
+                                text = { Text(stringResource(R.string.unread)) },
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) }
                             )
                             DropdownMenuItem(
-                                text = { Text("Favorites") },
+                                text = { Text(stringResource(R.string.favorites)) },
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.FAVORITES) }
                             )
                         }
                     }
                     IconButton(onClick = { showMarkAllConfirm = true }) {
-                        Icon(Icons.Default.DoneAll, contentDescription = "Mark all read")
+                        Icon(Icons.Default.DoneAll, contentDescription = stringResource(R.string.mark_all_read))
                     }
                     IconButton(onClick = {
                         currentSub?.let { vm.refresh(subscriptionId) }
                     }, enabled = currentSub != null) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 }
             )
@@ -135,7 +137,7 @@ fun RssArticlesScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text("No articles yet.\nTap refresh to fetch.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
+                        Text(stringResource(R.string.no_articles_yet_ntap_refresh_to_fetch), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
             } else {
@@ -150,13 +152,13 @@ fun RssArticlesScreen(
                             FilterChip(
                                 selected = vm.filterMode == ArticleFilterMode.ALL,
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.ALL) },
-                                label = { Text("All") }
+                                label = { Text(stringResource(R.string.all)) }
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             FilterChip(
                                 selected = vm.filterMode == ArticleFilterMode.UNREAD,
                                 onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) },
-                                label = { Text("Unread") }
+                                label = { Text(stringResource(R.string.unread)) }
                             )
                             Spacer(modifier = Modifier.size(8.dp))
                             FilterChip(
@@ -191,19 +193,19 @@ fun RssArticlesScreen(
     if (showMarkAllConfirm) {
         AlertDialog(
             onDismissRequest = { showMarkAllConfirm = false },
-            title = { Text("Mark all as read?") },
-            text = { Text("This marks every article in this feed as read.") },
+            title = { Text(stringResource(R.string.mark_all_as_read)) },
+            text = { Text(stringResource(R.string.this_marks_every_article_in_this_feed_as_read)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.markAllAsRead(subscriptionId)
                     showMarkAllConfirm = false
                 }) {
-                    Text("Mark all")
+                    Text(stringResource(R.string.mark_all))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { showMarkAllConfirm = false }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -245,7 +247,7 @@ private fun RssArticleItem(
                 IconButton(onClick = onToggleFavorite, modifier = Modifier.size(32.dp)) {
                     Icon(
                         if (article.isFavorite) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                        contentDescription = if (article.isFavorite) "Unfavorite" else "Favorite",
+                        contentDescription = if (article.isFavorite) stringResource(R.string.unfavorite) else stringResource(R.string.favorite),
                         modifier = Modifier.size(18.dp),
                         tint = if (article.isFavorite) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -253,7 +255,7 @@ private fun RssArticleItem(
                 if (article.isRead) {
                     Icon(
                         Icons.Default.CheckCircle,
-                        contentDescription = "Read",
+                        contentDescription = stringResource(R.string.read),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
                     )

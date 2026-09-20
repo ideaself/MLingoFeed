@@ -48,6 +48,8 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -64,10 +66,10 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Reading Statistics") },
+                title = { Text(stringResource(R.string.reading_statistics)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(containerColor = MaterialTheme.colorScheme.surface)
@@ -90,7 +92,7 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
                     modifier = Modifier.padding(20.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text("Total Reading Time", style = MaterialTheme.typography.titleMedium)
+                    Text(stringResource(R.string.total_reading_time), style = MaterialTheme.typography.titleMedium)
                     Spacer(modifier = Modifier.height(8.dp))
                     Text(
                         text = formatDuration(totalSeconds),
@@ -107,17 +109,17 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
             ) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Today",
+                    title = stringResource(R.string.today),
                     value = formatDuration(stats.todaySeconds)
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "This Week",
+                    title = stringResource(R.string.this_week),
                     value = formatDuration(stats.weekSeconds)
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "This Month",
+                    title = stringResource(R.string.this_month),
                     value = formatDuration(stats.monthSeconds)
                 )
             }
@@ -128,22 +130,22 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
                 ) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Sessions",
+                    title = stringResource(R.string.sessions),
                     value = "${stats.totalSessions}"
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Avg Session",
+                    title = stringResource(R.string.avg_session),
                     value = formatDuration(stats.avgSessionSeconds)
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Longest",
+                    title = stringResource(R.string.longest),
                     value = formatDuration(stats.longestSessionSeconds)
                 )
             }
 
-            Text("Vocabulary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text(stringResource(R.string.vocabulary), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
 
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -151,17 +153,17 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
             ) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Words",
+                    title = stringResource(R.string.words),
                     value = "${vm.vocabulary.total}"
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Mastered",
+                    title = stringResource(R.string.mastered),
                     value = "${vm.vocabulary.mastered}"
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Due",
+                    title = stringResource(R.string.due),
                     value = "${vm.vocabulary.due}"
                 )
             }
@@ -172,18 +174,18 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
             ) {
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Added (7d)",
+                    title = stringResource(R.string.added_7d),
                     value = "${vm.vocabulary.addedLast7Days}"
                 )
                 StatCard(
                     modifier = Modifier.weight(1f),
-                    title = "Day Streak",
+                    title = stringResource(R.string.day_streak),
                     value = "${stats.streakDays}"
                 )
             }
 
             if (stats.dailyData.isNotEmpty()) {
-                Text("Weekly Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(stringResource(R.string.weekly_trend), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Card(modifier = Modifier.fillMaxWidth()) {
                     DailyBarChart(
                         data = stats.dailyData,

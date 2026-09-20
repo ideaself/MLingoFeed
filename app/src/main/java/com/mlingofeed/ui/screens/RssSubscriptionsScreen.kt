@@ -61,6 +61,8 @@ import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssFolder
 import com.mlingofeed.data.database.RssSubscription
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -87,21 +89,21 @@ fun RssSubscriptionsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("RSS Feeds") },
+                title = { Text(stringResource(R.string.rss_feeds)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
                     }
                 },
                 actions = {
                     IconButton(onClick = onNavigateToSearch) {
-                        Icon(Icons.Default.Search, contentDescription = "Search")
+                        Icon(Icons.Default.Search, contentDescription = stringResource(R.string.search))
                     }
                     IconButton(onClick = { vm.openAddDialog() }) {
-                        Icon(Icons.Default.Add, contentDescription = "Add")
+                        Icon(Icons.Default.Add, contentDescription = stringResource(R.string.add))
                     }
                     IconButton(onClick = { vm.refresh() }) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Refresh")
+                        Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.refresh))
                     }
                 }
             )
@@ -120,9 +122,9 @@ fun RssSubscriptionsScreen(
                     Column(horizontalAlignment = Alignment.CenterHorizontally) {
                         Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.height(16.dp))
-                        Text("No RSS feeds yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(stringResource(R.string.no_rss_feeds_yet), style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Tap + to add your first feed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
+                        Text(stringResource(R.string.tap_to_add_your_first_feed), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     }
                 }
             } else {
@@ -135,19 +137,19 @@ fun RssSubscriptionsScreen(
                             horizontalArrangement = Arrangement.spacedBy(8.dp)
                         ) {
                             QuickFilterChip(
-                                label = "Unread ($totalUnread)",
+                                label = stringResource(R.string.unread_count, totalUnread),
                                 icon = Icons.Default.RssFeed,
                                 onClick = onNavigateToUnread,
                                 modifier = Modifier.weight(1f)
                             )
                             QuickFilterChip(
-                                label = "Favorites",
+                                label = stringResource(R.string.favorites),
                                 icon = Icons.Default.Bookmark,
                                 onClick = onNavigateToFavorites,
                                 modifier = Modifier.weight(1f)
                             )
                             QuickFilterChip(
-                                label = "Saved",
+                                label = stringResource(R.string.saved),
                                 icon = Icons.Default.Schedule,
                                 onClick = onNavigateToSaved,
                                 modifier = Modifier.weight(1f)
@@ -190,7 +192,7 @@ fun RssSubscriptionsScreen(
                         if (folders.isNotEmpty()) {
                             item {
                                 Text(
-                                    "Ungrouped",
+                                    stringResource(R.string.ungrouped),
                                     style = MaterialTheme.typography.labelMedium,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                     modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
@@ -222,13 +224,13 @@ fun RssSubscriptionsScreen(
 
         AlertDialog(
             onDismissRequest = { vm.closeAddDialog() },
-            title = { Text("Add RSS Feed") },
+            title = { Text(stringResource(R.string.add_rss_feed)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = rssTitle,
                         onValueChange = { rssTitle = it },
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.title)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -236,13 +238,13 @@ fun RssSubscriptionsScreen(
                     OutlinedTextField(
                         value = rssUrl,
                         onValueChange = { rssUrl = it },
-                        label = { Text("RSS or site URL") },
+                        label = { Text(stringResource(R.string.rss_or_site_url)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     if (folders.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Folder", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.folder), style = MaterialTheme.typography.labelSmall)
                         Row(
                             modifier = Modifier.fillMaxWidth().clickable { selectedFolderId = null },
                             verticalAlignment = Alignment.CenterVertically
@@ -251,7 +253,7 @@ fun RssSubscriptionsScreen(
                                 selected = selectedFolderId == null,
                                 onClick = { selectedFolderId = null }
                             )
-                            Text("None")
+                            Text(stringResource(R.string.none))
                         }
                         folders.forEach { folder ->
                             Row(
@@ -274,10 +276,10 @@ fun RssSubscriptionsScreen(
                         vm.addSubscription(rssTitle, rssUrl, selectedFolderId)
                         vm.closeAddDialog()
                     }
-                }, enabled = rssUrl.isNotBlank()) { Text("Add") }
+                }, enabled = rssUrl.isNotBlank()) { Text(stringResource(R.string.add)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.closeAddDialog() }) { Text("Cancel") }
+                TextButton(onClick = { vm.closeAddDialog() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -285,19 +287,19 @@ fun RssSubscriptionsScreen(
     markAllReadFolder?.let { folder ->
         AlertDialog(
             onDismissRequest = { markAllReadFolder = null },
-            title = { Text("Mark folder as read?") },
-            text = { Text("Every article in \"${folder.name}\" will be marked as read.") },
+            title = { Text(stringResource(R.string.mark_folder_as_read)) },
+            text = { Text(stringResource(R.string.folder_mark_read_confirm, folder.name)) },
             confirmButton = {
                 TextButton(onClick = {
                     vm.markFolderAsRead(folder.id)
                     markAllReadFolder = null
                 }) {
-                    Text("Mark all")
+                    Text(stringResource(R.string.mark_all))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { markAllReadFolder = null }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -306,13 +308,13 @@ fun RssSubscriptionsScreen(
     vm.showDeleteDialog?.let { sub ->
         AlertDialog(
             onDismissRequest = { vm.cancelDelete() },
-            title = { Text("Delete Feed") },
-            text = { Text("Delete \"${sub.title}\"?") },
+            title = { Text(stringResource(R.string.delete_feed)) },
+            text = { Text(stringResource(R.string.feed_delete_confirm, sub.title)) },
             confirmButton = {
-                TextButton(onClick = { vm.deleteSubscription(sub.id) }) { Text("Delete", color = MaterialTheme.colorScheme.error) }
+                TextButton(onClick = { vm.deleteSubscription(sub.id) }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.cancelDelete() }) { Text("Cancel") }
+                TextButton(onClick = { vm.cancelDelete() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -324,13 +326,13 @@ fun RssSubscriptionsScreen(
 
         AlertDialog(
             onDismissRequest = { vm.cancelEdit() },
-            title = { Text("Edit Feed") },
+            title = { Text(stringResource(R.string.edit_feed)) },
             text = {
                 Column {
                     OutlinedTextField(
                         value = editTitle,
                         onValueChange = { editTitle = it },
-                        label = { Text("Title") },
+                        label = { Text(stringResource(R.string.title)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
@@ -338,13 +340,13 @@ fun RssSubscriptionsScreen(
                     OutlinedTextField(
                         value = editUrl,
                         onValueChange = { editUrl = it },
-                        label = { Text("RSS URL") },
+                        label = { Text(stringResource(R.string.rss_url)) },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
                     if (folders.isNotEmpty()) {
                         Spacer(modifier = Modifier.height(8.dp))
-                        Text("Folder", style = MaterialTheme.typography.labelSmall)
+                        Text(stringResource(R.string.folder), style = MaterialTheme.typography.labelSmall)
                         Row(
                             modifier = Modifier.fillMaxWidth().clickable { editFolderId = null },
                             verticalAlignment = Alignment.CenterVertically
@@ -353,7 +355,7 @@ fun RssSubscriptionsScreen(
                                 selected = editFolderId == null,
                                 onClick = { editFolderId = null }
                             )
-                            Text("None")
+                            Text(stringResource(R.string.none))
                         }
                         folders.forEach { folder ->
                             Row(
@@ -375,10 +377,10 @@ fun RssSubscriptionsScreen(
                     if (editTitle.isNotBlank() && editUrl.isNotBlank()) {
                         vm.updateSubscription(sub, editTitle, editUrl, editFolderId)
                     }
-                }, enabled = editTitle.isNotBlank() && editUrl.isNotBlank()) { Text("Save") }
+                }, enabled = editTitle.isNotBlank() && editUrl.isNotBlank()) { Text(stringResource(R.string.save)) }
             },
             dismissButton = {
-                TextButton(onClick = { vm.cancelEdit() }) { Text("Cancel") }
+                TextButton(onClick = { vm.cancelEdit() }) { Text(stringResource(R.string.cancel)) }
             }
         )
     }
@@ -415,7 +417,7 @@ private fun FolderHeader(
                 modifier = Modifier.weight(1f)
             )
             Text(
-                "$subCount feeds",
+                stringResource(R.string.feeds_count, subCount),
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -423,7 +425,7 @@ private fun FolderHeader(
                 IconButton(onClick = onMarkAllRead, modifier = Modifier.size(28.dp)) {
                     Icon(
                         Icons.Default.DoneAll,
-                        contentDescription = "Mark folder as read",
+                        contentDescription = stringResource(R.string.mark_folder_as_read_2),
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -432,7 +434,7 @@ private fun FolderHeader(
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                contentDescription = if (isExpanded) "Collapse" else "Expand",
+                contentDescription = if (isExpanded) stringResource(R.string.cd_collapse) else stringResource(R.string.cd_expand),
                 modifier = Modifier.size(20.dp),
                 tint = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -487,13 +489,13 @@ private fun RssSubscriptionItem(
                 Text(subscription.url, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
             }
             if (unreadCount > 0) {
-                Text("$unreadCount new", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                Text(stringResource(R.string.new_count, unreadCount), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
             }
             IconButton(onClick = onEdit, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Edit, contentDescription = "Edit", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.onSurfaceVariant)
             }
             IconButton(onClick = onDelete, modifier = Modifier.size(32.dp)) {
-                Icon(Icons.Default.Delete, contentDescription = "Delete", modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
+                Icon(Icons.Default.Delete, contentDescription = stringResource(R.string.delete), modifier = Modifier.size(16.dp), tint = MaterialTheme.colorScheme.error)
             }
         }
     }

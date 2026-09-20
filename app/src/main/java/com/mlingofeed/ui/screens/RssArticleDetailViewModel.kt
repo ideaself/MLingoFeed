@@ -22,6 +22,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
+import com.mlingofeed.R
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
@@ -276,7 +277,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun analyzeDifficulty() {
         runAiTool(
-            title = "Difficulty Analysis",
+            title = app.getString(R.string.difficulty_analysis),
             format = ::formatDifficulty
         ) { text, apiUrl, apiKey, model ->
             app.chatRepository.analyzeDifficulty(text, apiUrl, apiKey, model)
@@ -285,7 +286,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun extractCollocations() {
         runAiTool(
-            title = "Collocations & Idioms",
+            title = app.getString(R.string.collocations_idioms),
             format = ::formatCollocations
         ) { text, apiUrl, apiKey, model ->
             app.chatRepository.detectCollocations(text, apiUrl, apiKey, model)

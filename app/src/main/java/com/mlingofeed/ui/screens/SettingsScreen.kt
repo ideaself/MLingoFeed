@@ -85,6 +85,8 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportManager
 import com.mlingofeed.data.settings.DictionaryConfig
 import com.mlingofeed.ui.theme.AccentPalettes
+import androidx.compose.ui.res.stringResource
+import com.mlingofeed.R
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -134,12 +136,12 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Settings") },
+                title = { Text(stringResource(R.string.settings)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
                         Icon(
                             imageVector = Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back"
+                            contentDescription = stringResource(R.string.back)
                         )
                     }
                 }
@@ -149,7 +151,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             FloatingActionButton(
                 onClick = { vm.saveSettings() }
             ) {
-                Icon(Icons.Default.Check, contentDescription = "Save")
+                Icon(Icons.Default.Check, contentDescription = stringResource(R.string.save))
             }
         }
     ) { padding ->
@@ -161,22 +163,22 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 .verticalScroll(rememberScrollState())
         ) {
             SettingsSection(
-                title = "Theme",
+                title = stringResource(R.string.theme),
                 imageVector = Icons.Default.FormatPaint,
                 expanded = vm.expandedSection == "theme",
                 onToggle = { vm.toggleSection("theme") }
             ) {
                 Column(modifier = Modifier.selectableGroup()) {
-                    ThemeRadioOption("Follow System", themeMode == "system") {
+                    ThemeRadioOption(stringResource(R.string.follow_system), themeMode == "system") {
                         vm.setThemeMode("system")
                     }
-                    ThemeRadioOption("Light", themeMode == "light") {
+                    ThemeRadioOption(stringResource(R.string.light), themeMode == "light") {
                         vm.setThemeMode("light")
                     }
-                    ThemeRadioOption("Dark", themeMode == "dark") {
+                    ThemeRadioOption(stringResource(R.string.dark), themeMode == "dark") {
                         vm.setThemeMode("dark")
                     }
-                    ThemeRadioOption("Eye Care", themeMode == "eyecare") {
+                    ThemeRadioOption(stringResource(R.string.eye_care), themeMode == "eyecare") {
                         vm.setThemeMode("eyecare")
                     }
                 }
@@ -184,7 +186,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 Spacer(modifier = Modifier.height(12.dp))
 
                 Text(
-                    "Accent color",
+                    stringResource(R.string.accent_color),
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -193,12 +195,12 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     horizontalArrangement = Arrangement.spacedBy(8.dp)
                 ) {
                     val accentOptions = listOf(
-                        Triple("dynamic", "Dynamic", null),
-                        Triple("blue", "Blue", AccentPalettes["blue"]?.light),
-                        Triple("green", "Green", AccentPalettes["green"]?.light),
-                        Triple("purple", "Purple", AccentPalettes["purple"]?.light),
-                        Triple("orange", "Orange", AccentPalettes["orange"]?.light),
-                        Triple("red", "Red", AccentPalettes["red"]?.light)
+                        Triple("dynamic", stringResource(R.string.dynamic), null),
+                        Triple("blue", stringResource(R.string.blue), AccentPalettes["blue"]?.light),
+                        Triple("green", stringResource(R.string.green), AccentPalettes["green"]?.light),
+                        Triple("purple", stringResource(R.string.purple), AccentPalettes["purple"]?.light),
+                        Triple("orange", stringResource(R.string.orange), AccentPalettes["orange"]?.light),
+                        Triple("red", stringResource(R.string.red), AccentPalettes["red"]?.light)
                     )
                     accentOptions.forEach { (key, label, color) ->
                         FilterChip(
@@ -223,11 +225,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "Study Reminders",
+                title = stringResource(R.string.study_reminders),
                 imageVector = Icons.Default.Notifications,
                 expanded = vm.expandedSection == "reminders",
                 onToggle = { vm.toggleSection("reminders") },
-                summary = if (wordReminderEnabled) "On" else "Off"
+                summary = if (wordReminderEnabled) stringResource(R.string.state_on) else stringResource(R.string.state_off)
             ) {
                 Row(
                     modifier = Modifier
@@ -236,9 +238,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Daily word review reminder", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.daily_word_review_reminder), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            text = "Notify me when words are due for review",
+                            text = stringResource(R.string.notify_me_when_words_are_due_for_review),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -253,7 +255,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "Reading Time",
+                title = stringResource(R.string.reading_time),
                 imageVector = Icons.Default.Schedule,
                 expanded = vm.expandedSection == "reading_time",
                 onToggle = { vm.toggleSection("reading_time") },
@@ -266,20 +268,20 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     isToday(it.first)
                 }.sumOf { it.second }
 
-                StatRow("Total", formatReadingTime(readingTimeSeconds))
+                StatRow(stringResource(R.string.total), formatReadingTime(readingTimeSeconds))
                 StatRow("Sessions", "$totalSessions")
                 StatRow("Today", formatReadingTime(todaySeconds))
-                StatRow("Average", formatReadingTime(avgDuration))
+                StatRow(stringResource(R.string.average), formatReadingTime(avgDuration))
                 StatRow("Longest", formatReadingTime(longestSession))
 
                 Spacer(modifier = Modifier.height(12.dp))
                 Row {
                     TextButton(onClick = onNavigateToReadingStats) {
-                        Text("View Details")
+                        Text(stringResource(R.string.view_details))
                     }
                     Spacer(modifier = Modifier.weight(1f))
                     TextButton(onClick = { vm.resetReadingTime() }) {
-                        Text("Reset")
+                        Text(stringResource(R.string.reset))
                     }
                 }
             }
@@ -287,16 +289,16 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "Font Size",
+                title = stringResource(R.string.font_size),
                 imageVector = Icons.Default.FormatSize,
                 expanded = vm.expandedSection == "font_size",
                 onToggle = { vm.toggleSection("font_size") },
-                summary = "Web ${fontSize}% · RSS ${rssFontSize.toInt()}sp"
+                summary = stringResource(R.string.font_summary, fontSize, rssFontSize.toInt())
             ) {
                 // Keep slider drags local and commit once when the drag ends, instead of writing
                 // to DataStore on every frame.
                 var fontSizeSlider by remember(fontSize) { mutableFloatStateOf(fontSize.toFloat()) }
-                Text("Web Reader Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.web_reader_font), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -321,7 +323,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 Spacer(modifier = Modifier.height(16.dp))
 
                 var rssFontSizeSlider by remember(rssFontSize) { mutableFloatStateOf(rssFontSize) }
-                Text("RSS Article Font", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.rss_article_font), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -346,7 +348,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 Spacer(modifier = Modifier.height(16.dp))
 
                 var lineHeightSlider by remember(readerLineHeight) { mutableFloatStateOf(readerLineHeight) }
-                Text("Page Line Height", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(stringResource(R.string.page_line_height), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     verticalAlignment = Alignment.CenterVertically
@@ -372,9 +374,9 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Column(modifier = Modifier.weight(1f)) {
-                        Text("Serif font", style = MaterialTheme.typography.bodyMedium)
+                        Text(stringResource(R.string.serif_font), style = MaterialTheme.typography.bodyMedium)
                         Text(
-                            text = "Use a serif typeface on web pages",
+                            text = stringResource(R.string.use_a_serif_typeface_on_web_pages),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -389,11 +391,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "Dictionaries",
+                title = stringResource(R.string.dictionaries),
                 imageVector = Icons.AutoMirrored.Filled.MenuBook,
                 expanded = vm.expandedSection == "dictionaries",
                 onToggle = { vm.toggleSection("dictionaries") },
-                summary = "${dictionaries.count { it.isEnabled }} / ${dictionaries.size} enabled"
+                summary = stringResource(R.string.dict_summary, dictionaries.count { it.isEnabled }, dictionaries.size)
             ) {
                 dictionaries.forEachIndexed { index, dict ->
                     DictionaryItem(
@@ -418,13 +420,13 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     TextButton(onClick = { vm.openPresetDicts() }) {
                         Icon(Icons.Default.Star, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("From Preset")
+                        Text(stringResource(R.string.from_preset))
                     }
                     Spacer(modifier = Modifier.width(8.dp))
                     TextButton(onClick = { vm.openAddDict() }) {
                         Icon(Icons.Default.Add, contentDescription = null)
                         Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add Dictionary")
+                        Text(stringResource(R.string.add_dictionary))
                     }
                 }
             }
@@ -432,7 +434,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "AI / Translation",
+                title = stringResource(R.string.ai_translation),
                 imageVector = Icons.Default.Language,
                 expanded = vm.expandedSection == "ai",
                 onToggle = { vm.toggleSection("ai") }
@@ -440,21 +442,21 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 OutlinedTextField(
                     value = vm.aiUrlInput,
                     onValueChange = { vm.onAiUrlInputChange(it) },
-                    label = { Text("AI API URL") },
+                    label = { Text(stringResource(R.string.ai_api_url)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    supportingText = { Text("DeepSeek: https://api.deepseek.com/chat/completions") }
+                    supportingText = { Text(stringResource(R.string.deepseek_https_api_deepseek_com_chat_completions)) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = vm.aiKeyInput,
                     onValueChange = { vm.onAiKeyInputChange(it) },
-                    label = { Text("API Key") },
+                    label = { Text(stringResource(R.string.api_key)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     trailingIcon = {
                         IconButton(onClick = { clipboardManager.setText(AnnotatedString(vm.aiKeyInput)) }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = "Copy")
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy))
                         }
                     }
                 )
@@ -462,11 +464,11 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 OutlinedTextField(
                     value = vm.aiModelInput,
                     onValueChange = { vm.onAiModelInputChange(it) },
-                    label = { Text("Model") },
+                    label = { Text(stringResource(R.string.model)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
                     readOnly = vm.showModelDropdown && vm.modelList.isNotEmpty(),
-                    supportingText = { Text("Click ↻ to auto-fetch models") },
+                    supportingText = { Text(stringResource(R.string.click_to_auto_fetch_models)) },
                     trailingIcon = {
                         if (vm.isLoadingModels) {
                             androidx.compose.material3.CircularProgressIndicator(
@@ -475,7 +477,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                             )
                         } else {
                             IconButton(onClick = { vm.fetchModels() }) {
-                                    Icon(Icons.Default.Refresh, contentDescription = "Fetch Models")
+                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.fetch_models))
                             }
                         }
                     }
@@ -508,23 +510,23 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 OutlinedTextField(
                     value = vm.targetLangInput,
                     onValueChange = { vm.onTargetLangInputChange(it) },
-                    label = { Text("Target Language") },
+                    label = { Text(stringResource(R.string.target_language)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    supportingText = { Text("e.g., Chinese, Japanese, Spanish") }
+                    supportingText = { Text(stringResource(R.string.e_g_chinese_japanese_spanish)) }
                 )
             }
 
             Spacer(modifier = Modifier.height(8.dp))
 
             SettingsSection(
-                title = "Data Management",
+                title = stringResource(R.string.data_management),
                 imageVector = Icons.Default.Storage,
                 expanded = vm.expandedSection == "data",
                 onToggle = { vm.toggleSection("data") }
             ) {
                 Text(
-                    text = "Export bookmarks and settings as a backup file.",
+                    text = stringResource(R.string.export_bookmarks_and_settings_as_a_backup_file),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -536,7 +538,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     ) {
                         Icon(Icons.Default.FileDownload, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Export")
+                        Text(stringResource(R.string.export))
                     }
                     Spacer(modifier = Modifier.width(12.dp))
                     Button(
@@ -546,7 +548,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     ) {
                         Icon(Icons.Default.FileUpload, contentDescription = null)
                         Spacer(modifier = Modifier.width(8.dp))
-                        Text("Import")
+                        Text(stringResource(R.string.label_import))
                     }
                 }
             }
@@ -559,10 +561,10 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
             ) {
                 Column(modifier = Modifier.padding(16.dp)) {
                     Text("MLingoFeed", style = MaterialTheme.typography.titleSmall)
-                    Text("Version ${BuildConfig.VERSION_NAME}", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Text(stringResource(R.string.version_label, BuildConfig.VERSION_NAME), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     Spacer(modifier = Modifier.height(4.dp))
                     Text(
-                        "A web reading app with dictionary lookup, translation, and AI chat.",
+                        stringResource(R.string.a_web_reading_app_with_dictionary_lookup_transla),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -608,21 +610,21 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
         val data = vm.pendingImportData!!
         AlertDialog(
             onDismissRequest = { vm.dismissImportConfirm() },
-            title = { Text("Import Data") },
+            title = { Text(stringResource(R.string.import_data)) },
             text = {
-                Text("This will replace all current bookmarks and settings with the imported data.\n\n" +
-                     "Bookmarks: ${data.bookmarks.size}\n" +
-                     "RSS Subscriptions: ${data.subscriptions.size}\n" +
-                     "Settings: ${data.settings.size} items")
+                Text(stringResource(R.string.this_will_replace_all_current_bookmarks_and_sett) +
+                     stringResource(R.string.import_preview_bookmarks, data.bookmarks.size) +
+                     stringResource(R.string.import_preview_subs, data.subscriptions.size) +
+                     stringResource(R.string.import_preview_settings, data.settings.size))
             },
             confirmButton = {
                 TextButton(onClick = { vm.confirmImport() }) {
-                    Text("Import")
+                    Text(stringResource(R.string.label_import))
                 }
             },
             dismissButton = {
                 TextButton(onClick = { vm.dismissImportConfirm() }) {
-                    Text("Cancel")
+                    Text(stringResource(R.string.cancel))
                 }
             }
         )
@@ -647,12 +649,12 @@ private fun DictionaryItem(
         Column(modifier = Modifier.weight(1f)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    text = dictionary.name.ifEmpty { "Unnamed" },
+                    text = dictionary.name.ifEmpty { stringResource(R.string.unnamed) },
                     style = MaterialTheme.typography.titleSmall
                 )
                 if (!dictionary.isEnabled) {
                     Text(
-                        text = " (disabled)",
+                        text = stringResource(R.string.disabled),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
@@ -669,18 +671,18 @@ private fun DictionaryItem(
             onCheckedChange = onToggle
         )
         IconButton(onClick = onMoveUp, enabled = canMoveUp) {
-            Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Move up")
+            Icon(Icons.Default.KeyboardArrowUp, contentDescription = stringResource(R.string.move_up))
         }
         IconButton(onClick = onMoveDown, enabled = canMoveDown) {
-            Icon(Icons.Default.KeyboardArrowDown, contentDescription = "Move down")
+            Icon(Icons.Default.KeyboardArrowDown, contentDescription = stringResource(R.string.move_down))
         }
         IconButton(onClick = onEdit) {
-            Icon(Icons.Default.Add, contentDescription = "Edit")
+            Icon(Icons.Default.Add, contentDescription = stringResource(R.string.edit))
         }
         IconButton(onClick = onDelete) {
             Icon(
                 Icons.Default.Delete,
-                contentDescription = "Delete",
+                contentDescription = stringResource(R.string.delete),
                 tint = MaterialTheme.colorScheme.error
             )
         }
@@ -726,7 +728,7 @@ private fun SettingsSection(
                 }
                 Icon(
                     imageVector = if (expanded) Icons.Default.KeyboardArrowUp else Icons.Default.KeyboardArrowDown,
-                    contentDescription = if (expanded) "Collapse" else "Expand",
+                    contentDescription = if (expanded) stringResource(R.string.cd_collapse) else stringResource(R.string.cd_expand),
                     tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
@@ -804,34 +806,34 @@ private fun EditDictionaryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(if (dictionary.name.isEmpty()) "Add Dictionary" else "Edit Dictionary") },
+        title = { Text(if (dictionary.name.isEmpty()) stringResource(R.string.add_dictionary) else stringResource(R.string.edit_dictionary)) },
         text = {
             Column {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
-                    label = { Text("Name") },
+                    label = { Text(stringResource(R.string.name)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    placeholder = { Text("e.g., Youdao, Cambridge") }
+                    placeholder = { Text(stringResource(R.string.e_g_youdao_cambridge)) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = urlTemplate,
                     onValueChange = { urlTemplate = it },
-                    label = { Text("URL Template") },
+                    label = { Text(stringResource(R.string.url_template)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    supportingText = { Text("Use {word} as placeholder, e.g., https://dict.youdao.com/result?word={word}&lang=en") }
+                    supportingText = { Text(stringResource(R.string.use_word_as_placeholder_e_g_https_dict_youdao_co)) }
                 )
                 Spacer(modifier = Modifier.height(8.dp))
                 OutlinedTextField(
                     value = cssSelector,
                     onValueChange = { cssSelector = it },
-                    label = { Text("CSS Selector (optional)") },
+                    label = { Text(stringResource(R.string.css_selector_optional)) },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
-                    supportingText = { Text("e.g., .trans-container, #content") }
+                    supportingText = { Text(stringResource(R.string.e_g_trans_container_content)) }
                 )
             }
         },
@@ -848,12 +850,12 @@ private fun EditDictionaryDialog(
                 },
                 enabled = name.isNotBlank() && urlTemplate.isNotBlank()
             ) {
-                Text("Save")
+                Text(stringResource(R.string.save))
             }
         },
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Cancel")
+                Text(stringResource(R.string.cancel))
             }
         }
     )
@@ -907,11 +909,11 @@ private fun PresetDictionaryDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("Preset Dictionaries") },
+        title = { Text(stringResource(R.string.preset_dictionaries)) },
         text = {
             Column {
                 Text(
-                    "Select dictionaries to add:",
+                    stringResource(R.string.select_dictionaries_to_add),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -938,10 +940,10 @@ private fun PresetDictionaryDialog(
                             )
                         }
                         if (alreadyAdded) {
-                            Text("Added", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
+                            Text(stringResource(R.string.added), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.outline)
                         } else {
                             TextButton(onClick = { onAdd(preset) }) {
-                                Text("Add")
+                                Text(stringResource(R.string.add))
                             }
                         }
                     }
@@ -951,7 +953,7 @@ private fun PresetDictionaryDialog(
         confirmButton = {},
         dismissButton = {
             TextButton(onClick = onDismiss) {
-                Text("Close")
+                Text(stringResource(R.string.close))
             }
         }
     )

@@ -1,6 +1,6 @@
 # AGENTS.md
 
-Android web reader app: Kotlin + Jetpack Compose + Material 3, MVVM, single `:app` module, package `com.mlingofeed`. README is in Chinese; UI strings are hardcoded English in Composables (only `app_name` lives in `strings.xml`).
+Android web reader app: Kotlin + Jetpack Compose + Material 3, MVVM, single `:app` module, package `com.mlingofeed`. README is in Chinese. All user-visible UI strings live in `res/values/strings.xml` with Chinese translations in `res/values-zh/strings.xml`; use `stringResource(R.string.x)` in composables and `context.getString` / `app.getString` outside composition (coroutine bodies, ViewModels, Toasts). Date/number format patterns and AI prompt text stay inline in code.
 
 ## Build & verify
 - Windows: `.\gradlew.bat assembleDebug` (JDK 11+, compileSdk 35). `local.properties` needs `sdk.dir` or `ANDROID_HOME` set.
