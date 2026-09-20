@@ -296,4 +296,7 @@
     <string name="yesterday">Yesterday</string>
     <string name="share_via">Share via</string>
     <string name="select_a_feed">Select a feed</string>
+    <string name="us_pronunciation">US pronunciation</string>
+    <string name="uk_pronunciation">UK pronunciation</string>
+    <string name="web_dictionary">Web dictionary</string>
 </resources>

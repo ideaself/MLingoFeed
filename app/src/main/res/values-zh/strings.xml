@@ -293,4 +293,7 @@
     <string name="yesterday">昨天</string>
     <string name="share_via">分享到</string>
     <string name="select_a_feed">选择一个订阅</string>
+    <string name="us_pronunciation">美式发音</string>
+    <string name="uk_pronunciation">英式发音</string>
+    <string name="web_dictionary">网页词典</string>
 </resources>

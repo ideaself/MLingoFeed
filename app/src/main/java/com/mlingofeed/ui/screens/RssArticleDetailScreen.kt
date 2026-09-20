@@ -364,7 +364,11 @@ fun RssArticleDetailScreen(
             sourceUrl = articleData?.link.orEmpty(),
             sourceTitle = articleData?.title.orEmpty(),
             onDismiss = { vm.dismissDictionary() },
-            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) }
+            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) },
+            onOpenWebDictionary = { url ->
+                vm.dismissDictionary()
+                onOpenExternal(url)
+            }
         )
     }
     if (vm.showTranslation) {

@@ -421,7 +421,11 @@ fun ReaderScreen(
             sourceUrl = currentTab?.url.orEmpty(),
             sourceTitle = currentTab?.title.orEmpty(),
             onDismiss = { vm.dismissDictionary() },
-            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) }
+            onOpenChat = { vm.dismissDictionary(); vm.openChat(vm.selectedWord) },
+            onOpenWebDictionary = { url ->
+                vm.dismissDictionary()
+                vm.addTab(url)
+            }
         )
     }
     if (vm.showTranslation) {

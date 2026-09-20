@@ -60,6 +60,14 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import android.media.AudioAttributes
+import android.media.MediaPlayer
+import android.net.Uri
+import androidx.compose.material.icons.automirrored.filled.VolumeUp
+import androidx.compose.material.icons.filled.Language
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.foundation.layout.size
+import androidx.compose.material3.TextButton
 
 data class DictionaryResult(
     val name: String,
@@ -75,7 +83,8 @@ fun DictionaryPopup(
     onOpenChat: () -> Unit,
     exampleSentence: String = "",
     sourceUrl: String = "",
-    sourceTitle: String = ""
+    sourceTitle: String = "",
+    onOpenWebDictionary: ((String) -> Unit)? = null
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
@@ -98,6 +107,42 @@ fun DictionaryPopup(
     var results by remember(searchWord) { mutableStateOf<List<DictionaryResult>>(emptyList()) }
     var selectedTab by remember { mutableIntStateOf(0) }
     var isSaved by remember { mutableStateOf(false) }
+    var isPlayingPronunciation by remember { mutableStateOf(false) }
+
+    val audioPlayer = remember { MediaPlayer() }
+    DisposableEffect(Unit) {
+        onDispose { audioPlayer.release() }
+    }
+
+    fun playPronunciation(uk: Boolean) {
+        val spokenWord = searchWord.trim()
+        if (spokenWord.isBlank()) return
+        try {
+            audioPlayer.reset()
+            audioPlayer.setAudioAttributes(
+                AudioAttributes.Builder()
+                    .setUsage(AudioAttributes.USAGE_MEDIA)
+                    .setContentType(AudioAttributes.CONTENT_TYPE_SPEECH)
+                    .build()
+            )
+            val type = if (uk) 1 else 2
+            audioPlayer.setDataSource(
+                "https://dict.youdao.com/dictvoice?audio=${Uri.encode(spokenWord)}&type=$type"
+            )
+            audioPlayer.setOnPreparedListener { player ->
+                player.start()
+                isPlayingPronunciation = true
+            }
+            audioPlayer.setOnCompletionListener { isPlayingPronunciation = false }
+            audioPlayer.setOnErrorListener { _, _, _ ->
+                isPlayingPronunciation = false
+                true
+            }
+            audioPlayer.prepareAsync()
+        } catch (_: Exception) {
+            isPlayingPronunciation = false
+        }
+    }
 
     LaunchedEffect(searchWord) {
         isSaved = app.wordBookRepository.isWordSaved(searchWord)
@@ -175,13 +220,20 @@ fun DictionaryPopup(
                                 }
                             )
                         )
-                        Text(
-                            text = if (hasMultipleDicts) stringResource(R.string.dict_count, results.size) else results.firstOrNull()?.name ?: "",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
-                        )
                     }
                     Row {
+                        if (onOpenWebDictionary != null) {
+                            IconButton(onClick = {
+                                onOpenWebDictionary(
+                                    "https://www.youdao.com/result?word=${Uri.encode(searchWord)}&lang=en"
+                                )
+                            }) {
+                                Icon(
+                                    Icons.Default.Language,
+                                    contentDescription = stringResource(R.string.web_dictionary)
+                                )
+                            }
+                        }
                         IconButton(onClick = {
                             clipboardManager.setText(AnnotatedString(searchWord))
                         }) {
@@ -229,6 +281,40 @@ fun DictionaryPopup(
                         IconButton(onClick = onDismiss) {
                             Icon(Icons.Default.Close, contentDescription = stringResource(R.string.close))
                         }
+                    }
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = if (hasMultipleDicts) stringResource(R.string.dict_count, results.size) else results.firstOrNull()?.name ?: "",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.weight(1f)
+                    )
+                    TextButton(
+                        onClick = { playPronunciation(uk = false) },
+                        enabled = !isPlayingPronunciation
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = stringResource(R.string.us_pronunciation),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("US", style = MaterialTheme.typography.labelSmall)
+                    }
+                    TextButton(
+                        onClick = { playPronunciation(uk = true) },
+                        enabled = !isPlayingPronunciation
+                    ) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.VolumeUp,
+                            contentDescription = stringResource(R.string.uk_pronunciation),
+                            modifier = Modifier.size(16.dp)
+                        )
+                        Text("UK", style = MaterialTheme.typography.labelSmall)
                     }
                 }
 
