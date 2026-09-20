@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en-GB">
+<head>
+    <title>Test article - BBC News</title>
+</head>
+<body>
+<main id="main-content">
+    <article class="article-wrapper">
+        <div data-testid="metadata">
+            <ul role="list">
+                <li role="listitem">
+                    <div class="visually-hidden">Published</div>
+                    <div class="metadata-content"><span><time datetime="2026-09-20T05:00:07Z">15 minutes ago</time></span></div>
+                </li>
+            </ul>
+        </div>
+        <div data-block="text">
+            <div data-testid="rich-text">
+                <div class="rich-text-container">
+                    <p>Body paragraph one carries enough words to be recognised as real prose by the extractor, which scores paragraphs by length before choosing a container.</p>
+                    <p>Body paragraph two also runs long enough for the same reason and mentions <a href="/news/other-article">an inline link</a> in the middle of the sentence.</p>
+                </div>
+            </div>
+        </div>
+        <div data-block="links">
+            <ul role="list">
+                <li><p><span>Promoted story headline that should be removed as a link block</span></p></li>
+            </ul>
+        </div>
+    </article>
+</main>
+</body>
+</html>

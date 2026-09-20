@@ -35,13 +35,19 @@ object RssParser {
     /** Below this the extraction is treated as failed and the page description is used instead. */
     private const val MIN_CONTENT_LENGTH = 200
     private const val MIN_DESCRIPTION_LENGTH = 60
-    private const val MIN_SELECTOR_SCORE = 300
+
+    /**
+     * Minimum amount of readable paragraph text a container needs before it wins. Keeps a
+     * wrapper that only holds page furniture (e.g. a video page's `main`) from being picked.
+     */
+    private const val MIN_SELECTOR_SCORE = 150
 
     /** Page furniture that must never end up in the article body. */
     private const val CHROME_SELECTOR =
         "script, style, noscript, iframe, form, button, input, select, textarea, svg, dialog, video, audio, " +
             "nav, header, footer, aside, [hidden], .hidden, .u-hidden, [aria-hidden=true], " +
-            "[data-component*=related], [data-component*=promo], [data-testid=metadata], [data-block=links]"
+            "[data-component*=related], [data-component*=promo], [data-testid=metadata], [data-block=links], " +
+            ".more-video-section"
 
     /**
      * Class/id names that always belong to page furniture (ads, share widgets, comment sections, ...).
@@ -146,23 +152,31 @@ object RssParser {
                 if (!response.isSuccessful) return@withContext ""
                 response.body?.string() ?: return@withContext ""
             }
-            val doc = Jsoup.parse(body)
-            stripPageChrome(doc)
-
-            val content = extractMainContent(doc)
-            if (content.length >= MIN_CONTENT_LENGTH) {
-                return@withContext content
-            }
-
-            // Video pages and galleries often have no body at all; their social/meta description
-            // is real prose and beats returning leftover page furniture.
-            val description = extractDescription(doc)
-            if (description.length >= MIN_DESCRIPTION_LENGTH) description else content
+            extractFromHtml(body)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             ""
         }
+    }
+
+    /**
+     * Pure HTML → article body conversion (chrome stripped, description fallback). Kept separate
+     * from [fetchFullContent] so unit tests can exercise it without network access.
+     */
+    internal fun extractFromHtml(html: String): String {
+        val doc = Jsoup.parse(html)
+        stripPageChrome(doc)
+
+        val content = extractMainContent(doc)
+        if (content.length >= MIN_CONTENT_LENGTH) {
+            return content
+        }
+
+        // Video pages and galleries often have no body at all; their social/meta description
+        // is real prose and beats returning leftover page furniture.
+        val description = extractDescription(doc)
+        return if (description.length >= MIN_DESCRIPTION_LENGTH) description else content
     }
 
     private fun stripHtml(text: String): String {
@@ -216,33 +230,20 @@ object RssParser {
             "main"
         )
 
-        var bestElement: Element? = null
-        var bestScore = 0
+        // Selectors are ordered from most specific to most generic, so the first container with
+        // enough real prose wins; scoring a wrapper such as `main` would keep page furniture.
         for (selector in selectors) {
             for (element in doc.select(selector).take(5)) {
                 if (element.text().length < 200) continue
-                val score = readableScore(element)
-                if (score > bestScore) {
-                    bestScore = score
-                    bestElement = element
-                }
+                if (readableScore(element) < MIN_SELECTOR_SCORE) continue
+                val content = cleanExtractedText(element)
+                if (content.length >= MIN_CONTENT_LENGTH) return content
             }
         }
-
-        var content = if (bestElement != null && bestScore >= MIN_SELECTOR_SCORE) {
-            cleanExtractedText(bestElement!!)
-        } else ""
 
         // Last resort: the densest paragraph container, e.g. pages without semantic wrappers.
-        if (content.length < MIN_CONTENT_LENGTH) {
-            val dense = densestParagraphContainer(doc)
-            if (dense != null && readableScore(dense) > bestScore) {
-                val denseText = cleanExtractedText(dense)
-                if (denseText.length > content.length) content = denseText
-            }
-        }
-
-        return content
+        val dense = densestParagraphContainer(doc)
+        return if (dense != null) cleanExtractedText(dense) else ""
     }
 
     private fun densestParagraphContainer(doc: org.jsoup.nodes.Document): Element? {

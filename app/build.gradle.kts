@@ -102,5 +102,6 @@ dependencies {
     implementation(libs.reorderable)
     implementation(libs.coil.compose)
     implementation(libs.work.runtime.ktx)
+    testImplementation(libs.junit)
     debugImplementation(libs.androidx.ui.tooling)
 }
