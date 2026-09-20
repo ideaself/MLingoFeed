@@ -115,6 +115,9 @@ interface RssDao {
     @Query("UPDATE rss_articles SET isRead = 1 WHERE isRead = 0")
     suspend fun markAllArticlesRead()
 
+    @Query("UPDATE rss_articles SET isRead = 1 WHERE subscriptionId IN (SELECT id FROM rss_subscriptions WHERE folderId = :folderId)")
+    suspend fun markAllAsReadInFolder(folderId: Long)
+
     @Query("DELETE FROM rss_articles WHERE fetchedAt < :timestamp AND isFavorite = 0 AND isRead = 1 AND isSaved = 0")
     suspend fun deleteOldArticles(timestamp: Long)
 

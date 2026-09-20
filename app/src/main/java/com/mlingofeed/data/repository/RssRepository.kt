@@ -232,6 +232,10 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.markAllArticlesRead()
     }
 
+    suspend fun markAllAsReadInFolder(folderId: Long) {
+        rssDao.markAllAsReadInFolder(folderId)
+    }
+
     suspend fun refreshAll(): Int = refreshMutex.withLock {
         coroutineScope {
             val subscriptions = rssDao.getAllSubscriptionsSync().filter { it.isEnabled }

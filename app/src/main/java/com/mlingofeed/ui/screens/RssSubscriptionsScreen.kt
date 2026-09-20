@@ -22,6 +22,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.DeleteSweep
+import androidx.compose.material.icons.filled.DoneAll
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
@@ -81,6 +82,7 @@ fun RssSubscriptionsScreen(
     val totalUnread by vm.totalUnread.collectAsStateWithLifecycle()
     val unreadCounts by vm.unreadCounts.collectAsStateWithLifecycle()
     val subsByFolder = remember(subscriptions) { subscriptions.groupBy { it.folderId } }
+    var markAllReadFolder by remember { mutableStateOf<RssFolder?>(null) }
 
     Scaffold(
         topBar = {
@@ -164,7 +166,8 @@ fun RssSubscriptionsScreen(
                                 subCount = folderSubs.size,
                                 unreadCount = folderUnread,
                                 isExpanded = isExpanded,
-                                onToggle = { vm.toggleFolder(folder.id) }
+                                onToggle = { vm.toggleFolder(folder.id) },
+                                onMarkAllRead = { markAllReadFolder = folder }
                             )
                         }
 
@@ -279,6 +282,27 @@ fun RssSubscriptionsScreen(
         )
     }
 
+    markAllReadFolder?.let { folder ->
+        AlertDialog(
+            onDismissRequest = { markAllReadFolder = null },
+            title = { Text("Mark folder as read?") },
+            text = { Text("Every article in \"${folder.name}\" will be marked as read.") },
+            confirmButton = {
+                TextButton(onClick = {
+                    vm.markFolderAsRead(folder.id)
+                    markAllReadFolder = null
+                }) {
+                    Text("Mark all")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { markAllReadFolder = null }) {
+                    Text("Cancel")
+                }
+            }
+        )
+    }
+
     vm.showDeleteDialog?.let { sub ->
         AlertDialog(
             onDismissRequest = { vm.cancelDelete() },
@@ -366,7 +390,8 @@ private fun FolderHeader(
     subCount: Int,
     unreadCount: Int,
     isExpanded: Boolean,
-    onToggle: () -> Unit
+    onToggle: () -> Unit,
+    onMarkAllRead: () -> Unit
 ) {
     Card(
         modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp).clickable(onClick = onToggle),
@@ -394,6 +419,16 @@ private fun FolderHeader(
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
+            if (subCount > 0) {
+                IconButton(onClick = onMarkAllRead, modifier = Modifier.size(28.dp)) {
+                    Icon(
+                        Icons.Default.DoneAll,
+                        contentDescription = "Mark folder as read",
+                        modifier = Modifier.size(16.dp),
+                        tint = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+            }
             Spacer(modifier = Modifier.width(4.dp))
             Icon(
                 if (isExpanded) Icons.Default.ExpandLess else Icons.Default.ExpandMore,

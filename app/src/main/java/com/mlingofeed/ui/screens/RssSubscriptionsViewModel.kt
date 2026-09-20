@@ -101,4 +101,8 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
     fun toggleFolder(id: Long) {
         expandedFolders = if (id in expandedFolders) expandedFolders - id else expandedFolders + id
     }
+
+    fun markFolderAsRead(folderId: Long) {
+        viewModelScope.launch { repository.markAllAsReadInFolder(folderId) }
+    }
 }
