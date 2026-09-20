@@ -41,6 +41,8 @@ class SettingsManager(private val context: Context) {
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
         val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
+        val READER_TABS = stringPreferencesKey("reader_tabs")
+        val READER_SELECTED_TAB = stringPreferencesKey("reader_selected_tab")
 
         private const val MAX_READING_SESSIONS = 500
         private const val SESSION_RETENTION_DAYS = 60L
@@ -200,6 +202,18 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setReaderBlockImages(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[READER_BLOCK_IMAGES] = enabled.toString() }
+    }
+
+    suspend fun setReaderTabs(tabsJson: String, selectedIndex: Int) {
+        context.dataStore.edit { prefs ->
+            prefs[READER_TABS] = tabsJson
+            prefs[READER_SELECTED_TAB] = selectedIndex.toString()
+        }
+    }
+
+    suspend fun getReaderTabs(): Pair<String, Int> {
+        val prefs = context.dataStore.data.first()
+        return (prefs[READER_TABS] ?: "[]") to (prefs[READER_SELECTED_TAB]?.toIntOrNull() ?: 0)
     }
 
     suspend fun addReadingTime(seconds: Long) {

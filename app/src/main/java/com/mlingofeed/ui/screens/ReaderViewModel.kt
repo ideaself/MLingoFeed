@@ -18,6 +18,7 @@ import com.mlingofeed.webview.prepareTranslationParagraphs
 import com.mlingofeed.webview.updateParagraphTranslation
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.stateIn
@@ -27,6 +28,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
+import org.json.JSONArray
+import org.json.JSONObject
 import java.lang.ref.WeakReference
 
 class ReaderViewModel(
@@ -56,9 +59,65 @@ class ReaderViewModel(
     val currentTab: ReaderTab? get() = tabs.getOrNull(selectedIndex)
 
     fun ensureInitialTab(url: String) {
-        if (tabs.isEmpty()) {
-            tabs.add(ReaderTab(initialUrl = url))
-            selectedIndex = 0
+        if (tabs.isNotEmpty()) return
+        viewModelScope.launch {
+            val restored = loadPersistedTabs()
+            if (restored.isNotEmpty()) {
+                tabs.addAll(restored)
+                val existingIndex = restored.indexOfFirst { it.url == url }
+                selectedIndex = if (existingIndex >= 0) {
+                    existingIndex
+                } else {
+                    tabs.add(ReaderTab(initialUrl = url))
+                    tabs.size - 1
+                }
+            } else {
+                tabs.add(ReaderTab(initialUrl = url))
+                selectedIndex = 0
+            }
+            persistTabs()
+        }
+    }
+
+    private suspend fun loadPersistedTabs(): List<ReaderTab> {
+        return try {
+            val (json, _) = app.settingsManager.getReaderTabs()
+            val array = JSONArray(json)
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                val tabUrl = obj.optString("url")
+                if (tabUrl.isBlank() || tabUrl == "about:blank") {
+                    null
+                } else {
+                    ReaderTab(
+                        initialUrl = tabUrl,
+                        initialTitle = obj.optString("title").ifBlank { "Loading..." }
+                    )
+                }
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }
+
+    private var persistJob: Job? = null
+
+    private fun persistTabs() {
+        persistJob?.cancel()
+        persistJob = viewModelScope.launch {
+            kotlinx.coroutines.delay(400)
+            val array = JSONArray()
+            tabs.forEach { tab ->
+                if (tab.url.isNotBlank() && tab.url != "about:blank") {
+                    array.put(
+                        JSONObject().apply {
+                            put("url", tab.url)
+                            put("title", tab.title)
+                        }
+                    )
+                }
+            }
+            app.settingsManager.setReaderTabs(array.toString(), selectedIndex)
         }
     }
 
@@ -100,11 +159,13 @@ class ReaderViewModel(
 
     fun selectTab(index: Int) {
         selectedIndex = index
+        persistTabs()
     }
 
     fun addTab(url: String) {
         tabs.add(ReaderTab(initialUrl = url))
         selectedIndex = tabs.size - 1
+        persistTabs()
     }
 
     fun closeTab(index: Int) {
@@ -119,6 +180,7 @@ class ReaderViewModel(
         tabs.removeAt(index)
         if (selectedIndex >= tabs.size) selectedIndex = tabs.size - 1
         if (selectedIndex < 0) selectedIndex = 0
+        persistTabs()
     }
 
     fun onPageLoaded(tab: ReaderTab, url: String?, title: String?) {
@@ -135,6 +197,7 @@ class ReaderViewModel(
         recordedUrls[tab.id] = currentUrl
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
+        persistTabs()
     }
 
     /** Restores the saved reading position the first time a bookmarked URL loads in a tab. */
