@@ -15,6 +15,7 @@ import com.mlingofeed.data.work.RssSyncWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -30,6 +31,9 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     var syncEnabled by mutableStateOf(false)
         private set
+
+    val syncIntervalHours = app.settingsManager.rssSyncIntervalHours
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1L)
 
     init {
         viewModelScope.launch { syncEnabled = RssSyncWorker.isScheduled(app) }
@@ -112,13 +116,25 @@ class RssSettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     }
 
     fun scheduleSync(context: Context) {
-        RssSyncWorker.schedule(context)
-        syncEnabled = true
+        viewModelScope.launch {
+            val hours = app.settingsManager.rssSyncIntervalHours.first()
+            RssSyncWorker.schedule(context, hours)
+            syncEnabled = true
+        }
     }
 
     fun cancelSync(context: Context) {
         RssSyncWorker.cancel(context)
         syncEnabled = false
+    }
+
+    fun setSyncInterval(context: Context, hours: Long) {
+        viewModelScope.launch {
+            app.settingsManager.setRssSyncIntervalHours(hours)
+            if (syncEnabled) {
+                RssSyncWorker.schedule(context, hours)
+            }
+        }
     }
 
     fun importOpml(uri: Uri) {

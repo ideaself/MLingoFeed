@@ -2,6 +2,8 @@ package com.mlingofeed.data.repository
 
 import androidx.room.withTransaction
 import com.mlingofeed.data.escapeLikePattern
+import com.mlingofeed.data.api.HttpClient
+import com.mlingofeed.data.api.await
 import com.mlingofeed.data.database.AppDatabase
 import com.mlingofeed.data.database.RssArticle
 import com.mlingofeed.data.database.RssArticleTag
@@ -22,6 +24,9 @@ import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.Semaphore
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.sync.withPermit
+import kotlinx.coroutines.withContext
+import okhttp3.Request
+import org.jsoup.Jsoup
 
 class RssRepository(private val rssDao: RssDao, private val database: AppDatabase) {
     val allSubscriptions: Flow<List<RssSubscription>> = rssDao.getAllSubscriptions()
@@ -90,6 +95,54 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
             }
             subscriptions.size
         }
+    }
+
+    /**
+     * Turns a site URL into a feed URL: keeps feed-looking URLs as-is, otherwise fetches the
+     * page and follows its `<link rel="alternate" type="application/rss+xml">` (or atom/rdf)
+     * advertisement. Falls back to the original URL when discovery fails.
+     */
+    suspend fun resolveFeedUrl(url: String): String {
+        val trimmed = url.trim()
+        if (trimmed.isBlank() || looksLikeFeedUrl(trimmed)) return trimmed
+        return withContext(Dispatchers.IO) {
+            try {
+                val request = Request.Builder()
+                    .url(trimmed)
+                    .header("User-Agent", FEED_DISCOVERY_USER_AGENT)
+                    .build()
+                HttpClient.shared.newCall(request).await().use { response ->
+                    if (!response.isSuccessful) return@withContext trimmed
+                    val body = response.body?.string().orEmpty()
+                    if (body.isBlank()) return@withContext trimmed
+                    val head = body.take(600).lowercase()
+                    if ("<rss" in head || "<feed" in head || "<rdf" in head) return@withContext trimmed
+
+                    val doc = Jsoup.parse(body, trimmed)
+                    val candidates = doc.select(
+                        "link[type=application/rss+xml], link[type=application/atom+xml], link[type=application/rdf+xml]"
+                    )
+                    for (link in candidates) {
+                        val rel = link.attr("rel").lowercase()
+                        if (rel.isNotEmpty() && "alternate" !in rel) continue
+                        val href = link.attr("abs:href")
+                        if (href.isNotBlank()) return@withContext href
+                    }
+                    trimmed
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (_: Exception) {
+                trimmed
+            }
+        }
+    }
+
+    private fun looksLikeFeedUrl(url: String): Boolean {
+        val lower = url.lowercase()
+        return lower.endsWith(".xml") || lower.endsWith(".rss") || lower.endsWith(".atom") ||
+            "/feed" in lower || "/rss" in lower || "/atom" in lower ||
+            "format=rss" in lower || "feed=" in lower
     }
 
     suspend fun deleteSubscription(id: Long) {
@@ -344,6 +397,9 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
     )
 
     companion object {
+        private const val FEED_DISCOVERY_USER_AGENT =
+            "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36"
+
         val DEFAULT_SUBSCRIPTIONS = listOf(
             Triple("Al Jazeera", "https://www.aljazeera.com/Services/Rss/?PostingId=2007731105943979989", "News"),
             Triple("TIME", "https://time.com/feed/", "News"),

@@ -12,6 +12,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.core.content.ContextCompat
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -37,6 +38,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -75,6 +77,7 @@ fun RssSettingsScreen(
     val folders by vm.folders.collectAsStateWithLifecycle()
     val rules by vm.rules.collectAsStateWithLifecycle()
     val syncEnabled = vm.syncEnabled
+    val syncIntervalHours by vm.syncIntervalHours.collectAsStateWithLifecycle()
 
     val importLauncher = rememberLauncherForActivityResult(
         contract = ActivityResultContracts.StartActivityForResult()
@@ -189,7 +192,7 @@ fun RssSettingsScreen(
                         Icon(Icons.Default.Schedule, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
                         Spacer(modifier = Modifier.size(12.dp))
                         Text(
-                            text = if (syncEnabled) "Disable background sync" else "Enable background sync (1 hour)",
+                            text = if (syncEnabled) "Disable background sync" else "Enable background sync (every ${syncIntervalHours}h)",
                             style = MaterialTheme.typography.bodyLarge,
                             modifier = Modifier.weight(1f)
                         )
@@ -200,7 +203,30 @@ fun RssSettingsScreen(
                         )
                     }
                 }
-                Spacer(modifier = Modifier.height(16.dp))
+                Spacer(modifier = Modifier.height(if (syncEnabled) 8.dp else 16.dp))
+            }
+
+            if (syncEnabled) {
+                item {
+                    Column {
+                        Text(
+                            "Sync interval",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                        Spacer(modifier = Modifier.height(4.dp))
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            listOf(1L, 3L, 6L, 12L, 24L).forEach { hours ->
+                                FilterChip(
+                                    selected = syncIntervalHours == hours,
+                                    onClick = { vm.setSyncInterval(context, hours) },
+                                    label = { Text("${hours}h") }
+                                )
+                            }
+                        }
+                    }
+                    Spacer(modifier = Modifier.height(16.dp))
+                }
             }
 
             item {

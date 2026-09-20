@@ -19,7 +19,8 @@ class RssArticlesViewModel(app: WebReaderApp) : ViewModel() {
 
     val subscriptions = repository.allSubscriptions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
-    private var isRefreshing by mutableStateOf(false)
+    var isRefreshing by mutableStateOf(false)
+        private set
     var filterMode by mutableStateOf(ArticleFilterMode.ALL)
         private set
     var showFilterMenu by mutableStateOf(false)

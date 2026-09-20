@@ -37,6 +37,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
@@ -126,54 +127,60 @@ fun RssArticlesScreen(
             )
         }
     ) { padding ->
-        if (articles.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text("No articles yet.\nTap refresh to fetch.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        FilterChip(
-                            selected = vm.filterMode == ArticleFilterMode.ALL,
-                            onClick = { vm.updateFilterMode(ArticleFilterMode.ALL) },
-                            label = { Text("All (${articles.size})") }
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        FilterChip(
-                            selected = vm.filterMode == ArticleFilterMode.UNREAD,
-                            onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) },
-                            label = { Text("Unread ($unreadCount)") }
-                        )
-                        Spacer(modifier = Modifier.size(8.dp))
-                        FilterChip(
-                            selected = vm.filterMode == ArticleFilterMode.FAVORITES,
-                            onClick = { vm.updateFilterMode(ArticleFilterMode.FAVORITES) },
-                            label = { Text("★ ($favoriteCount)") }
-                        )
+        PullToRefreshBox(
+            isRefreshing = vm.isRefreshing,
+            onRefresh = { vm.refresh(subscriptionId) },
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            if (articles.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Text("No articles yet.\nTap refresh to fetch.", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant, modifier = Modifier.padding(horizontal = 16.dp))
                     }
                 }
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
+                ) {
+                    item {
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            FilterChip(
+                                selected = vm.filterMode == ArticleFilterMode.ALL,
+                                onClick = { vm.updateFilterMode(ArticleFilterMode.ALL) },
+                                label = { Text("All (${articles.size})") }
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            FilterChip(
+                                selected = vm.filterMode == ArticleFilterMode.UNREAD,
+                                onClick = { vm.updateFilterMode(ArticleFilterMode.UNREAD) },
+                                label = { Text("Unread ($unreadCount)") }
+                            )
+                            Spacer(modifier = Modifier.size(8.dp))
+                            FilterChip(
+                                selected = vm.filterMode == ArticleFilterMode.FAVORITES,
+                                onClick = { vm.updateFilterMode(ArticleFilterMode.FAVORITES) },
+                                label = { Text("★ ($favoriteCount)") }
+                            )
+                        }
+                    }
 
-                items(filteredArticles, key = { it.id }) { article ->
-                    RssArticleItem(
-                        article = article,
-                        onClick = { onNavigateToArticle(article.id) },
-                        onLongClick = { vm.toggleReadStatus(article.id) },
-                        onToggleFavorite = { vm.toggleFavorite(article.id) }
-                    )
-                    Spacer(modifier = Modifier.height(8.dp))
+                    items(filteredArticles, key = { it.id }) { article ->
+                        RssArticleItem(
+                            article = article,
+                            onClick = { onNavigateToArticle(article.id) },
+                            onLongClick = { vm.toggleReadStatus(article.id) },
+                            onToggleFavorite = { vm.toggleFavorite(article.id) }
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
-                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }

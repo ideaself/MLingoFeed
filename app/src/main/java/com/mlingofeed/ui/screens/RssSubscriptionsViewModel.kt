@@ -43,8 +43,9 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
 
     fun addSubscription(title: String, url: String, folderId: Long?) {
         viewModelScope.launch {
-            val id = repository.addSubscription(title.ifBlank { url }, url, folderId)
-            val articles = RssParser.parse(id, url)
+            val feedUrl = repository.resolveFeedUrl(url)
+            val id = repository.addSubscription(title.ifBlank { feedUrl }, feedUrl, folderId)
+            val articles = RssParser.parse(id, feedUrl)
             repository.insertArticles(articles)
         }
     }
@@ -87,7 +88,7 @@ class RssSubscriptionsViewModel(app: WebReaderApp) : ViewModel() {
 
     fun updateSubscription(sub: RssSubscription, title: String, url: String, folderId: Long?) {
         viewModelScope.launch {
-            val newUrl = url.trim()
+            val newUrl = repository.resolveFeedUrl(url)
             repository.updateSubscription(sub.id, title.trim(), newUrl, folderId)
             if (newUrl != sub.url) {
                 val articles = RssParser.parse(sub.id, newUrl)

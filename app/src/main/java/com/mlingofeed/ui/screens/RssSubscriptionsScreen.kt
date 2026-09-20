@@ -36,13 +36,13 @@ import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.runtime.getValue
@@ -103,64 +103,90 @@ fun RssSubscriptionsScreen(
             )
         }
     ) { padding ->
-        if (vm.isRefreshing) {
-            LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(padding))
-        }
-
-        if (subscriptions.isEmpty() && folders.isEmpty()) {
-            Box(
-                modifier = Modifier.fillMaxSize().padding(padding),
-                contentAlignment = Alignment.Center
-            ) {
-                Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
-                    Spacer(modifier = Modifier.height(16.dp))
-                    Text("No RSS feeds yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(modifier = Modifier.height(8.dp))
-                    Text("Tap + to add your first feed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
-                }
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier.fillMaxSize().padding(padding).padding(horizontal = 16.dp)
-            ) {
-                item {
-                    Row(
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp)
-                    ) {
-                        QuickFilterChip(
-                            label = "Unread ($totalUnread)",
-                            icon = Icons.Default.RssFeed,
-                            onClick = onNavigateToUnread,
-                            modifier = Modifier.weight(1f)
-                        )
-                        QuickFilterChip(
-                            label = "Favorites",
-                            icon = Icons.Default.Bookmark,
-                            onClick = onNavigateToFavorites,
-                            modifier = Modifier.weight(1f)
-                        )
+        PullToRefreshBox(
+            isRefreshing = vm.isRefreshing,
+            onRefresh = { vm.refresh() },
+            modifier = Modifier.fillMaxSize().padding(padding)
+        ) {
+            if (subscriptions.isEmpty() && folders.isEmpty()) {
+                Box(
+                    modifier = Modifier.fillMaxSize(),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                        Icon(Icons.Default.RssFeed, contentDescription = null, modifier = Modifier.size(64.dp), tint = MaterialTheme.colorScheme.primary)
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Text("No RSS feeds yet", style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Spacer(modifier = Modifier.height(8.dp))
+                        Text("Tap + to add your first feed", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.outline)
                     }
                 }
-
-                folders.forEach { folder ->
-                    val folderSubs = subsByFolder[folder.id].orEmpty()
-                    val isExpanded = folder.id in vm.expandedFolders
-                    val folderUnread = folderSubs.sumOf { unreadCounts[it.id] ?: 0 }
-
+            } else {
+                LazyColumn(
+                    modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp)
+                ) {
                     item {
-                        FolderHeader(
-                            folder = folder,
-                            subCount = folderSubs.size,
-                            unreadCount = folderUnread,
-                            isExpanded = isExpanded,
-                            onToggle = { vm.toggleFolder(folder.id) }
-                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp)
+                        ) {
+                            QuickFilterChip(
+                                label = "Unread ($totalUnread)",
+                                icon = Icons.Default.RssFeed,
+                                onClick = onNavigateToUnread,
+                                modifier = Modifier.weight(1f)
+                            )
+                            QuickFilterChip(
+                                label = "Favorites",
+                                icon = Icons.Default.Bookmark,
+                                onClick = onNavigateToFavorites,
+                                modifier = Modifier.weight(1f)
+                            )
+                        }
                     }
 
-                    if (isExpanded) {
-                        items(folderSubs, key = { it.id }) { subscription ->
+                    folders.forEach { folder ->
+                        val folderSubs = subsByFolder[folder.id].orEmpty()
+                        val isExpanded = folder.id in vm.expandedFolders
+                        val folderUnread = folderSubs.sumOf { unreadCounts[it.id] ?: 0 }
+
+                        item {
+                            FolderHeader(
+                                folder = folder,
+                                subCount = folderSubs.size,
+                                unreadCount = folderUnread,
+                                isExpanded = isExpanded,
+                                onToggle = { vm.toggleFolder(folder.id) }
+                            )
+                        }
+
+                        if (isExpanded) {
+                            items(folderSubs, key = { it.id }) { subscription ->
+                                RssSubscriptionItem(
+                                    subscription = subscription,
+                                    unreadCount = unreadCounts[subscription.id] ?: 0,
+                                    onClick = { onNavigateToArticles(subscription.id, subscription.title) },
+                                    onDelete = { vm.requestDelete(subscription) },
+                                    onEdit = { vm.requestEdit(subscription) }
+                                )
+                                Spacer(modifier = Modifier.height(6.dp))
+                            }
+                        }
+                    }
+
+                    val ungroupedSubs = subsByFolder[null].orEmpty()
+                    if (ungroupedSubs.isNotEmpty()) {
+                        if (folders.isNotEmpty()) {
+                            item {
+                                Text(
+                                    "Ungrouped",
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
+                                )
+                            }
+                        }
+                        items(ungroupedSubs, key = { it.id }) { subscription ->
                             RssSubscriptionItem(
                                 subscription = subscription,
                                 unreadCount = unreadCounts[subscription.id] ?: 0,
@@ -171,33 +197,9 @@ fun RssSubscriptionsScreen(
                             Spacer(modifier = Modifier.height(6.dp))
                         }
                     }
-                }
 
-                val ungroupedSubs = subsByFolder[null].orEmpty()
-                if (ungroupedSubs.isNotEmpty()) {
-                    if (folders.isNotEmpty()) {
-                        item {
-                            Text(
-                                "Ungrouped",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(top = 8.dp, bottom = 4.dp)
-                            )
-                        }
-                    }
-                    items(ungroupedSubs, key = { it.id }) { subscription ->
-                        RssSubscriptionItem(
-                            subscription = subscription,
-                            unreadCount = unreadCounts[subscription.id] ?: 0,
-                            onClick = { onNavigateToArticles(subscription.id, subscription.title) },
-                            onDelete = { vm.requestDelete(subscription) },
-                            onEdit = { vm.requestEdit(subscription) }
-                        )
-                        Spacer(modifier = Modifier.height(6.dp))
-                    }
+                    item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
-
-                item { Spacer(modifier = Modifier.height(80.dp)) }
             }
         }
     }
@@ -223,7 +225,7 @@ fun RssSubscriptionsScreen(
                     OutlinedTextField(
                         value = rssUrl,
                         onValueChange = { rssUrl = it },
-                        label = { Text("RSS URL") },
+                        label = { Text("RSS or site URL") },
                         modifier = Modifier.fillMaxWidth(),
                         singleLine = true
                     )
