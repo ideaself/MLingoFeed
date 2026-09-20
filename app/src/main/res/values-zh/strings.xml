@@ -310,4 +310,6 @@
     <string name="dark_web_off">网页夜间模式:关</string>
     <string name="tts_speed">朗读语速</string>
     <string name="tts_voice">朗读发音</string>
+    <string name="link_options">链接</string>
+    <string name="open_in_new_tab">在新标签页打开</string>
 </resources>

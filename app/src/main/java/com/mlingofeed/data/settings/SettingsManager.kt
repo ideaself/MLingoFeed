@@ -40,6 +40,7 @@ class SettingsManager(private val context: Context) {
         val WORD_REVIEW_REMINDER = stringPreferencesKey("word_review_reminder")
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
         val THEME_COLOR = stringPreferencesKey("theme_color")
+        val CHAT_HISTORY = stringPreferencesKey("chat_history")
         val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
         val READER_LINE_HEIGHT = stringPreferencesKey("reader_line_height")
@@ -316,6 +317,36 @@ class SettingsManager(private val context: Context) {
             sessions.add("${System.currentTimeMillis()}:$durationSeconds")
             prefs[READING_SESSIONS] = JSONArray(sessions).toString()
         }
+    }
+
+    val chatHistory: Flow<List<Pair<String, String>>> = context.dataStore.data.map { prefs ->
+        try {
+            val array = JSONArray(prefs[CHAT_HISTORY] ?: "[]")
+            (0 until array.length()).mapNotNull { i ->
+                val obj = array.optJSONObject(i) ?: return@mapNotNull null
+                obj.optString("role") to obj.optString("content")
+            }
+        } catch (_: Exception) {
+            emptyList()
+        }
+    }.flowOn(Dispatchers.Default)
+
+    suspend fun appendChatMessage(role: String, content: String) {
+        context.dataStore.edit { prefs ->
+            val array = try { JSONArray(prefs[CHAT_HISTORY] ?: "[]") } catch (_: Exception) { JSONArray() }
+            array.put(JSONObject().apply {
+                put("role", role)
+                put("content", content)
+            })
+            while (array.length() > 60) {
+                array.remove(0)
+            }
+            prefs[CHAT_HISTORY] = array.toString()
+        }
+    }
+
+    suspend fun clearChatHistory() {
+        context.dataStore.edit { prefs -> prefs[CHAT_HISTORY] = "[]" }
     }
 
     val readingSessions: Flow<List<Pair<Long, Long>>> = context.dataStore.data.map { prefs ->

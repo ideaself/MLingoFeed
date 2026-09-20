@@ -52,6 +52,7 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.api.ChatMessage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.util.concurrent.atomic.AtomicLong
@@ -87,6 +88,14 @@ fun ChatDialog(
     val messages = remember { mutableStateListOf<ChatMessageItem>() }
     var isLoading by remember { mutableStateOf(false) }
 
+    LaunchedEffect(Unit) {
+        if (messages.isEmpty()) {
+            app.settingsManager.chatHistory.first().forEach { (role, content) ->
+                messages.add(ChatMessageItem(role = role, content = content))
+            }
+        }
+    }
+
     val apiUrl by app.settingsManager.aiApiUrl.collectAsStateWithLifecycle(initialValue = "")
     val apiKey by app.settingsManager.aiApiKey.collectAsStateWithLifecycle(initialValue = "")
     val model by app.settingsManager.aiModel.collectAsStateWithLifecycle(initialValue = "")
@@ -115,6 +124,7 @@ fun ChatDialog(
         if (text.isEmpty() || isLoading) return
 
         messages.add(ChatMessageItem(role = "user", content = text))
+        app.applicationScope.launch { app.settingsManager.appendChatMessage("user", text) }
         inputText = ""
         isLoading = true
 
@@ -143,12 +153,13 @@ fun ChatDialog(
                 }
 
                 messages.add(ChatMessageItem(role = "assistant", content = response))
+                app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", response) }
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                messages.add(
-                    ChatMessageItem(role = "assistant", content = "Error: ${e.message}")
-                )
+                val errorText = "Error: ${e.message}"
+                messages.add(ChatMessageItem(role = "assistant", content = errorText))
+                app.applicationScope.launch { app.settingsManager.appendChatMessage("assistant", errorText) }
             } finally {
                 isLoading = false
             }
@@ -182,6 +193,7 @@ fun ChatDialog(
                     Row {
                         TextButton(onClick = {
                             messages.clear()
+                            scope.launch { app.settingsManager.clearChatHistory() }
                         }) {
                             Text(stringResource(R.string.clear))
                         }

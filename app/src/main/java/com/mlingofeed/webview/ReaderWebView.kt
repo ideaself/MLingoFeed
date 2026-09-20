@@ -18,7 +18,8 @@ fun createReaderWebView(
     onSentenceLongPressed: (String) -> Unit,
     onPageFinished: (url: String?, title: String?) -> Unit,
     onPageStarted: () -> Unit = {},
-    selectionEnabled: () -> Boolean = { true }
+    selectionEnabled: () -> Boolean = { true },
+    onLinkLongPressed: (String) -> Unit = {}
 ): WebView {
     return WebView(context).apply {
         settings.javaScriptEnabled = true
@@ -52,6 +53,17 @@ fun createReaderWebView(
         }
 
         webChromeClient = WebChromeClient()
+
+        setOnLongClickListener { view ->
+            val result = (view as? WebView)?.hitTestResult
+            val url = result?.extra
+            if (result?.type == WebView.HitTestResult.SRC_ANCHOR_TYPE && !url.isNullOrBlank()) {
+                onLinkLongPressed(url)
+                true
+            } else {
+                false
+            }
+        }
     }
 }
 
@@ -154,6 +166,8 @@ fun injectSelectionScript(webView: WebView?) {
                     longPressTimer = setTimeout(function() {
                         isLongPress = true;
                         clearNativeSelection();
+                        var pointed = document.elementFromPoint(touchStartX, touchStartY);
+                        if (pointed && pointed.closest && pointed.closest('a')) return;
                         var result = getWordAtPoint(touchStartX, touchStartY);
                         if (result && result.sentence) {
                             Android.onSentenceSelected(result.sentence);

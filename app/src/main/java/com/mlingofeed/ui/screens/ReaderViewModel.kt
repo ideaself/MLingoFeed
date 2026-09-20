@@ -153,6 +153,8 @@ class ReaderViewModel(
     private var currentSentences: List<String> = emptyList()
     var isSpeaking by mutableStateOf(false)
         private set
+    var linkMenuUrl by mutableStateOf<String?>(null)
+        private set
 
     /**
      * Called with the current Activity. WebViews are bound to the Activity that created them, so
@@ -333,6 +335,21 @@ class ReaderViewModel(
             app.settingsManager.setReaderSerifFont(enabled)
             currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled, darkWeb.value) }
         }
+    }
+
+    fun showLinkMenu(url: String) {
+        if (url.isNotBlank()) {
+            linkMenuUrl = url
+        }
+    }
+
+    fun dismissLinkMenu() {
+        linkMenuUrl = null
+    }
+
+    fun openLinkInNewTab(url: String) {
+        linkMenuUrl = null
+        addTab(url)
     }
 
     fun setDarkWeb(enabled: Boolean) {

@@ -30,7 +30,9 @@ import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.filled.Search
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -40,6 +42,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -54,7 +57,9 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.viewinterop.AndroidView
@@ -87,6 +92,7 @@ fun ReaderScreen(
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: ReaderViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
+    val clipboardManager = LocalClipboardManager.current
     LaunchedEffect(initialUrl) { vm.ensureInitialTab(initialUrl) }
     LaunchedEffect(context) { vm.attachHost(context) }
 
@@ -402,7 +408,8 @@ fun ReaderScreen(
                 selectionEnabled = { vm.wordSelectionEnabled },
                 onWordTapped = { word, sentence -> if (vm.wordSelectionEnabled) vm.openDictionary(word, sentence) },
                 onSentenceLongPressed = { vm.openTranslation(it) },
-                onPageFinished = { url, title -> vm.onPageLoaded(tab, url, title) }
+                onPageFinished = { url, title -> vm.onPageLoaded(tab, url, title) },
+                onLinkLongPressed = { url -> vm.showLinkMenu(url) }
             )
             wv.setFindListener { total, _, _ -> findMatches = total }
             tab.webView = wv
@@ -441,6 +448,38 @@ fun ReaderScreen(
     }
     if (vm.showChat) {
         ChatDialog(initialContext = vm.selectedSentence.ifEmpty { vm.selectedWord }, onDismiss = { vm.dismissChat() })
+    }
+    vm.linkMenuUrl?.let { url ->
+        AlertDialog(
+            onDismissRequest = { vm.dismissLinkMenu() },
+            title = { Text(stringResource(R.string.link_options)) },
+            text = {
+                Text(
+                    text = url,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = { vm.openLinkInNewTab(url) }) {
+                    Text(stringResource(R.string.open_in_new_tab))
+                }
+            },
+            dismissButton = {
+                Row {
+                    TextButton(onClick = {
+                        clipboardManager.setText(AnnotatedString(url))
+                        vm.dismissLinkMenu()
+                    }) {
+                        Text(stringResource(R.string.copy_link))
+                    }
+                    TextButton(onClick = { vm.dismissLinkMenu() }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                }
+            }
+        )
     }
 }
 
