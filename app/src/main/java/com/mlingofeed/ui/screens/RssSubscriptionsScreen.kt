@@ -63,12 +63,19 @@ import com.mlingofeed.data.database.RssFolder
 import com.mlingofeed.data.database.RssSubscription
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.foundation.layout.consumeWindowInsets
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.material3.VerticalDivider
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.platform.LocalConfiguration
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RssSubscriptionsScreen(
     onBack: () -> Unit,
     onNavigateToArticles: (Long, String) -> Unit,
+    onNavigateToArticleDetail: (Long) -> Unit,
     onNavigateToSearch: () -> Unit,
     onNavigateToFavorites: () -> Unit,
     onNavigateToUnread: () -> Unit,
@@ -85,6 +92,16 @@ fun RssSubscriptionsScreen(
     val unreadCounts by vm.unreadCounts.collectAsStateWithLifecycle()
     val subsByFolder = remember(subscriptions) { subscriptions.groupBy { it.folderId } }
     var markAllReadFolder by remember { mutableStateOf<RssFolder?>(null) }
+
+    val configuration = LocalConfiguration.current
+    val isWide = configuration.screenWidthDp >= 720
+    var selectedSubscriptionId by rememberSaveable { mutableStateOf<Long?>(null) }
+
+    LaunchedEffect(isWide, subscriptions) {
+        if (isWide && selectedSubscriptionId == null && subscriptions.isNotEmpty()) {
+            selectedSubscriptionId = subscriptions.first().id
+        }
+    }
 
     Scaffold(
         topBar = {
@@ -109,10 +126,11 @@ fun RssSubscriptionsScreen(
             )
         }
     ) { padding ->
+        val paneContent: @Composable (Modifier, (RssSubscription) -> Unit) -> Unit = { paneModifier, onSubscriptionClick ->
         PullToRefreshBox(
             isRefreshing = vm.isRefreshing,
             onRefresh = { vm.refresh() },
-            modifier = Modifier.fillMaxSize().padding(padding)
+            modifier = paneModifier
         ) {
             if (subscriptions.isEmpty() && folders.isEmpty()) {
                 Box(
@@ -178,7 +196,7 @@ fun RssSubscriptionsScreen(
                                 RssSubscriptionItem(
                                     subscription = subscription,
                                     unreadCount = unreadCounts[subscription.id] ?: 0,
-                                    onClick = { onNavigateToArticles(subscription.id, subscription.title) },
+                                    onClick = { onSubscriptionClick(subscription) },
                                     onDelete = { vm.requestDelete(subscription) },
                                     onEdit = { vm.requestEdit(subscription) }
                                 )
@@ -203,7 +221,7 @@ fun RssSubscriptionsScreen(
                             RssSubscriptionItem(
                                 subscription = subscription,
                                 unreadCount = unreadCounts[subscription.id] ?: 0,
-                                onClick = { onNavigateToArticles(subscription.id, subscription.title) },
+                                onClick = { onSubscriptionClick(subscription) },
                                 onDelete = { vm.requestDelete(subscription) },
                                 onEdit = { vm.requestEdit(subscription) }
                             )
@@ -213,6 +231,42 @@ fun RssSubscriptionsScreen(
 
                     item { Spacer(modifier = Modifier.height(80.dp)) }
                 }
+            }
+        }
+        }
+        if (isWide) {
+            Row(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .consumeWindowInsets(padding)
+            ) {
+                paneContent(Modifier.weight(0.85f).fillMaxHeight()) { subscription ->
+                    selectedSubscriptionId = subscription.id
+                }
+                VerticalDivider()
+                Box(modifier = Modifier.weight(1.4f).fillMaxHeight()) {
+                    val selected = subscriptions.find { it.id == selectedSubscriptionId }
+                    if (selected != null) {
+                        RssArticlesScreen(
+                            subscriptionId = selected.id,
+                            subscriptionTitle = selected.title,
+                            onBack = {},
+                            onNavigateToArticle = onNavigateToArticleDetail,
+                            embedded = true
+                        )
+                    } else {
+                        Text(
+                            text = stringResource(R.string.select_a_feed),
+                            modifier = Modifier.align(Alignment.Center),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                }
+            }
+        } else {
+            paneContent(Modifier.fillMaxSize().padding(padding)) { subscription ->
+                onNavigateToArticles(subscription.id, subscription.title)
             }
         }
     }

@@ -67,7 +67,7 @@ fun RssArticlesScreen(
     subscriptionTitle: String,
     onBack: () -> Unit,
     onNavigateToArticle: (Long) -> Unit,
-    onNavigateToReader: (String) -> Unit
+    embedded: Boolean = false
 ) {
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
@@ -84,8 +84,10 @@ fun RssArticlesScreen(
             TopAppBar(
                 title = { Text(subscriptionTitle, maxLines = 1, overflow = TextOverflow.Ellipsis) },
                 navigationIcon = {
-                    IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                    if (!embedded) {
+                        IconButton(onClick = onBack) {
+                            Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = stringResource(R.string.back))
+                        }
                     }
                 },
                 actions = {

@@ -150,6 +150,9 @@ fun WebReaderNavHost(
                 onNavigateToArticles = { id, title ->
                     navController.navigate(Screen.RssArticles.createRoute(id, title))
                 },
+                onNavigateToArticleDetail = { articleId ->
+                    navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
+                },
                 onNavigateToSearch = {
                     navController.navigate(Screen.RssSearch.route)
                 },
@@ -182,9 +185,6 @@ fun WebReaderNavHost(
                 onBack = { navController.popBackStack() },
                 onNavigateToArticle = { articleId ->
                     navController.navigate(Screen.RssArticleDetail.createRoute(articleId))
-                },
-                onNavigateToReader = { url ->
-                    navController.navigate(Screen.Reader.createRoute(url))
                 }
             )
         }
