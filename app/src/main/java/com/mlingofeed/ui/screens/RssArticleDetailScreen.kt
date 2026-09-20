@@ -82,6 +82,8 @@ import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material3.HorizontalDivider
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -144,31 +146,6 @@ fun RssArticleDetailScreen(
                                 Icon(Icons.Default.Translate, contentDescription = stringResource(R.string.translate_all))
                             }
                         }
-                        IconButton(onClick = {
-                            vm.article?.let { a ->
-                                val shareText = "${a.title}\n\n${a.link}"
-                                val shareIntent = android.content.Intent().apply {
-                                    action = android.content.Intent.ACTION_SEND
-                                    putExtra(android.content.Intent.EXTRA_TEXT, shareText)
-                                    type = "text/plain"
-                                }
-                                context.startActivity(android.content.Intent.createChooser(shareIntent, "Share article"))
-                            }
-                        }) {
-                            Icon(Icons.Default.Share, contentDescription = stringResource(R.string.share))
-                        }
-                        IconButton(onClick = {
-                            vm.article?.let { onOpenExternal(it.link) }
-                        }) {
-                            Icon(Icons.Default.OpenInBrowser, contentDescription = stringResource(R.string.open_in_browser))
-                        }
-                        IconButton(onClick = {
-                            vm.article?.let { a ->
-                                clipboardManager.setText(AnnotatedString(a.link))
-                            }
-                        }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy_link))
-                        }
                         IconButton(onClick = { vm.toggleSaved(articleId) }) {
                             Icon(
                                 imageVector = Icons.Default.Schedule,
@@ -178,14 +155,50 @@ fun RssArticleDetailScreen(
                         }
                         Box {
                             IconButton(onClick = { showAiMenu = true }) {
-                                Icon(Icons.Default.AutoAwesome, contentDescription = stringResource(R.string.ai_tools))
+                                Icon(Icons.Default.MoreVert, contentDescription = stringResource(R.string.more_options))
                             }
                             DropdownMenu(
                                 expanded = showAiMenu,
                                 onDismissRequest = { showAiMenu = false }
                             ) {
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.share)) },
+                                    leadingIcon = { Icon(Icons.Default.Share, contentDescription = null) },
+                                    onClick = {
+                                        showAiMenu = false
+                                        vm.article?.let { a ->
+                                            val shareText = "${a.title}\n\n${a.link}"
+                                            val shareIntent = android.content.Intent().apply {
+                                                action = android.content.Intent.ACTION_SEND
+                                                putExtra(android.content.Intent.EXTRA_TEXT, shareText)
+                                                type = "text/plain"
+                                            }
+                                            context.startActivity(android.content.Intent.createChooser(shareIntent, "Share article"))
+                                        }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.open_in_browser)) },
+                                    leadingIcon = { Icon(Icons.Default.OpenInBrowser, contentDescription = null) },
+                                    onClick = {
+                                        showAiMenu = false
+                                        vm.article?.let { onOpenExternal(it.link) }
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.copy_link)) },
+                                    leadingIcon = { Icon(Icons.Default.ContentCopy, contentDescription = null) },
+                                    onClick = {
+                                        showAiMenu = false
+                                        vm.article?.let { a ->
+                                            clipboardManager.setText(AnnotatedString(a.link))
+                                        }
+                                    }
+                                )
+                                HorizontalDivider()
+                                DropdownMenuItem(
                                     text = { Text(stringResource(R.string.analyze_difficulty)) },
+                                    leadingIcon = { Icon(Icons.Default.AutoAwesome, contentDescription = null) },
                                     onClick = {
                                         showAiMenu = false
                                         vm.analyzeDifficulty()
@@ -617,7 +630,7 @@ private fun extractSentenceAtOffset(text: String, offset: Int): String {
 }
 
 private val PUB_DATE_FORMATTER: DateTimeFormatter =
-    DateTimeFormatter.ofPattern("MMM dd, yyyy 'at' HH:mm", Locale.getDefault())
+    DateTimeFormatter.ofPattern("MMM dd, yyyy HH:mm", Locale.getDefault())
 
 private fun formatPubDate(timestamp: Long): String {
     if (timestamp == 0L) return ""

@@ -29,6 +29,7 @@ object RssParser {
     private const val BROWSER_UA = "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36"
 
     private val WHITESPACE_REGEX = Regex("\\n{3,}")
+    private val LIST_MARKER_REGEX = Regex("(?i)^list\\s+\\d+\\s+of\\s+\\d+")
 
     private val DATE_FORMATTERS = listOf(
         DateTimeFormatter.RFC_1123_DATE_TIME,
@@ -109,7 +110,10 @@ object RssParser {
             }
             val doc = Jsoup.parse(body)
 
-            doc.select("script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, .comments, noscript").remove()
+            doc.select(
+                "script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, " +
+                    ".comments, noscript, [class*='related'], [class*='recommend'], [class*='promo']"
+            ).remove()
 
             val content = extractMainContent(doc)
             if (content.length > 200) {
@@ -175,11 +179,24 @@ object RssParser {
     }
 
     private fun cleanExtractedText(element: Element): String {
-        element.select("script, style, iframe, .ad, .advertisement, .social-share, .related-articles, .newsletter-signup, noscript").remove()
+        element.select(
+            "script, style, iframe, nav, aside, .ad, .advertisement, .social-share, " +
+                ".related-articles, .newsletter-signup, noscript, " +
+                "[class*='related'], [class*='recommend'], [class*='promo'], [class*='read-more']"
+        ).remove()
         return element.select("p, h1, h2, h3, h4, li")
-            .joinToString("\n\n") { it.text() }
+            .map { it.text().trim() }
+            .filter { isReadableParagraph(it) }
+            .joinToString("\n\n")
             .replace(WHITESPACE_REGEX, "\n\n")
             .trim()
+    }
+
+    /** Keeps real prose and drops short page furniture such as "Save", "Share" or "Follow us". */
+    private fun isReadableParagraph(text: String): Boolean {
+        if (LIST_MARKER_REGEX.containsMatchIn(text)) return false
+        if (text.length >= 25) return true
+        return text.split(Regex("\\s+")).count { it.isNotBlank() } >= 4
     }
 
     private fun extractLink(item: Element): String {
