@@ -30,6 +30,44 @@ object RssParser {
 
     private val WHITESPACE_REGEX = Regex("\\n{3,}")
     private val LIST_MARKER_REGEX = Regex("(?i)^list\\s+\\d+\\s+of\\s+\\d+")
+    private val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
+
+    /** Below this the extraction is treated as failed and the page description is used instead. */
+    private const val MIN_CONTENT_LENGTH = 200
+    private const val MIN_DESCRIPTION_LENGTH = 60
+    private const val MIN_SELECTOR_SCORE = 300
+
+    /** Page furniture that must never end up in the article body. */
+    private const val CHROME_SELECTOR =
+        "script, style, noscript, iframe, form, button, input, select, textarea, svg, dialog, video, audio, " +
+            "nav, header, footer, aside, [hidden], .hidden, .u-hidden, [aria-hidden=true], " +
+            "[data-component*=related], [data-component*=promo], [data-testid=metadata], [data-block=links]"
+
+    /**
+     * Class/id names that always belong to page furniture (ads, share widgets, comment sections, ...).
+     * Lookarounds keep real words such as "commentary" or "padding" from matching.
+     */
+    private val CHROME_NAME_REGEX = Regex(
+        "(?<![A-Za-z])(?i:advert|advertis|sponsor|social|share|shared|comment|related|recommend|promo|" +
+            "newsletter|subscribe|signup|sign-up|popup|modal|cookie|breadcrumb|sidebar|widget|toolbar|" +
+            "trending|most-read|read-more|reading-list|skip-link|follow|personaliz|banner)(?![a-z])"
+    )
+
+    /** Short lines that are metadata or social widgets rather than prose. */
+    private val CHROME_LINE_REGEX = Regex(
+        "(?i)^(published|updated|advertisement|sponsored|read more|watch more|follow us|sign up|subscribe|" +
+            "most read|trending)\\b.*|^\\d+\\s*(min|mins|minute|minutes|hour|hours|day|days)\\s+(read|ago)$|" +
+            "^why follow\\?$|^follow this (section|tag|topic)\\b.*|^go to your personalized feed$|" +
+            "^custom feed:.*|^smart alerts:.*|^update your preferences.*"
+    )
+
+    private const val CONTENT_ELEMENTS = "p, h2, h3, h4, li, blockquote"
+
+    private val DESCRIPTION_SELECTORS = listOf(
+        "meta[name=description]",
+        "meta[property=og:description]",
+        "meta[name=twitter:description]"
+    )
 
     private val DATE_FORMATTERS = listOf(
         DateTimeFormatter.RFC_1123_DATE_TIME,
@@ -109,18 +147,17 @@ object RssParser {
                 response.body?.string() ?: return@withContext ""
             }
             val doc = Jsoup.parse(body)
-
-            doc.select(
-                "script, style, nav, header, footer, aside, .ad, .advertisement, .social-share, " +
-                    ".comments, noscript, [class*='related'], [class*='recommend'], [class*='promo']"
-            ).remove()
+            stripPageChrome(doc)
 
             val content = extractMainContent(doc)
-            if (content.length > 200) {
+            if (content.length >= MIN_CONTENT_LENGTH) {
                 return@withContext content
             }
 
-            doc.body()?.text() ?: ""
+            // Video pages and galleries often have no body at all; their social/meta description
+            // is real prose and beats returning leftover page furniture.
+            val description = extractDescription(doc)
+            if (description.length >= MIN_DESCRIPTION_LENGTH) description else content
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
@@ -135,56 +172,106 @@ object RssParser {
         return Parser.unescapeEntities(Parser.unescapeEntities(plain, false), false)
     }
 
+    /** Removes navigation, ads, share and comment widgets so the extraction only sees the article. */
+    private fun stripPageChrome(doc: org.jsoup.nodes.Document) {
+        for (element in doc.allElements) {
+            if (element === doc || element.tagName() == "html" || element.tagName() == "body") continue
+            val className = element.className()
+            if (className.isNotEmpty() && CHROME_NAME_REGEX.containsMatchIn(className)) {
+                element.remove()
+                continue
+            }
+            val id = element.id()
+            if (id.isNotEmpty() && CHROME_NAME_REGEX.containsMatchIn(id)) {
+                element.remove()
+            }
+        }
+        doc.select(CHROME_SELECTOR).remove()
+    }
+
     private fun extractMainContent(doc: org.jsoup.nodes.Document): String {
         val selectors = listOf(
-            "article",
-            "[role='main']",
-            "main",
-            ".post-content",
+            "[itemprop=articleBody]",
+            "[data-article-body]",
+            "[data-component=text-block]",
+            ".wysiwyg--all-content",
+            ".wysiwyg",
+            ".article-body",
+            ".article__body",
+            ".article-body-content",
+            ".story-body",
+            ".story-content",
             ".article-content",
             ".entry-content",
-            ".content-body",
-            ".story-body",
-            "#content-body",
+            ".post-content",
             ".post-body",
-            ".article-body",
-            ".story-content"
+            ".content-body",
+            "#content-body",
+            ".article-text",
+            ".body-content",
+            ".RichTextStoryBody",
+            ".text-block-container",
+            "article",
+            "[role='main']",
+            "main"
         )
 
-        for (selector in selectors) {
-            val element = doc.selectFirst(selector)
-            if (element != null && element.text().length > 200) {
-                return cleanExtractedText(element)
-            }
-        }
-
         var bestElement: Element? = null
-        var maxTextLength = 0
-        val parentTextLengths = HashMap<Element, Int>()
-        val paragraphs = doc.select("p")
-        for (p in paragraphs) {
-            val parent = p.parent() ?: continue
-            val textLength = parentTextLengths.getOrPut(parent) { parent.text().length }
-            if (textLength > maxTextLength && textLength > 200) {
-                maxTextLength = textLength
-                bestElement = parent
+        var bestScore = 0
+        for (selector in selectors) {
+            for (element in doc.select(selector).take(5)) {
+                if (element.text().length < 200) continue
+                val score = readableScore(element)
+                if (score > bestScore) {
+                    bestScore = score
+                    bestElement = element
+                }
             }
         }
 
-        if (bestElement != null) {
-            return cleanExtractedText(bestElement)
+        var content = if (bestElement != null && bestScore >= MIN_SELECTOR_SCORE) {
+            cleanExtractedText(bestElement!!)
+        } else ""
+
+        // Last resort: the densest paragraph container, e.g. pages without semantic wrappers.
+        if (content.length < MIN_CONTENT_LENGTH) {
+            val dense = densestParagraphContainer(doc)
+            if (dense != null && readableScore(dense) > bestScore) {
+                val denseText = cleanExtractedText(dense)
+                if (denseText.length > content.length) content = denseText
+            }
         }
 
-        return paragraphs.joinToString("\n\n") { it.text() }
+        return content
+    }
+
+    private fun densestParagraphContainer(doc: org.jsoup.nodes.Document): Element? {
+        var best: Element? = null
+        var bestScore = 0
+        val scores = HashMap<Element, Int>()
+        for (paragraph in doc.select("p")) {
+            val parent = paragraph.parent() ?: continue
+            val score = scores.getOrPut(parent) { readableScore(parent) }
+            if (score > bestScore) {
+                bestScore = score
+                best = parent
+            }
+        }
+        return best
+    }
+
+    /** Total length of the readable paragraphs inside [element]; used to pick the real article. */
+    private fun readableScore(element: Element): Int {
+        var total = 0
+        for (paragraph in element.select(CONTENT_ELEMENTS)) {
+            val text = paragraph.text().trim()
+            if (isReadableParagraph(text)) total += text.length.coerceAtMost(200)
+        }
+        return total
     }
 
     private fun cleanExtractedText(element: Element): String {
-        element.select(
-            "script, style, iframe, nav, aside, .ad, .advertisement, .social-share, " +
-                ".related-articles, .newsletter-signup, noscript, " +
-                "[class*='related'], [class*='recommend'], [class*='promo'], [class*='read-more']"
-        ).remove()
-        return element.select("p, h1, h2, h3, h4, li")
+        return element.select(CONTENT_ELEMENTS)
             .map { it.text().trim() }
             .filter { isReadableParagraph(it) }
             .joinToString("\n\n")
@@ -195,8 +282,18 @@ object RssParser {
     /** Keeps real prose and drops short page furniture such as "Save", "Share" or "Follow us". */
     private fun isReadableParagraph(text: String): Boolean {
         if (LIST_MARKER_REGEX.containsMatchIn(text)) return false
+        if (text.length < 80 && CHROME_LINE_REGEX.containsMatchIn(text)) return false
         if (text.length >= 25) return true
-        return text.split(Regex("\\s+")).count { it.isNotBlank() } >= 4
+        return text.split(WHITESPACE_SPLIT_REGEX).count { it.isNotBlank() } >= 4
+    }
+
+    private fun extractDescription(doc: org.jsoup.nodes.Document): String {
+        for (selector in DESCRIPTION_SELECTORS) {
+            val meta = doc.selectFirst(selector) ?: continue
+            val content = meta.attr("content").trim()
+            if (content.isNotEmpty()) return content
+        }
+        return ""
     }
 
     private fun extractLink(item: Element): String {
