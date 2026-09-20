@@ -26,6 +26,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val fontSize = app.settingsManager.fontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 100)
     val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 17f)
     val themeMode = app.settingsManager.themeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "system")
+    val themeColor = app.settingsManager.themeColor.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "dynamic")
     val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
     val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val wordReminderEnabled = app.settingsManager.wordReviewReminderEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
@@ -130,6 +131,10 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun setThemeMode(mode: String) {
         viewModelScope.launch { app.settingsManager.setThemeMode(mode) }
+    }
+
+    fun setThemeColor(color: String) {
+        viewModelScope.launch { app.settingsManager.setThemeColor(color) }
     }
 
     fun setFontSize(size: Int) {

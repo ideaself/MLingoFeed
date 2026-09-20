@@ -39,6 +39,7 @@ class SettingsManager(private val context: Context) {
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
         val WORD_REVIEW_REMINDER = stringPreferencesKey("word_review_reminder")
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
+        val THEME_COLOR = stringPreferencesKey("theme_color")
         val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
         val READER_LINE_HEIGHT = stringPreferencesKey("reader_line_height")
@@ -132,6 +133,10 @@ class SettingsManager(private val context: Context) {
         prefs[THEME_MODE] ?: "system"
     }
 
+    val themeColor: Flow<String> = context.dataStore.data.map { prefs ->
+        prefs[THEME_COLOR] ?: "dynamic"
+    }
+
     val readingTimeSeconds: Flow<Long> = context.dataStore.data.map { prefs ->
         prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
     }
@@ -201,6 +206,10 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { prefs -> prefs[THEME_MODE] = mode }
+    }
+
+    suspend fun setThemeColor(color: String) {
+        context.dataStore.edit { prefs -> prefs[THEME_COLOR] = color }
     }
 
     suspend fun setWordReviewReminderEnabled(enabled: Boolean) {
@@ -307,8 +316,7 @@ class SettingsManager(private val context: Context) {
             "rss_font_size" to (prefs[RSS_FONT_SIZE]?.toString() ?: "17"),
             "theme_mode" to (prefs[THEME_MODE] ?: "system"),
             "reading_time_seconds" to (prefs[READING_TIME_SECONDS]?.toString() ?: "0")
-        )
-    }
+        )    }
 
     /** Settings that are safe to write to an export file: the AI key is deliberately excluded. */
     suspend fun getExportableSettings(): Map<String, String> =

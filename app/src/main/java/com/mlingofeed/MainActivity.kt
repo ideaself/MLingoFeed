@@ -34,7 +34,8 @@ class MainActivity : ComponentActivity() {
             val context = LocalContext.current
             val app = context.applicationContext as WebReaderApp
             val themeMode by app.settingsManager.themeMode.collectAsStateWithLifecycle(initialValue = "system")
-            WebReaderTheme(themeMode = themeMode) {
+            val themeColor by app.settingsManager.themeColor.collectAsStateWithLifecycle(initialValue = "dynamic")
+            WebReaderTheme(themeMode = themeMode, themeColor = themeColor) {
                 Surface(
                     modifier = Modifier.fillMaxSize(),
                     color = MaterialTheme.colorScheme.background

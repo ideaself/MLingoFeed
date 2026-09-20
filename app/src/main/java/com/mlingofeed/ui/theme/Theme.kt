@@ -42,6 +42,7 @@ fun WebReaderTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     dynamicColor: Boolean = true,
     themeMode: String = "system",
+    themeColor: String = "dynamic",
     content: @Composable () -> Unit
 ) {
     val colorScheme = when (themeMode) {
@@ -66,8 +67,22 @@ fun WebReaderTheme(
         }
     }
 
+    val isDark = when (themeMode) {
+        "dark" -> true
+        "light", "eyecare" -> false
+        else -> darkTheme
+    }
+    val finalScheme = AccentPalettes[themeColor]?.let { palette ->
+        colorScheme.copy(
+            primary = if (isDark) palette.dark else palette.light,
+            onPrimary = if (isDark) palette.onDark else palette.onLight,
+            primaryContainer = if (isDark) palette.darkContainer else palette.lightContainer,
+            onPrimaryContainer = if (isDark) palette.onDarkContainer else palette.onLightContainer
+        )
+    } ?: colorScheme
+
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = finalScheme,
         typography = Typography,
         content = content
     )

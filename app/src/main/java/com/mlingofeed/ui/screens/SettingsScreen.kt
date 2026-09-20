@@ -7,6 +7,7 @@ import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -25,6 +26,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Circle
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
@@ -46,6 +48,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -81,6 +84,7 @@ import com.mlingofeed.BuildConfig
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportManager
 import com.mlingofeed.data.settings.DictionaryConfig
+import com.mlingofeed.ui.theme.AccentPalettes
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +98,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
     val rssFontSize by vm.rssFontSize.collectAsStateWithLifecycle()
     val themeMode by vm.themeMode.collectAsStateWithLifecycle()
+    val themeColor by vm.themeColor.collectAsStateWithLifecycle()
     val readingTimeSeconds by vm.readingTimeSeconds.collectAsStateWithLifecycle()
     val readingSessions by vm.readingSessions.collectAsStateWithLifecycle()
 
@@ -173,6 +178,44 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     }
                     ThemeRadioOption("Eye Care", themeMode == "eyecare") {
                         vm.setThemeMode("eyecare")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    "Accent color",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    val accentOptions = listOf(
+                        Triple("dynamic", "Dynamic", null),
+                        Triple("blue", "Blue", AccentPalettes["blue"]?.light),
+                        Triple("green", "Green", AccentPalettes["green"]?.light),
+                        Triple("purple", "Purple", AccentPalettes["purple"]?.light),
+                        Triple("orange", "Orange", AccentPalettes["orange"]?.light),
+                        Triple("red", "Red", AccentPalettes["red"]?.light)
+                    )
+                    accentOptions.forEach { (key, label, color) ->
+                        FilterChip(
+                            selected = themeColor == key,
+                            onClick = { vm.setThemeColor(key) },
+                            label = { Text(label) },
+                            leadingIcon = color?.let { tint ->
+                                {
+                                    Icon(
+                                        Icons.Default.Circle,
+                                        contentDescription = null,
+                                        tint = tint,
+                                        modifier = Modifier.size(14.dp)
+                                    )
+                                }
+                            }
+                        )
                     }
                 }
             }
