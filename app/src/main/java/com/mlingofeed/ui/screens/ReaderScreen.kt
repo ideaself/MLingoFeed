@@ -69,6 +69,7 @@ import com.mlingofeed.ui.components.ChatDialog
 import com.mlingofeed.ui.components.DictionaryPopup
 import com.mlingofeed.ui.components.TranslationPopup
 import com.mlingofeed.webview.DESKTOP_USER_AGENT
+import com.mlingofeed.webview.applyReadingAppearance
 import com.mlingofeed.webview.createReaderWebView
 import com.mlingofeed.webview.setSelectionScriptEnabled
 import kotlinx.coroutines.Job
@@ -114,6 +115,8 @@ fun ReaderScreen(
     val desktopMode by vm.desktopMode.collectAsStateWithLifecycle()
     val blockImages by vm.blockImages.collectAsStateWithLifecycle()
     val highlightWords by vm.highlightWords.collectAsStateWithLifecycle()
+    val lineHeight by vm.lineHeight.collectAsStateWithLifecycle()
+    val serifFont by vm.serifFont.collectAsStateWithLifecycle()
     var showReaderMenu by remember { mutableStateOf(false) }
     var showFindBar by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
@@ -372,7 +375,7 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize, desktopMode, blockImages) {
+    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize, desktopMode, blockImages, lineHeight, serifFont) {
         val tab = vm.currentTab ?: return@LaunchedEffect
         val targetUrl = tab.url
         if (targetUrl == "about:blank") return@LaunchedEffect
@@ -395,6 +398,7 @@ fun ReaderScreen(
                 if (desktopMode) DESKTOP_USER_AGENT else WebSettings.getDefaultUserAgent(context)
         }
         setSelectionScriptEnabled(tab.webView, vm.wordSelectionEnabled)
+        applyReadingAppearance(tab.webView, lineHeight, serifFont)
     }
 
     LaunchedEffect(vm.wordSelectionEnabled, vm.selectedIndex) {

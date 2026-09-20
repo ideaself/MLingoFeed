@@ -97,6 +97,9 @@ interface RssDao {
     @Query("SELECT * FROM rss_articles WHERE id = :id LIMIT 1")
     suspend fun getArticleById(id: Long): RssArticle?
 
+    @Query("SELECT * FROM rss_articles WHERE content = '' AND (isFavorite = 1 OR isSaved = 1) ORDER BY pubDate DESC LIMIT :limit")
+    suspend fun getArticlesNeedingContent(limit: Int): List<RssArticle>
+
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun insertArticles(articles: List<RssArticle>): List<Long>
 

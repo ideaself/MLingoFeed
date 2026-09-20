@@ -110,6 +110,8 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     }
 
     val wordReminderEnabled by vm.wordReminderEnabled.collectAsStateWithLifecycle()
+    val readerLineHeight by vm.readerLineHeight.collectAsStateWithLifecycle()
+    val readerSerifFont by vm.readerSerifFont.collectAsStateWithLifecycle()
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -297,6 +299,48 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                var lineHeightSlider by remember(readerLineHeight) { mutableFloatStateOf(readerLineHeight) }
+                Text("Page Line Height", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("1.2", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(28.dp))
+                    Slider(
+                        value = lineHeightSlider,
+                        onValueChange = { lineHeightSlider = it },
+                        onValueChangeFinished = { vm.setReaderLineHeight(lineHeightSlider) },
+                        valueRange = 1.2f..2.2f,
+                        steps = 4,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "%.1f".format(lineHeightSlider),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(28.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Serif font", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "Use a serif typeface on web pages",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = readerSerifFont,
+                        onCheckedChange = { vm.setReaderSerifFont(it) }
+                    )
+                }
             }
 
             Spacer(modifier = Modifier.height(8.dp))

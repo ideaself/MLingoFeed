@@ -39,6 +39,7 @@ class RssSyncWorker(
         return try {
             val newCount = repository.refreshAll()
             repository.cleanupOldArticles()
+            repository.cacheFullContentForSaved()
 
             if (newCount > 0) {
                 showNotification(newCount)

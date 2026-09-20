@@ -11,6 +11,7 @@ import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.webview.ReaderTab
+import com.mlingofeed.webview.applyReadingAppearance
 import com.mlingofeed.webview.clearPageTranslations
 import com.mlingofeed.webview.clearTranslationPlaceholders
 import com.mlingofeed.webview.highlightSavedWords
@@ -126,6 +127,8 @@ class ReaderViewModel(
     val desktopMode = app.settingsManager.readerDesktopMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val blockImages = app.settingsManager.readerBlockImages.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val highlightWords = app.settingsManager.readerHighlightWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val lineHeight = app.settingsManager.readerLineHeight.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.6f)
+    val serifFont = app.settingsManager.readerSerifFont.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private val recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
@@ -200,6 +203,7 @@ class ReaderViewModel(
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
         persistTabs()
+        applyReadingAppearance(tab.webView, lineHeight.value, serifFont.value)
         if (highlightWords.value) {
             viewModelScope.launch {
                 val words = app.wordBookRepository.getWordTexts()
@@ -293,6 +297,20 @@ class ReaderViewModel(
                 val words = if (enabled) app.wordBookRepository.getWordTexts() else emptyList()
                 highlightSavedWords(webView, words, enabled)
             }
+        }
+    }
+
+    fun setLineHeight(value: Float) {
+        viewModelScope.launch {
+            app.settingsManager.setReaderLineHeight(value)
+            currentTab?.webView?.let { applyReadingAppearance(it, value, serifFont.value) }
+        }
+    }
+
+    fun setSerifFont(enabled: Boolean) {
+        viewModelScope.launch {
+            app.settingsManager.setReaderSerifFont(enabled)
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled) }
         }
     }
 

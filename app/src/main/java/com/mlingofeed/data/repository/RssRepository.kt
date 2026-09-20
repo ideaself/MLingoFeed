@@ -232,6 +232,24 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         rssDao.updateArticleContent(id, content)
     }
 
+    /**
+     * Pre-fetches full text for favorited / read-later articles so they stay readable offline.
+     * Bounded per run to keep background work short.
+     */
+    suspend fun cacheFullContentForSaved(limit: Int = 10): Int {
+        val articles = rssDao.getArticlesNeedingContent(limit)
+        var cached = 0
+        articles.forEach { article ->
+            if (article.link.isBlank()) return@forEach
+            val content = RssParser.fetchFullContent(article.link)
+            if (content.isNotBlank()) {
+                rssDao.updateArticleContent(article.id, content)
+                cached++
+            }
+        }
+        return cached
+    }
+
     suspend fun markAllAsRead(subscriptionId: Long) {
         rssDao.setAllReadStatus(subscriptionId, true)
     }

@@ -410,6 +410,26 @@ fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
     )
 }
 
+fun applyReadingAppearance(webView: WebView?, lineHeight: Float, serif: Boolean) {
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            if (!document.head) return;
+            var style = document.getElementById('__wr-appearance-style');
+            if (!style) {
+                style = document.createElement('style');
+                style.id = '__wr-appearance-style';
+                document.head.appendChild(style);
+            }
+            style.textContent =
+                'body, p, li, dd, blockquote, td, th { line-height: $lineHeight !important; }' +
+                ($serif ? "body, p, li, dd, blockquote { font-family: Georgia, 'Times New Roman', serif !important; }" : '');
+        })();
+        """.trimIndent(),
+        null
+    )
+}
+
 /**
  * Marks saved word-book words in the page. Passing [enabled] = false unwraps any previous
  * highlights. Words are matched on word boundaries, case-insensitively.
