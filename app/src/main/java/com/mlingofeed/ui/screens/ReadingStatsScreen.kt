@@ -143,6 +143,45 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
                 )
             }
 
+            Text("Vocabulary", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Words",
+                    value = "${vm.vocabulary.total}"
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Mastered",
+                    value = "${vm.vocabulary.mastered}"
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Due",
+                    value = "${vm.vocabulary.due}"
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Added (7d)",
+                    value = "${vm.vocabulary.addedLast7Days}"
+                )
+                StatCard(
+                    modifier = Modifier.weight(1f),
+                    title = "Day Streak",
+                    value = "${stats.streakDays}"
+                )
+            }
+
             if (stats.dailyData.isNotEmpty()) {
                 Text("Weekly Trend", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -231,12 +270,13 @@ private data class ReadingStats(
     val totalSessions: Int,
     val avgSessionSeconds: Long,
     val longestSessionSeconds: Long,
+    val streakDays: Int,
     val dailyData: List<Pair<String, Long>>
 )
 
 private fun calculateStats(sessions: List<Pair<Long, Long>>): ReadingStats {
     if (sessions.isEmpty()) {
-        return ReadingStats(0, 0, 0, 0, 0, 0, emptyList())
+        return ReadingStats(0, 0, 0, 0, 0, 0, 0, emptyList())
     }
 
     val now = System.currentTimeMillis()
@@ -312,8 +352,40 @@ private fun calculateStats(sessions: List<Pair<Long, Long>>): ReadingStats {
         totalSessions = sessions.size,
         avgSessionSeconds = avgSession,
         longestSessionSeconds = longestSession,
+        streakDays = calculateStreak(sessions, todayStart),
         dailyData = dailyData
     )
+}
+
+private fun previousDayStart(timeMillis: Long): Long = Calendar.getInstance().apply {
+    timeInMillis = timeMillis
+    add(Calendar.DAY_OF_MONTH, -1)
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
+private fun startOfDayOf(timeMillis: Long): Long = Calendar.getInstance().apply {
+    timeInMillis = timeMillis
+    set(Calendar.HOUR_OF_DAY, 0)
+    set(Calendar.MINUTE, 0)
+    set(Calendar.SECOND, 0)
+    set(Calendar.MILLISECOND, 0)
+}.timeInMillis
+
+private fun calculateStreak(sessions: List<Pair<Long, Long>>, todayStart: Long): Int {
+    if (sessions.isEmpty()) return 0
+    val readingDays = sessions.map { startOfDayOf(it.first) }.toHashSet()
+    // A streak stays alive until the current day ends, so fall back to yesterday when the user
+    // has not read yet today.
+    var day = if (todayStart in readingDays) todayStart else previousDayStart(todayStart)
+    var streak = 0
+    while (day in readingDays) {
+        streak++
+        day = previousDayStart(day)
+    }
+    return streak
 }
 
 private fun formatDuration(seconds: Long): String {
