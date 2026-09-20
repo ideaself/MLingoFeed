@@ -5,7 +5,7 @@ Android web reader app: Kotlin + Jetpack Compose + Material 3, MVVM, single `:ap
 ## Build & verify
 - Windows: `.\gradlew.bat assembleDebug` (JDK 11+, compileSdk 35). `local.properties` needs `sdk.dir` or `ANDROID_HOME` set.
 - No tests, no CI, no lint config. Verification = `.\gradlew.bat compileDebugKotlin` (fast) or `assembleDebug`.
-- APK outputs are renamed to `MLingoFeed-<variant>.apk` via `applicationVariants` in `app/build.gradle.kts`.
+- APK outputs are renamed to `MLingoFeed-<variant>.apk` via `applicationVariants` in `app/build.gradle.kts`. Debug builds use a `.debug` applicationId suffix (`com.mlingofeed.debug`) so they can be installed next to a release build (signatures differ).
 - Build cache + configuration cache enabled in `gradle.properties` — first build after config changes stores a fresh entry.
 - Dependencies: Aliyun mirrors listed first in `settings.gradle.kts` with `RepositoriesMode.FAIL_ON_PROJECT_REPOS`. Add versions/deps in `gradle/libs.versions.toml`; never add `repositories {}` inside a module.
 

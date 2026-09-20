@@ -45,6 +45,8 @@ android {
         }
         debug {
             isMinifyEnabled = false
+            // Debug builds coexist with a release install instead of clashing on signatures.
+            applicationIdSuffix = ".debug"
         }
     }
     applicationVariants.all {

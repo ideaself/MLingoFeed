@@ -124,8 +124,12 @@ object RssParser {
         }
     }
 
-    private fun stripHtml(text: String): String =
-        if (text.contains('<')) Jsoup.parseBodyFragment(text).text() else text
+    private fun stripHtml(text: String): String {
+        val plain = if (text.contains('<')) Jsoup.parseBodyFragment(text).text() else text
+        // Feeds read through the XML parser leave entities (e.g. &#039;) as literal text, and
+        // some double-encode them, so decode twice.
+        return Parser.unescapeEntities(Parser.unescapeEntities(plain, false), false)
+    }
 
     private fun extractMainContent(doc: org.jsoup.nodes.Document): String {
         val selectors = listOf(
