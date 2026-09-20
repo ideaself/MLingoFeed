@@ -29,6 +29,7 @@ import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.MoreVert
+import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
@@ -208,6 +209,14 @@ fun ReaderScreen(
                                     }
                                 )
                                 DropdownMenuItem(
+                                    text = { Text(stringResource(R.string.refresh_page)) },
+                                    leadingIcon = { Icon(Icons.Default.Refresh, contentDescription = null) },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        vm.reloadCurrentTab()
+                                    }
+                                )
+                                DropdownMenuItem(
                                     text = { Text(if (desktopMode) stringResource(R.string.desktop_site_on) else stringResource(R.string.desktop_site_off)) },
                                     onClick = {
                                         showReaderMenu = false
@@ -370,6 +379,10 @@ fun ReaderScreen(
                                     ViewGroup.LayoutParams.MATCH_PARENT
                                 )
                             )
+                            // A WebView re-attached after another tab was closed occasionally renders
+                            // blank until the next relayout; nudge it here.
+                            wv.requestLayout()
+                            wv.invalidate()
                         }
                     } else if (container.childCount > 0) {
                         container.removeAllViews()
@@ -397,7 +410,7 @@ fun ReaderScreen(
                 shadowElevation = 4.dp
             ) {
                 Text(
-                    text = "选词",
+                    text = stringResource(R.string.select_word),
                     modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                     style = MaterialTheme.typography.labelLarge,
                     color = if (vm.wordSelectionEnabled) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant

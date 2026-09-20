@@ -131,6 +131,7 @@
     <string name="quiz_complete">测验完成！</string>
     <string name="read">已读</string>
     <string name="read_aloud">朗读</string>
+    <string name="refresh_page">刷新页面</string>
     <string name="read_later">稍后读</string>
     <string name="reading_statistics">阅读统计</string>
     <string name="reading_time">阅读时长</string>
@@ -174,6 +175,11 @@
     <string name="total_reading_time">总阅读时长</string>
     <string name="translate_all">翻译全文</string>
     <string name="translating">翻译中…</string>
+    <string name="translation_preparing">准备中…</string>
+    <string name="translation_progress">翻译中 %1$d/%2$d…</string>
+    <string name="translation_failed">翻译失败:%1$s</string>
+    <string name="ai_api_key_missing">请先在设置中配置 AI API Key</string>
+    <string name="select_word">选词</string>
     <string name="translation">翻译</string>
     <string name="type_the_word">输入单词：</string>
     <string name="unread">未读</string>

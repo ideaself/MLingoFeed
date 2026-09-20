@@ -191,6 +191,10 @@ class ReaderViewModel(
         persistTabs()
     }
 
+    fun reloadCurrentTab() {
+        currentTab?.webView?.reload()
+    }
+
     fun addTab(url: String) {
         tabs.add(ReaderTab(initialUrl = url))
         selectedIndex = tabs.size - 1
@@ -501,7 +505,7 @@ class ReaderViewModel(
             return
         }
         isTranslating = true
-        translateProgress = "Preparing..."
+        translateProgress = app.getString(R.string.translation_preparing)
         val generation = ++translationGeneration
 
         viewModelScope.launch {
@@ -510,7 +514,7 @@ class ReaderViewModel(
                 val settings = app.settingsManager.getAllSettings()
                 val apiKey = settings["ai_api_key"].orEmpty()
                 if (apiKey.isBlank()) {
-                    translateProgress = "Configure AI API Key in Settings"
+                    translateProgress = app.getString(R.string.ai_api_key_missing)
                     return@launch
                 }
                 val apiUrl = settings["ai_api_url"].orEmpty()
@@ -534,14 +538,14 @@ class ReaderViewModel(
                         withTimeoutOrNull(JS_CALLBACK_TIMEOUT_MS) { getTextByIndex(wv, currentIndex) }
                     }
                     if (text == null) { currentIndex++; continue }
-                    translateProgress = "Translating ${currentIndex + 1}/$paraCount..."
+                    translateProgress = app.getString(R.string.translation_progress, currentIndex + 1, paraCount)
                     val translation = withContext(Dispatchers.IO) {
                         try {
                             app.chatRepository.translate(text, targetLang, apiUrl, apiKey, model)
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Exception) {
-                            "Error: ${e.message}"
+                            app.getString(R.string.translation_failed, e.message.orEmpty())
                         }
                     }
                     withContext(Dispatchers.Main) {

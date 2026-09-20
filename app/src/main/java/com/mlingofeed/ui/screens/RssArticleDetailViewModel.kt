@@ -242,7 +242,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
         }
         if (paragraphs.isEmpty()) return
         isTranslatingAll = true
-        translateProgress = "Translating..."
+        translateProgress = app.getString(R.string.translating)
         val generation = ++translationGeneration
         viewModelScope.launch {
             val settings = app.settingsManager.getAllSettings()
@@ -258,7 +258,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 val trimmed = para.trim()
                 if (trimmed.length < 3) return@forEachIndexed
                 if (translatingParagraphs[index] == true) return@forEachIndexed
-                translateProgress = "Translating ${index + 1}/${paragraphs.size}..."
+                translateProgress = app.getString(R.string.translation_progress, index + 1, paragraphs.size)
                 translatingParagraphs[index] = true
                 val translation = translateText(trimmed, settings)
                 if (translation != null) {
@@ -293,7 +293,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                "Error: ${e.message}"
+                app.getString(R.string.translation_failed, e.message.orEmpty())
             }
         }
     }
@@ -367,7 +367,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
             val settings = app.settingsManager.getAllSettings()
             val apiKey = settings["ai_api_key"].orEmpty()
             if (apiKey.isBlank()) {
-                aiPanelContent = "Please configure AI API Key in Settings"
+                aiPanelContent = app.getString(R.string.ai_api_key_missing)
                 isAnalyzing = false
                 return@launch
             }
@@ -382,7 +382,7 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
-                    "Error: ${e.message}"
+                    app.getString(R.string.translation_failed, e.message.orEmpty())
                 }
             }
             aiPanelContent = format(raw)

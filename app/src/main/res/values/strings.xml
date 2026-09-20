@@ -133,6 +133,7 @@
     <string name="quiz_complete">Quiz Complete!</string>
     <string name="read">Read</string>
     <string name="read_aloud">Read aloud</string>
+    <string name="refresh_page">Refresh page</string>
     <string name="read_later">Read Later</string>
     <string name="reading_statistics">Reading Statistics</string>
     <string name="reading_time">Reading Time</string>
@@ -177,6 +178,11 @@
     <string name="total_reading_time">Total Reading Time</string>
     <string name="translate_all">Translate all</string>
     <string name="translating">Translating...</string>
+    <string name="translation_preparing">Preparing…</string>
+    <string name="translation_progress">Translating %1$d/%2$d…</string>
+    <string name="translation_failed">Translation failed: %1$s</string>
+    <string name="ai_api_key_missing">Configure the AI API key in Settings first</string>
+    <string name="select_word">Select word</string>
     <string name="translation">Translation</string>
     <string name="type_the_word">Type the word:</string>
     <string name="unread">Unread</string>
