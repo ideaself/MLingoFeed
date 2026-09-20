@@ -1,5 +1,7 @@
 package com.mlingofeed.ui.screens
 
+import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
 import android.webkit.WebView
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
@@ -32,7 +34,9 @@ import kotlin.coroutines.resume
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.json.JSONArray
 import org.json.JSONObject
+import org.json.JSONTokener
 import java.lang.ref.WeakReference
+import java.util.Locale
 
 class ReaderViewModel(
     private val app: WebReaderApp
@@ -130,11 +134,17 @@ class ReaderViewModel(
     val lineHeight = app.settingsManager.readerLineHeight.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.6f)
     val serifFont = app.settingsManager.readerSerifFont.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
-    private val recordedUrls = mutableMapOf<Long, String>()
+    private var recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
     private val urlsWithRestoredScroll = mutableSetOf<String>()
     private var hostRef: WeakReference<Any>? = null
     private var translationGeneration = 0
+
+    private var textToSpeech: TextToSpeech? = null
+    private var ttsReady = false
+    private var pendingSpeech: String? = null
+    var isSpeaking by mutableStateOf(false)
+        private set
 
     /**
      * Called with the current Activity. WebViews are bound to the Activity that created them, so
@@ -239,6 +249,9 @@ class ReaderViewModel(
     }
 
     override fun onCleared() {
+        textToSpeech?.stop()
+        textToSpeech?.shutdown()
+        textToSpeech = null
         tabs.forEach { tab ->
             saveScrollPosition(tab)
             tab.webView?.destroy()
@@ -312,6 +325,71 @@ class ReaderViewModel(
             app.settingsManager.setReaderSerifFont(enabled)
             currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled) }
         }
+    }
+
+    fun toggleReadAloud() {
+        if (isSpeaking) {
+            textToSpeech?.stop()
+            isSpeaking = false
+            return
+        }
+        val webView = currentTab?.webView ?: return
+        webView.evaluateJavascript("document.body ? document.body.innerText : ''") { value ->
+            val text = try {
+                (JSONTokener(value).nextValue() as? String).orEmpty()
+            } catch (_: Exception) {
+                ""
+            }.trim()
+            if (text.isNotEmpty()) {
+                speak(text)
+            }
+        }
+    }
+
+    private fun speak(text: String) {
+        val engine = ensureTts()
+        if (engine == null) {
+            // Engine still initializing; speak as soon as it is ready.
+            pendingSpeech = text
+            return
+        }
+        engine.stop()
+        isSpeaking = true
+        val chunks = text.chunked(3500)
+        chunks.forEachIndexed { index, chunk ->
+            val mode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
+            engine.speak(chunk, mode, null, "reader_${index}_${chunks.lastIndex}")
+        }
+    }
+
+    private fun ensureTts(): TextToSpeech? {
+        if (textToSpeech == null) {
+            textToSpeech = TextToSpeech(app) { status ->
+                ttsReady = status == TextToSpeech.SUCCESS
+                if (ttsReady) {
+                    textToSpeech?.language = Locale.getDefault()
+                    textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                        override fun onStart(utteranceId: String?) = Unit
+
+                        override fun onDone(utteranceId: String?) {
+                            val parts = utteranceId?.split("_").orEmpty()
+                            if (parts.size == 3 && parts[1] == parts[2]) {
+                                isSpeaking = false
+                            }
+                        }
+
+                        override fun onError(utteranceId: String?) {
+                            isSpeaking = false
+                        }
+                    })
+                    pendingSpeech?.let { pending ->
+                        pendingSpeech = null
+                        speak(pending)
+                    }
+                }
+            }
+        }
+        return if (ttsReady) textToSpeech else null
     }
 
     fun toggleBookmark() {

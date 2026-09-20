@@ -229,6 +229,13 @@ fun ReaderScreen(
                                         vm.setHighlightWords(!highlightWords)
                                     }
                                 )
+                                DropdownMenuItem(
+                                    text = { Text(if (vm.isSpeaking) "Stop reading" else "Read aloud") },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        vm.toggleReadAloud()
+                                    }
+                                )
                             }
                         }
                     },
