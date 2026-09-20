@@ -124,6 +124,8 @@ class WordBookRepository(private val dao: WordBookDao, private val database: App
 
     suspend fun getWordTexts(): List<String> = dao.getWordTexts()
 
+    suspend fun getWordDatesSince(since: Long): List<Long> = dao.getWordDatesSince(since)
+
     private fun getReviewInterval(reviewCount: Int): Long {
         val day = 24 * 60 * 60 * 1000L
         return when (reviewCount) {

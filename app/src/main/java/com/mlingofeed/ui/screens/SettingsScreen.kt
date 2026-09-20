@@ -103,6 +103,7 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     val themeColor by vm.themeColor.collectAsStateWithLifecycle()
     val readingTimeSeconds by vm.readingTimeSeconds.collectAsStateWithLifecycle()
     val readingSessions by vm.readingSessions.collectAsStateWithLifecycle()
+    val dailyGoalMinutes by vm.dailyGoalMinutes.collectAsStateWithLifecycle()
 
     val exportLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/json")
@@ -275,6 +276,30 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 StatRow("Today", formatReadingTime(todaySeconds))
                 StatRow(stringResource(R.string.average), formatReadingTime(avgDuration))
                 StatRow("Longest", formatReadingTime(longestSession))
+
+                Spacer(modifier = Modifier.height(12.dp))
+
+                Text(
+                    text = stringResource(R.string.daily_goal_setting),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    listOf(0, 15, 30, 60, 90).forEach { minutes ->
+                        FilterChip(
+                            selected = dailyGoalMinutes == minutes,
+                            onClick = { vm.setDailyGoalMinutes(minutes) },
+                            label = {
+                                Text(
+                                    text = if (minutes == 0) stringResource(R.string.state_off) else stringResource(R.string.minutes_short, minutes)
+                                )
+                            }
+                        )
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(12.dp))
                 Row {

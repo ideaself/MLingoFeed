@@ -50,6 +50,10 @@ import java.util.Date
 import java.util.Locale
 import androidx.compose.ui.res.stringResource
 import com.mlingofeed.R
+import androidx.compose.foundation.background
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.LinearProgressIndicator
+import androidx.compose.ui.draw.clip
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -60,6 +64,7 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
 
     val readingSessions by vm.readingSessions.collectAsStateWithLifecycle()
     val totalSeconds by vm.totalSeconds.collectAsStateWithLifecycle()
+    val dailyGoal by vm.dailyGoalMinutes.collectAsStateWithLifecycle()
 
     val stats = remember(readingSessions) { calculateStats(readingSessions) }
 
@@ -184,6 +189,60 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
                 )
             }
 
+            if (dailyGoal > 0) {
+                Text(stringResource(R.string.daily_goal), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.padding(16.dp)) {
+                        Text(
+                            text = stringResource(R.string.daily_goal_progress, (stats.todaySeconds / 60).toInt(), dailyGoal),
+                            style = MaterialTheme.typography.bodyMedium
+                        )
+                        Spacer(modifier = Modifier.height(8.dp))
+                        LinearProgressIndicator(
+                            progress = { (stats.todaySeconds.toFloat() / (dailyGoal * 60f)).coerceIn(0f, 1f) },
+                            modifier = Modifier.fillMaxWidth()
+                        )
+                    }
+                }
+            }
+
+            if (vm.weeklyWordCounts.any { it > 0 }) {
+                Text(stringResource(R.string.vocabulary_growth), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().height(96.dp).padding(16.dp),
+                        verticalAlignment = Alignment.Bottom,
+                        horizontalArrangement = Arrangement.spacedBy(6.dp)
+                    ) {
+                        val maxCount = (vm.weeklyWordCounts.maxOrNull() ?: 1).coerceAtLeast(1)
+                        vm.weeklyWordCounts.forEach { count ->
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                horizontalAlignment = Alignment.CenterHorizontally,
+                                verticalArrangement = Arrangement.Bottom
+                            ) {
+                                Text("$count", style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                                Spacer(modifier = Modifier.height(2.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .height((6 + 48 * count / maxCount).dp)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .background(MaterialTheme.colorScheme.primary)
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
+            Text(stringResource(R.string.reading_heatmap), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    ReadingHeatmap(sessions = readingSessions)
+                }
+            }
+
             if (stats.dailyData.isNotEmpty()) {
                 Text(stringResource(R.string.weekly_trend), style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -198,6 +257,43 @@ fun ReadingStatsScreen(onBack: () -> Unit) {
             }
 
             Spacer(modifier = Modifier.height(16.dp))
+        }
+    }
+}
+
+@Composable
+private fun ReadingHeatmap(sessions: List<Pair<Long, Long>>) {
+    val dayMillis = 24L * 60 * 60 * 1000
+    val today = startOfDayOf(System.currentTimeMillis())
+    val mondayIndex = (Calendar.getInstance().get(Calendar.DAY_OF_WEEK) + 5) % 7
+    val dayMinutes = remember(sessions) {
+        sessions.groupBy { startOfDayOf(it.first) }
+            .mapValues { entry -> entry.value.sumOf { it.second } / 60 }
+    }
+    val weeks = 6
+    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        for (row in 0 until weeks) {
+            Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                for (col in 0 until 7) {
+                    val offsetDays = (weeks - 1 - row) * 7 + (mondayIndex - col)
+                    val day = today - offsetDays * dayMillis
+                    val minutes = if (offsetDays < 0) -1L else dayMinutes[day] ?: 0L
+                    val color = when {
+                        minutes < 0 -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
+                        minutes == 0L -> MaterialTheme.colorScheme.surfaceVariant
+                        minutes < 10 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.3f)
+                        minutes < 30 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.55f)
+                        minutes < 60 -> MaterialTheme.colorScheme.primary.copy(alpha = 0.8f)
+                        else -> MaterialTheme.colorScheme.primary
+                    }
+                    Box(
+                        modifier = Modifier
+                            .size(18.dp)
+                            .clip(RoundedCornerShape(4.dp))
+                            .background(color)
+                    )
+                }
+            }
         }
     }
 }

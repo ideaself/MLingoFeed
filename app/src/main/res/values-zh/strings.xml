@@ -312,4 +312,10 @@
     <string name="tts_voice">朗读发音</string>
     <string name="link_options">链接</string>
     <string name="open_in_new_tab">在新标签页打开</string>
+    <string name="vocabulary_growth">词汇增长(8 周)</string>
+    <string name="reading_heatmap">阅读热力图</string>
+    <string name="daily_goal">每日目标</string>
+    <string name="daily_goal_progress">今日 %1$d / %2$d 分钟</string>
+    <string name="daily_goal_setting">每日阅读目标</string>
+    <string name="minutes_short">%1$d 分钟</string>
 </resources>

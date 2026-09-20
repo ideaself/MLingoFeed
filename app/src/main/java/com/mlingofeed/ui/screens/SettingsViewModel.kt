@@ -31,6 +31,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
     val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
     val wordReminderEnabled = app.settingsManager.wordReviewReminderEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val dailyGoalMinutes = app.settingsManager.dailyReadingGoalMinutes.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
     val readerLineHeight = app.settingsManager.readerLineHeight.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.6f)
     val readerSerifFont = app.settingsManager.readerSerifFont.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val readerTtsSpeed = app.settingsManager.readerTtsSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.0f)
@@ -258,6 +259,10 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
                 if (dicts.any { it.id == preset.id }) dicts else dicts + preset
             }
         }
+    }
+
+    fun setDailyGoalMinutes(minutes: Int) {
+        viewModelScope.launch { app.settingsManager.setDailyReadingGoalMinutes(minutes) }
     }
 
     fun setWordReminderEnabled(enabled: Boolean) {

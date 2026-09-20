@@ -41,6 +41,7 @@ class SettingsManager(private val context: Context) {
         val RSS_SYNC_INTERVAL_HOURS = stringPreferencesKey("rss_sync_interval_hours")
         val THEME_COLOR = stringPreferencesKey("theme_color")
         val CHAT_HISTORY = stringPreferencesKey("chat_history")
+        val DAILY_GOAL_MINUTES = stringPreferencesKey("daily_goal_minutes")
         val READER_DESKTOP_MODE = stringPreferencesKey("reader_desktop_mode")
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
         val READER_LINE_HEIGHT = stringPreferencesKey("reader_line_height")
@@ -317,6 +318,14 @@ class SettingsManager(private val context: Context) {
             sessions.add("${System.currentTimeMillis()}:$durationSeconds")
             prefs[READING_SESSIONS] = JSONArray(sessions).toString()
         }
+    }
+
+    val dailyReadingGoalMinutes: Flow<Int> = context.dataStore.data.map { prefs ->
+        (prefs[DAILY_GOAL_MINUTES]?.toIntOrNull() ?: 0).coerceAtLeast(0)
+    }
+
+    suspend fun setDailyReadingGoalMinutes(minutes: Int) {
+        context.dataStore.edit { prefs -> prefs[DAILY_GOAL_MINUTES] = minutes.coerceAtLeast(0).toString() }
     }
 
     val chatHistory: Flow<List<Pair<String, String>>> = context.dataStore.data.map { prefs ->

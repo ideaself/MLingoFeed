@@ -57,4 +57,7 @@ interface WordBookDao {
 
     @Query("SELECT word FROM word_book ORDER BY dateAdded DESC LIMIT 500")
     suspend fun getWordTexts(): List<String>
+
+    @Query("SELECT dateAdded FROM word_book WHERE dateAdded >= :since")
+    suspend fun getWordDatesSince(since: Long): List<Long>
 }
