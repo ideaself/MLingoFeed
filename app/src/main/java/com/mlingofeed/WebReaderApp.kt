@@ -9,9 +9,11 @@ import com.mlingofeed.data.repository.RssRepository
 import com.mlingofeed.data.repository.DictionaryRepository
 import com.mlingofeed.data.repository.WordBookRepository
 import com.mlingofeed.data.settings.SettingsManager
+import com.mlingofeed.data.work.WordReviewWorker
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 
 class WebReaderApp : Application() {
@@ -30,6 +32,9 @@ class WebReaderApp : Application() {
         applicationScope.launch {
             rssRepository.cleanupDuplicates()
             rssRepository.initDefaultSubscriptions()
+            if (settingsManager.wordReviewReminderEnabled.first()) {
+                WordReviewWorker.schedule(this@WebReaderApp)
+            }
         }
     }
 }

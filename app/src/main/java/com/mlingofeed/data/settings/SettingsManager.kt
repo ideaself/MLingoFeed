@@ -37,6 +37,7 @@ class SettingsManager(private val context: Context) {
         val THEME_MODE = stringPreferencesKey("theme_mode")
         val READING_TIME_SECONDS = stringPreferencesKey("reading_time_seconds")
         val READING_SESSIONS = stringPreferencesKey("reading_sessions")
+        val WORD_REVIEW_REMINDER = stringPreferencesKey("word_review_reminder")
 
         private const val MAX_READING_SESSIONS = 500
         private const val SESSION_RETENTION_DAYS = 60L
@@ -127,6 +128,10 @@ class SettingsManager(private val context: Context) {
         prefs[READING_TIME_SECONDS]?.toLongOrNull() ?: 0L
     }
 
+    val wordReviewReminderEnabled: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[WORD_REVIEW_REMINDER] == "true"
+    }
+
     /**
      * Applies [transform] to the currently persisted dictionaries inside the same DataStore
      * transaction, so concurrent edits cannot overwrite each other with a stale list.
@@ -164,6 +169,10 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setThemeMode(mode: String) {
         context.dataStore.edit { prefs -> prefs[THEME_MODE] = mode }
+    }
+
+    suspend fun setWordReviewReminderEnabled(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[WORD_REVIEW_REMINDER] = enabled.toString() }
     }
 
     suspend fun addReadingTime(seconds: Long) {

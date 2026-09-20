@@ -77,6 +77,7 @@ class MainActivity : ComponentActivity() {
     companion object {
         const val EXTRA_NAVIGATE_TO = "navigate_to"
         const val DESTINATION_RSS = "rss"
+        const val DESTINATION_WORDBOOK = "wordbook"
         private const val KEY_SHARED_URL = "pending_shared_url"
         private const val KEY_PENDING_DESTINATION = "pending_destination"
     }

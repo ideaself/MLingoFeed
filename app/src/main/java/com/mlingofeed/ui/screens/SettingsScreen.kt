@@ -1,5 +1,8 @@
 package com.mlingofeed.ui.screens
 
+import android.Manifest
+import android.content.pm.PackageManager
+import android.os.Build
 import android.widget.Toast
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -34,6 +37,7 @@ import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.FormatSize
 import androidx.compose.material.icons.automirrored.filled.MenuBook
 import androidx.compose.material.icons.filled.Language
+import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Storage
 import androidx.compose.material.icons.filled.Star
 import androidx.compose.material3.AlertDialog
@@ -70,6 +74,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.core.content.ContextCompat
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.BuildConfig
@@ -102,6 +107,21 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
         ActivityResultContracts.OpenDocument()
     ) { uri ->
         if (uri != null) vm.importData(uri)
+    }
+
+    val wordReminderEnabled by vm.wordReminderEnabled.collectAsStateWithLifecycle()
+
+    val notificationPermissionLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestPermission()
+    ) { }
+
+    fun setWordReminderEnabled(enabled: Boolean) {
+        if (enabled && Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED
+        ) {
+            notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
+        }
+        vm.setWordReminderEnabled(enabled)
     }
 
     Scaffold(
@@ -152,6 +172,36 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     ThemeRadioOption("Eye Care", themeMode == "eyecare") {
                         vm.setThemeMode("eyecare")
                     }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
+
+            SettingsSection(
+                title = "Study Reminders",
+                imageVector = Icons.Default.Notifications,
+                expanded = vm.expandedSection == "reminders",
+                onToggle = { vm.toggleSection("reminders") },
+                summary = if (wordReminderEnabled) "On" else "Off"
+            ) {
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { setWordReminderEnabled(!wordReminderEnabled) },
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("Daily word review reminder", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            text = "Notify me when words are due for review",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
+                    Switch(
+                        checked = wordReminderEnabled,
+                        onCheckedChange = { setWordReminderEnabled(it) }
+                    )
                 }
             }
 

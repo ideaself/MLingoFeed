@@ -72,8 +72,13 @@ fun WebReaderNavHost(
 
     val destination = pendingDestination.value
     LaunchedEffect(destination) {
-        if (destination == MainActivity.DESTINATION_RSS) {
-            navController.navigate(Screen.RssSubscriptions.route) {
+        val route = when (destination) {
+            MainActivity.DESTINATION_RSS -> Screen.RssSubscriptions.route
+            MainActivity.DESTINATION_WORDBOOK -> Screen.WordBook.route
+            else -> null
+        }
+        if (route != null) {
+            navController.navigate(route) {
                 launchSingleTop = true
             }
             pendingDestination.value = null

@@ -11,6 +11,7 @@ import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportData
 import com.mlingofeed.data.export.ExportManager
 import com.mlingofeed.data.settings.DictionaryConfig
+import com.mlingofeed.data.work.WordReviewWorker
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
@@ -27,6 +28,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val themeMode = app.settingsManager.themeMode.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "system")
     val readingTimeSeconds = app.settingsManager.readingTimeSeconds.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0L)
     val readingSessions = app.settingsManager.readingSessions.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val wordReminderEnabled = app.settingsManager.wordReviewReminderEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     var aiUrlInput by mutableStateOf("")
         private set
@@ -228,6 +230,17 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
         viewModelScope.launch {
             app.settingsManager.updateDictionaries { dicts ->
                 if (dicts.any { it.id == preset.id }) dicts else dicts + preset
+            }
+        }
+    }
+
+    fun setWordReminderEnabled(enabled: Boolean) {
+        viewModelScope.launch {
+            app.settingsManager.setWordReviewReminderEnabled(enabled)
+            if (enabled) {
+                WordReviewWorker.schedule(app)
+            } else {
+                WordReviewWorker.cancel(app)
             }
         }
     }
