@@ -101,29 +101,34 @@ class ChatRepository {
             val body = api.chatStream(apiUrl, request, "Bearer $apiKey")
             val source = body.source()
             val full = StringBuilder()
+            val reasoning = StringBuilder()
             while (true) {
                 val line = source.readUtf8Line() ?: break
                 if (!line.startsWith("data:")) continue
                 val payload = line.removePrefix("data:").trim()
                 if (payload.isEmpty()) continue
                 if (payload == "[DONE]") break
-                val delta = try {
+                val deltaObject = try {
                     org.json.JSONObject(payload)
                         .optJSONArray("choices")
                         ?.optJSONObject(0)
                         ?.optJSONObject("delta")
-                        ?.optString("content")
-                        .orEmpty()
                 } catch (_: Exception) {
-                    ""
+                    null
                 }
+                // JSON nulls (e.g. content while a reasoning model is still thinking) must not
+                // become the literal string "null".
+                val delta = (deltaObject?.opt("content") as? String).orEmpty()
                 if (delta.isNotEmpty()) {
                     full.append(delta)
                     onDelta(delta)
+                    continue
                 }
+                val thinking = (deltaObject?.opt("reasoning_content") as? String).orEmpty()
+                if (thinking.isNotEmpty()) reasoning.append(thinking)
             }
             body.close()
-            full.toString().ifBlank { "No response" }
+            full.toString().ifBlank { reasoning.toString().ifBlank { "No response" } }
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
             "API Error ${e.code()}: $errorBody"
