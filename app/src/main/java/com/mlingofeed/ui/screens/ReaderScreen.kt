@@ -119,6 +119,7 @@ fun ReaderScreen(
     val highlightWords by vm.highlightWords.collectAsStateWithLifecycle()
     val lineHeight by vm.lineHeight.collectAsStateWithLifecycle()
     val serifFont by vm.serifFont.collectAsStateWithLifecycle()
+    val darkWeb by vm.darkWeb.collectAsStateWithLifecycle()
     var showReaderMenu by remember { mutableStateOf(false) }
     var showFindBar by remember { mutableStateOf(false) }
     var findQuery by remember { mutableStateOf("") }
@@ -229,6 +230,13 @@ fun ReaderScreen(
                                     onClick = {
                                         showReaderMenu = false
                                         vm.setHighlightWords(!highlightWords)
+                                    }
+                                )
+                                DropdownMenuItem(
+                                    text = { Text(if (darkWeb) stringResource(R.string.dark_web_on) else stringResource(R.string.dark_web_off)) },
+                                    onClick = {
+                                        showReaderMenu = false
+                                        vm.setDarkWeb(!darkWeb)
                                     }
                                 )
                                 DropdownMenuItem(
@@ -384,7 +392,7 @@ fun ReaderScreen(
         }
     }
 
-    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize, desktopMode, blockImages, lineHeight, serifFont) {
+    LaunchedEffect(vm.selectedIndex, currentTab?.url, fontSize, desktopMode, blockImages, lineHeight, serifFont, darkWeb) {
         val tab = vm.currentTab ?: return@LaunchedEffect
         val targetUrl = tab.url
         if (targetUrl == "about:blank") return@LaunchedEffect
@@ -407,7 +415,7 @@ fun ReaderScreen(
                 if (desktopMode) DESKTOP_USER_AGENT else WebSettings.getDefaultUserAgent(context)
         }
         setSelectionScriptEnabled(tab.webView, vm.wordSelectionEnabled)
-        applyReadingAppearance(tab.webView, lineHeight, serifFont)
+        applyReadingAppearance(tab.webView, lineHeight, serifFont, darkWeb)
     }
 
     LaunchedEffect(vm.wordSelectionEnabled, vm.selectedIndex) {

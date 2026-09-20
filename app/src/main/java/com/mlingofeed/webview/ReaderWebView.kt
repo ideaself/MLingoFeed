@@ -6,6 +6,7 @@ import android.webkit.WebChromeClient
 import android.webkit.WebView
 import android.webkit.WebViewClient
 import org.json.JSONArray
+import org.json.JSONObject
 
 const val DESKTOP_USER_AGENT =
     "Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
@@ -403,6 +404,70 @@ fun clearTranslationPlaceholders(webView: WebView?) {
     )
 }
 
+fun highlightSentence(webView: WebView?, sentence: String) {
+    val quoted = JSONObject.quote(sentence.take(80))
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            var prev = document.querySelectorAll('.__wr-tts-highlight');
+            for (var i = prev.length - 1; i >= 0; i--) {
+                var el = prev[i];
+                var parent = el.parentNode;
+                if (!parent) continue;
+                parent.replaceChild(document.createTextNode(el.textContent), el);
+                parent.normalize();
+            }
+            var needle = $quoted;
+            if (!needle || !document.body) return;
+            function findNode(text) {
+                var walker = document.createTreeWalker(document.body, NodeFilter.SHOW_TEXT);
+                while (walker.nextNode()) {
+                    var node = walker.currentNode;
+                    var idx = node.nodeValue.indexOf(text);
+                    if (idx >= 0 && node.parentElement && !node.parentElement.closest('script, style')) {
+                        return { node: node, index: idx };
+                    }
+                }
+                return null;
+            }
+            var hit = findNode(needle);
+            if (!hit && needle.length > 24) {
+                needle = needle.substring(0, 24);
+                hit = findNode(needle);
+            }
+            if (!hit) return;
+            var range = document.createRange();
+            range.setStart(hit.node, hit.index);
+            range.setEnd(hit.node, Math.min(hit.node.nodeValue.length, hit.index + needle.length));
+            var span = document.createElement('span');
+            span.className = '__wr-tts-highlight';
+            span.style.cssText = 'background: rgba(255,214,0,.45); border-radius: 2px;';
+            try { range.surroundContents(span); } catch (e) { return; }
+            try { span.scrollIntoView({ block: 'center' }); } catch (e) {}
+        })();
+        """.trimIndent(),
+        null
+    )
+}
+
+fun clearSentenceHighlight(webView: WebView?) {
+    webView?.evaluateJavascript(
+        """
+        (function() {
+            var prev = document.querySelectorAll('.__wr-tts-highlight');
+            for (var i = prev.length - 1; i >= 0; i--) {
+                var el = prev[i];
+                var parent = el.parentNode;
+                if (!parent) continue;
+                parent.replaceChild(document.createTextNode(el.textContent), el);
+                parent.normalize();
+            }
+        })();
+        """.trimIndent(),
+        null
+    )
+}
+
 fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
     webView?.evaluateJavascript(
         "window.__webReaderSetSelectionEnabled ? window.__webReaderSetSelectionEnabled($enabled) : null",
@@ -410,7 +475,7 @@ fun setSelectionScriptEnabled(webView: WebView?, enabled: Boolean) {
     )
 }
 
-fun applyReadingAppearance(webView: WebView?, lineHeight: Float, serif: Boolean) {
+fun applyReadingAppearance(webView: WebView?, lineHeight: Float, serif: Boolean, darkWeb: Boolean = false) {
     webView?.evaluateJavascript(
         """
         (function() {
@@ -423,7 +488,8 @@ fun applyReadingAppearance(webView: WebView?, lineHeight: Float, serif: Boolean)
             }
             style.textContent =
                 'body, p, li, dd, blockquote, td, th { line-height: $lineHeight !important; }' +
-                ($serif ? "body, p, li, dd, blockquote { font-family: Georgia, 'Times New Roman', serif !important; }" : '');
+                ($serif ? "body, p, li, dd, blockquote { font-family: Georgia, 'Times New Roman', serif !important; }" : '') +
+                ($darkWeb ? "html { filter: invert(90%) hue-rotate(180deg) !important; background: #111 !important; } img, video, picture, svg, canvas, iframe { filter: invert(100%) hue-rotate(180deg) !important; }" : '');
         })();
         """.trimIndent(),
         null

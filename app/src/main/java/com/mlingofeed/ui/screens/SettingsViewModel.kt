@@ -33,6 +33,8 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val wordReminderEnabled = app.settingsManager.wordReviewReminderEnabled.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val readerLineHeight = app.settingsManager.readerLineHeight.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.6f)
     val readerSerifFont = app.settingsManager.readerSerifFont.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val readerTtsSpeed = app.settingsManager.readerTtsSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.0f)
+    val readerTtsVoice = app.settingsManager.readerTtsVoice.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "us")
 
     var aiUrlInput by mutableStateOf("")
         private set
@@ -152,6 +154,14 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun setReaderSerifFont(enabled: Boolean) {
         viewModelScope.launch { app.settingsManager.setReaderSerifFont(enabled) }
+    }
+
+    fun setReaderTtsSpeed(speed: Float) {
+        viewModelScope.launch { app.settingsManager.setReaderTtsSpeed(speed) }
+    }
+
+    fun setReaderTtsVoice(voice: String) {
+        viewModelScope.launch { app.settingsManager.setReaderTtsVoice(voice) }
     }
 
     fun resetReadingTime() {

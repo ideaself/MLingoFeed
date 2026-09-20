@@ -44,6 +44,9 @@ class SettingsManager(private val context: Context) {
         val READER_BLOCK_IMAGES = stringPreferencesKey("reader_block_images")
         val READER_LINE_HEIGHT = stringPreferencesKey("reader_line_height")
         val READER_SERIF_FONT = stringPreferencesKey("reader_serif_font")
+        val READER_TTS_SPEED = stringPreferencesKey("reader_tts_speed")
+        val READER_TTS_VOICE = stringPreferencesKey("reader_tts_voice")
+        val READER_DARK_WEB = stringPreferencesKey("reader_dark_web")
         val READER_HIGHLIGHT_WORDS = stringPreferencesKey("reader_highlight_words")
         val READER_TABS = stringPreferencesKey("reader_tabs")
         val READER_SELECTED_TAB = stringPreferencesKey("reader_selected_tab")
@@ -169,6 +172,18 @@ class SettingsManager(private val context: Context) {
         prefs[READER_SERIF_FONT] == "true"
     }
 
+    val readerTtsSpeed: Flow<Float> = context.dataStore.data.map { prefs ->
+        (prefs[READER_TTS_SPEED]?.toFloatOrNull() ?: 1.0f).coerceIn(0.6f, 1.6f)
+    }
+
+    val readerTtsVoice: Flow<String> = context.dataStore.data.map { prefs ->
+        if (prefs[READER_TTS_VOICE] == "uk") "uk" else "us"
+    }
+
+    val readerDarkWeb: Flow<Boolean> = context.dataStore.data.map { prefs ->
+        prefs[READER_DARK_WEB] == "true"
+    }
+
     /**
      * Applies [transform] to the currently persisted dictionaries inside the same DataStore
      * transaction, so concurrent edits cannot overwrite each other with a stale list.
@@ -238,6 +253,18 @@ class SettingsManager(private val context: Context) {
 
     suspend fun setReaderSerifFont(enabled: Boolean) {
         context.dataStore.edit { prefs -> prefs[READER_SERIF_FONT] = enabled.toString() }
+    }
+
+    suspend fun setReaderTtsSpeed(speed: Float) {
+        context.dataStore.edit { prefs -> prefs[READER_TTS_SPEED] = speed.toString() }
+    }
+
+    suspend fun setReaderTtsVoice(voice: String) {
+        context.dataStore.edit { prefs -> prefs[READER_TTS_VOICE] = voice }
+    }
+
+    suspend fun setReaderDarkWeb(enabled: Boolean) {
+        context.dataStore.edit { prefs -> prefs[READER_DARK_WEB] = enabled.toString() }
     }
 
     suspend fun setReaderTabs(tabsJson: String, selectedIndex: Int) {

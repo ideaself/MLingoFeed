@@ -119,6 +119,8 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     val wordReminderEnabled by vm.wordReminderEnabled.collectAsStateWithLifecycle()
     val readerLineHeight by vm.readerLineHeight.collectAsStateWithLifecycle()
     val readerSerifFont by vm.readerSerifFont.collectAsStateWithLifecycle()
+    val readerTtsSpeed by vm.readerTtsSpeed.collectAsStateWithLifecycle()
+    val readerTtsVoice by vm.readerTtsVoice.collectAsStateWithLifecycle()
 
     val notificationPermissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission()
@@ -384,6 +386,56 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                     Switch(
                         checked = readerSerifFont,
                         onCheckedChange = { vm.setReaderSerifFont(it) }
+                    )
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                var ttsSpeedSlider by remember(readerTtsSpeed) { mutableFloatStateOf(readerTtsSpeed) }
+                Text(
+                    text = stringResource(R.string.tts_speed),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text("0.6x", style = MaterialTheme.typography.bodySmall, modifier = Modifier.width(34.dp))
+                    Slider(
+                        value = ttsSpeedSlider,
+                        onValueChange = { ttsSpeedSlider = it },
+                        onValueChangeFinished = { vm.setReaderTtsSpeed(ttsSpeedSlider) },
+                        valueRange = 0.6f..1.6f,
+                        steps = 9,
+                        modifier = Modifier.weight(1f)
+                    )
+                    Text(
+                        text = "%.1fx".format(ttsSpeedSlider),
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.width(40.dp)
+                    )
+                }
+
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        text = stringResource(R.string.tts_voice),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.weight(1f)
+                    )
+                    FilterChip(
+                        selected = readerTtsVoice == "us",
+                        onClick = { vm.setReaderTtsVoice("us") },
+                        label = { Text("US") }
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    FilterChip(
+                        selected = readerTtsVoice == "uk",
+                        onClick = { vm.setReaderTtsVoice("uk") },
+                        label = { Text("UK") }
                     )
                 }
             }

@@ -15,8 +15,10 @@ import com.mlingofeed.data.database.Bookmark
 import com.mlingofeed.webview.ReaderTab
 import com.mlingofeed.webview.applyReadingAppearance
 import com.mlingofeed.webview.clearPageTranslations
+import com.mlingofeed.webview.clearSentenceHighlight
 import com.mlingofeed.webview.clearTranslationPlaceholders
 import com.mlingofeed.webview.highlightSavedWords
+import com.mlingofeed.webview.highlightSentence
 import com.mlingofeed.webview.injectTranslationStyles
 import com.mlingofeed.webview.prepareTranslationParagraphs
 import com.mlingofeed.webview.updateParagraphTranslation
@@ -133,6 +135,9 @@ class ReaderViewModel(
     val highlightWords = app.settingsManager.readerHighlightWords.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
     val lineHeight = app.settingsManager.readerLineHeight.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.6f)
     val serifFont = app.settingsManager.readerSerifFont.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+    val ttsSpeed = app.settingsManager.readerTtsSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.0f)
+    val ttsVoice = app.settingsManager.readerTtsVoice.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "us")
+    val darkWeb = app.settingsManager.readerDarkWeb.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     private var recordedUrls = mutableMapOf<Long, String>()
     private val restoredScrollKeys = mutableSetOf<String>()
@@ -143,6 +148,9 @@ class ReaderViewModel(
     private var textToSpeech: TextToSpeech? = null
     private var ttsReady = false
     private var pendingSpeech: String? = null
+
+    @Volatile
+    private var currentSentences: List<String> = emptyList()
     var isSpeaking by mutableStateOf(false)
         private set
 
@@ -213,7 +221,7 @@ class ReaderViewModel(
         tab.title = title
         viewModelScope.launch { app.historyRepository.recordVisit(title, currentUrl) }
         persistTabs()
-        applyReadingAppearance(tab.webView, lineHeight.value, serifFont.value)
+        applyReadingAppearance(tab.webView, lineHeight.value, serifFont.value, darkWeb.value)
         if (highlightWords.value) {
             viewModelScope.launch {
                 val words = app.wordBookRepository.getWordTexts()
@@ -316,14 +324,21 @@ class ReaderViewModel(
     fun setLineHeight(value: Float) {
         viewModelScope.launch {
             app.settingsManager.setReaderLineHeight(value)
-            currentTab?.webView?.let { applyReadingAppearance(it, value, serifFont.value) }
+            currentTab?.webView?.let { applyReadingAppearance(it, value, serifFont.value, darkWeb.value) }
         }
     }
 
     fun setSerifFont(enabled: Boolean) {
         viewModelScope.launch {
             app.settingsManager.setReaderSerifFont(enabled)
-            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled) }
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, enabled, darkWeb.value) }
+        }
+    }
+
+    fun setDarkWeb(enabled: Boolean) {
+        viewModelScope.launch {
+            app.settingsManager.setReaderDarkWeb(enabled)
+            currentTab?.webView?.let { applyReadingAppearance(it, lineHeight.value, serifFont.value, enabled) }
         }
     }
 
@@ -331,6 +346,7 @@ class ReaderViewModel(
         if (isSpeaking) {
             textToSpeech?.stop()
             isSpeaking = false
+            clearSentenceHighlight(currentTab?.webView)
             return
         }
         val webView = currentTab?.webView ?: return
@@ -354,13 +370,25 @@ class ReaderViewModel(
             return
         }
         engine.stop()
+        clearSentenceHighlight(currentTab?.webView)
+        engine.setSpeechRate(ttsSpeed.value)
+        engine.language = if (ttsVoice.value == "uk") Locale.UK else Locale.US
         isSpeaking = true
-        val chunks = text.chunked(3500)
-        chunks.forEachIndexed { index, chunk ->
+        currentSentences = splitSentences(text)
+        if (currentSentences.isEmpty()) {
+            isSpeaking = false
+            return
+        }
+        currentSentences.forEachIndexed { index, sentence ->
             val mode = if (index == 0) TextToSpeech.QUEUE_FLUSH else TextToSpeech.QUEUE_ADD
-            engine.speak(chunk, mode, null, "reader_${index}_${chunks.lastIndex}")
+            engine.speak(sentence.take(3500), mode, null, "reader_${index}_${currentSentences.lastIndex}")
         }
     }
+
+    private fun splitSentences(text: String): List<String> =
+        text.split(Regex("(?<=[.!?。！？])\\s+|\\n+"))
+            .map { it.trim() }
+            .filter { it.length > 1 }
 
     private fun ensureTts(): TextToSpeech? {
         if (textToSpeech == null) {
@@ -369,12 +397,24 @@ class ReaderViewModel(
                 if (ttsReady) {
                     textToSpeech?.language = Locale.getDefault()
                     textToSpeech?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
-                        override fun onStart(utteranceId: String?) = Unit
+                        override fun onStart(utteranceId: String?) {
+                            val parts = utteranceId?.split("_").orEmpty()
+                            val index = parts.getOrNull(1)?.toIntOrNull() ?: return
+                            val sentence = currentSentences.getOrNull(index) ?: return
+                            val webView = currentTab?.webView ?: return
+                            viewModelScope.launch(Dispatchers.Main) {
+                                highlightSentence(webView, sentence)
+                            }
+                        }
 
                         override fun onDone(utteranceId: String?) {
                             val parts = utteranceId?.split("_").orEmpty()
                             if (parts.size == 3 && parts[1] == parts[2]) {
                                 isSpeaking = false
+                                val webView = currentTab?.webView
+                                viewModelScope.launch(Dispatchers.Main) {
+                                    clearSentenceHighlight(webView)
+                                }
                             }
                         }
 
