@@ -8,16 +8,22 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.database.RssArticle
+import com.mlingofeed.data.database.RssTag
 import com.mlingofeed.data.repository.RssParser
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import org.json.JSONArray
 import org.json.JSONObject
 
+@OptIn(ExperimentalCoroutinesApi::class)
 class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     private val repository = app.rssRepository
@@ -63,12 +69,20 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     val rssFontSize = app.settingsManager.rssFontSize.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 17f)
 
+    private val currentArticleId = MutableStateFlow(0L)
+
+    val allTags = repository.allTags.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val articleTags = currentArticleId
+        .flatMapLatest { id -> if (id == 0L) flowOf(emptyList()) else repository.tagsForArticle(id) }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+
     private var initializedArticleId: Long? = null
     private var favoriteTouched = false
     private var translationGeneration = 0
 
     fun ensureLoaded(articleId: Long) {
         if (initializedArticleId == articleId) return
+        currentArticleId.value = articleId
         viewModelScope.launch {
             val loaded = repository.getArticleById(articleId)
             if (loaded == null) {
@@ -125,6 +139,30 @@ class RssArticleDetailViewModel(private val app: WebReaderApp) : ViewModel() {
 
     fun dismissChat() {
         showChat = false
+    }
+
+    fun attachTag(tagId: Long) {
+        val articleId = currentArticleId.value
+        if (articleId == 0L) return
+        viewModelScope.launch { repository.addTagToArticle(articleId, tagId) }
+    }
+
+    fun detachTag(tagId: Long) {
+        val articleId = currentArticleId.value
+        if (articleId == 0L) return
+        viewModelScope.launch { repository.removeTagFromArticle(articleId, tagId) }
+    }
+
+    fun createTag(name: String) {
+        val articleId = currentArticleId.value
+        val trimmed = name.trim()
+        if (articleId == 0L || trimmed.isBlank()) return
+        viewModelScope.launch {
+            val tagId = repository.addTag(trimmed)
+            if (tagId > 0) {
+                repository.addTagToArticle(articleId, tagId)
+            }
+        }
     }
 
     fun toggleFavorite(articleId: Long) {

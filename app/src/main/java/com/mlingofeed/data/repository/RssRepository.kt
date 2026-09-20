@@ -357,6 +357,9 @@ class RssRepository(private val rssDao: RssDao, private val database: AppDatabas
         return rssDao.getTagsForArticle(articleId)
     }
 
+    fun tagsForArticle(articleId: Long): Flow<List<RssTag>> =
+        rssDao.getTagsForArticleFlow(articleId)
+
     suspend fun addTagToArticle(articleId: Long, tagId: Long) {
         rssDao.insertArticleTag(RssArticleTag(articleId = articleId, tagId = tagId))
     }

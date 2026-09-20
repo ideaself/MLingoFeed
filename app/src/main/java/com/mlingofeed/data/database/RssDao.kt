@@ -169,6 +169,9 @@ interface RssDao {
     @Query("SELECT t.* FROM rss_tags t INNER JOIN rss_article_tags at ON t.id = at.tagId WHERE at.articleId = :articleId")
     suspend fun getTagsForArticle(articleId: Long): List<RssTag>
 
+    @Query("SELECT t.* FROM rss_tags t INNER JOIN rss_article_tags at ON t.id = at.tagId WHERE at.articleId = :articleId ORDER BY t.name ASC")
+    fun getTagsForArticleFlow(articleId: Long): Flow<List<RssTag>>
+
     @Query("SELECT a.* FROM rss_articles a INNER JOIN rss_article_tags at ON a.id = at.articleId WHERE at.tagId = :tagId ORDER BY a.pubDate DESC LIMIT 200")
     fun getArticlesByTag(tagId: Long): Flow<List<RssArticle>>
 

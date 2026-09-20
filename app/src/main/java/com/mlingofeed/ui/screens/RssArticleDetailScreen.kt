@@ -1,5 +1,6 @@
 package com.mlingofeed.ui.screens
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -21,14 +22,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material.icons.filled.Translate
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -39,6 +44,7 @@ import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
@@ -97,6 +103,9 @@ fun RssArticleDetailScreen(
 
     val articleData = vm.article
     var showAiMenu by remember { mutableStateOf(false) }
+    var showTagDialog by remember { mutableStateOf(false) }
+    val articleTags by vm.articleTags.collectAsStateWithLifecycle()
+    val allTags by vm.allTags.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -239,6 +248,32 @@ fun RssArticleDetailScreen(
                         }
 
                         Spacer(modifier = Modifier.height(4.dp))
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            articleTags.forEach { tag ->
+                                AssistChip(
+                                    onClick = { vm.detachTag(tag.id) },
+                                    label = { Text(tag.name) },
+                                    trailingIcon = {
+                                        Icon(
+                                            Icons.Default.Close,
+                                            contentDescription = "Remove tag",
+                                            modifier = Modifier.size(14.dp)
+                                        )
+                                    }
+                                )
+                            }
+                            AssistChip(
+                                onClick = { showTagDialog = true },
+                                label = { Text("+ Tag") }
+                            )
+                        }
+
+                        Spacer(modifier = Modifier.height(4.dp))
                     }
                 }
 
@@ -315,6 +350,78 @@ fun RssArticleDetailScreen(
     if (vm.showChat) {
         ChatDialog(initialContext = vm.selectedSentence.ifEmpty { vm.selectedWord }, onDismiss = { vm.dismissChat() })
     }
+    if (showTagDialog) {
+        var newTagName by remember { mutableStateOf("") }
+        AlertDialog(
+            onDismissRequest = { showTagDialog = false },
+            title = { Text("Tags") },
+            text = {
+                Column(
+                    modifier = Modifier
+                        .heightIn(max = 360.dp)
+                        .verticalScroll(rememberScrollState())
+                ) {
+                    if (allTags.isEmpty()) {
+                        Text(
+                            "No tags yet. Create one below.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    } else {
+                        allTags.forEach { tag ->
+                            val attached = articleTags.any { it.id == tag.id }
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        if (attached) vm.detachTag(tag.id) else vm.attachTag(tag.id)
+                                    }
+                                    .padding(vertical = 8.dp),
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
+                                Icon(
+                                    imageVector = if (attached) Icons.Default.Check else Icons.Default.Add,
+                                    contentDescription = null,
+                                    tint = if (attached) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                    modifier = Modifier.size(20.dp)
+                                )
+                                Spacer(modifier = Modifier.width(10.dp))
+                                Text(tag.name, style = MaterialTheme.typography.bodyMedium)
+                            }
+                        }
+                        Spacer(modifier = Modifier.height(8.dp))
+                    }
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        OutlinedTextField(
+                            value = newTagName,
+                            onValueChange = { newTagName = it },
+                            label = { Text("New tag") },
+                            singleLine = true,
+                            modifier = Modifier.weight(1f)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        TextButton(
+                            onClick = {
+                                if (newTagName.isNotBlank()) {
+                                    vm.createTag(newTagName)
+                                    newTagName = ""
+                                }
+                            },
+                            enabled = newTagName.isNotBlank()
+                        ) {
+                            Text("Add")
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showTagDialog = false }) {
+                    Text("Done")
+                }
+            }
+        )
+    }
+
     if (vm.showAiPanel) {
         AlertDialog(
             onDismissRequest = { vm.dismissAiPanel() },
