@@ -2,6 +2,7 @@
     <string name="app_name">MLingoFeed</string>
     <string name="action">Action</string>
     <string name="add">Add</string>
+    <string name="add_ai_provider">Add AI Provider</string>
     <string name="add_bookmark">Add Bookmark</string>
     <string name="add_dictionary">Add Dictionary</string>
     <string name="add_folder">Add folder</string>
@@ -45,6 +46,7 @@
     <string name="copy">Copy</string>
     <string name="copy_link">Copy link</string>
     <string name="correct">Correct!</string>
+    <string name="current_ai_provider">Current: %1$s</string>
     <string name="css_selector_optional">CSS Selector (optional)</string>
     <string name="csv">CSV</string>
     <string name="daily_word_review_reminder">Daily word review reminder</string>
@@ -62,10 +64,12 @@
     <string name="done">Done</string>
     <string name="drag">Drag</string>
     <string name="due">Due</string>
+    <string name="e_g_deepseek_openai">e.g., DeepSeek, OpenAI</string>
     <string name="e_g_chinese_japanese_spanish">e.g., Chinese, Japanese, Spanish</string>
     <string name="e_g_trans_container_content">e.g., .trans-container, #content</string>
     <string name="e_g_youdao_cambridge">e.g., Youdao, Cambridge</string>
     <string name="edit">Edit</string>
+    <string name="edit_ai_provider">Edit AI Provider</string>
     <string name="edit_dictionary">Edit Dictionary</string>
     <string name="edit_feed">Edit Feed</string>
     <string name="edit_folder">Edit Folder</string>

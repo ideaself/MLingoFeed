@@ -24,6 +24,15 @@ data class DictionaryConfig(
     val isEnabled: Boolean = true
 )
 
+/** One OpenAI-compatible endpoint configuration; exactly one provider is active at a time. */
+data class AiProviderConfig(
+    val id: String,
+    val name: String,
+    val apiBaseUrl: String,
+    val apiKey: String,
+    val model: String
+)
+
 class SettingsManager(private val context: Context) {
 
     companion object {
@@ -31,6 +40,8 @@ class SettingsManager(private val context: Context) {
         val AI_API_URL = stringPreferencesKey("ai_api_url")
         val AI_API_KEY = stringPreferencesKey("ai_api_key")
         val AI_MODEL = stringPreferencesKey("ai_model")
+        val AI_PROVIDERS = stringPreferencesKey("ai_providers")
+        val AI_ACTIVE_PROVIDER = stringPreferencesKey("ai_active_provider")
         val TRANSLATE_TARGET_LANG = stringPreferencesKey("translate_target_lang")
         val FONT_SIZE = stringPreferencesKey("font_size")
         val RSS_FONT_SIZE = stringPreferencesKey("rss_font_size")
@@ -56,6 +67,9 @@ class SettingsManager(private val context: Context) {
 
         private const val MAX_READING_SESSIONS = 500
         private const val SESSION_RETENTION_DAYS = 60L
+
+        private const val DEFAULT_AI_API_URL = "https://api.deepseek.com/chat/completions"
+        private const val DEFAULT_AI_MODEL = "deepseek-v4-flash"
 
         private val defaultDictionariesJson: String by lazy { createDefaultDictionaries() }
 
@@ -111,16 +125,83 @@ class SettingsManager(private val context: Context) {
         return array.toString()
     }
 
+    private fun parseAiProviders(json: String): List<AiProviderConfig> {
+        return try {
+            val array = JSONArray(json)
+            (0 until array.length()).map { i ->
+                val obj = array.getJSONObject(i)
+                AiProviderConfig(
+                    id = obj.optString("id", java.util.UUID.randomUUID().toString()),
+                    name = obj.optString("name", "Provider"),
+                    apiBaseUrl = obj.optString("apiBaseUrl", DEFAULT_AI_API_URL),
+                    apiKey = obj.optString("apiKey", ""),
+                    model = obj.optString("model", DEFAULT_AI_MODEL)
+                )
+            }
+        } catch (e: Exception) {
+            emptyList()
+        }
+    }
+
+    private fun aiProvidersToJson(providers: List<AiProviderConfig>): String {
+        val array = JSONArray()
+        providers.forEach { provider ->
+            array.put(JSONObject().apply {
+                put("id", provider.id)
+                put("name", provider.name)
+                put("apiBaseUrl", provider.apiBaseUrl)
+                put("apiKey", provider.apiKey)
+                put("model", provider.model)
+            })
+        }
+        return array.toString()
+    }
+
+    /**
+     * The pre-multi-provider settings (ai_api_url / ai_api_key / ai_model). They seed the
+     * provider list on first use, so existing installs keep working without a migration.
+     */
+    private fun legacyProvider(prefs: Preferences): AiProviderConfig {
+        val url = prefs[AI_API_URL] ?: DEFAULT_AI_API_URL
+        return AiProviderConfig(
+            id = "legacy",
+            name = if (url.contains("deepseek", ignoreCase = true)) "DeepSeek" else "Provider",
+            apiBaseUrl = url,
+            apiKey = prefs[AI_API_KEY] ?: "",
+            model = prefs[AI_MODEL] ?: DEFAULT_AI_MODEL
+        )
+    }
+
+    /** Null only when the user deleted every provider. */
+    private fun storedProviders(prefs: Preferences): List<AiProviderConfig>? =
+        prefs[AI_PROVIDERS]?.let(::parseAiProviders)
+
+    /** The provider selected in Settings, falling back to the first (or legacy) one. */
+    private fun activeProvider(prefs: Preferences): AiProviderConfig? {
+        val providers = storedProviders(prefs) ?: listOf(legacyProvider(prefs))
+        return providers.firstOrNull { it.id == prefs[AI_ACTIVE_PROVIDER] } ?: providers.firstOrNull()
+    }
+
+    val aiProviders: Flow<List<AiProviderConfig>> = context.dataStore.data.map { prefs ->
+        storedProviders(prefs) ?: listOf(legacyProvider(prefs))
+    }.flowOn(Dispatchers.Default)
+
+    val aiActiveProviderId: Flow<String> = context.dataStore.data.map { prefs ->
+        activeProvider(prefs)?.id ?: ""
+    }.flowOn(Dispatchers.Default)
+
     val aiApiUrl: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"
+        // No providers stored at all -> legacyProvider() inside activeProvider() covers the
+        // pre-multi-provider install; a deliberately emptied list falls back to "unconfigured".
+        activeProvider(prefs)?.apiBaseUrl ?: DEFAULT_AI_API_URL
     }
 
     val aiApiKey: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[AI_API_KEY] ?: ""
+        activeProvider(prefs)?.apiKey ?: ""
     }
 
     val aiModel: Flow<String> = context.dataStore.data.map { prefs ->
-        prefs[AI_MODEL] ?: "deepseek-v4-flash"
+        activeProvider(prefs)?.model ?: DEFAULT_AI_MODEL
     }
 
     val translateTargetLang: Flow<String> = context.dataStore.data.map { prefs ->
@@ -202,16 +283,27 @@ class SettingsManager(private val context: Context) {
         }
     }
 
-    suspend fun setAiApiUrl(url: String) {
-        context.dataStore.edit { prefs -> prefs[AI_API_URL] = url }
+    /**
+     * Applies [transform] to the provider list inside the same DataStore transaction, so
+     * concurrent edits cannot overwrite each other with a stale list; the selection is kept
+     * pointing at an existing provider afterwards.
+     */
+    suspend fun updateAiProviders(transform: (List<AiProviderConfig>) -> List<AiProviderConfig>) {
+        context.dataStore.edit { prefs ->
+            val current = storedProviders(prefs) ?: listOf(legacyProvider(prefs))
+            val updated = transform(current)
+            prefs[AI_PROVIDERS] = aiProvidersToJson(updated)
+            val activeId = prefs[AI_ACTIVE_PROVIDER]
+            if (updated.isEmpty()) {
+                prefs.remove(AI_ACTIVE_PROVIDER)
+            } else if (updated.none { it.id == activeId }) {
+                prefs[AI_ACTIVE_PROVIDER] = updated.first().id
+            }
+        }
     }
 
-    suspend fun setAiApiKey(key: String) {
-        context.dataStore.edit { prefs -> prefs[AI_API_KEY] = key }
-    }
-
-    suspend fun setAiModel(model: String) {
-        context.dataStore.edit { prefs -> prefs[AI_MODEL] = model }
+    suspend fun setActiveAiProvider(id: String) {
+        context.dataStore.edit { prefs -> prefs[AI_ACTIVE_PROVIDER] = id }
     }
 
     suspend fun setTranslateTargetLang(lang: String) {
@@ -382,11 +474,14 @@ class SettingsManager(private val context: Context) {
 
     suspend fun getAllSettings(): Map<String, String> {
         val prefs = context.dataStore.data.first()
+        val active = activeProvider(prefs)
         return mapOf(
             "dictionaries" to (prefs[DICTIONARIES] ?: defaultDictionariesJson),
-            "ai_api_url" to (prefs[AI_API_URL] ?: "https://api.deepseek.com/chat/completions"),
-            "ai_api_key" to (prefs[AI_API_KEY] ?: ""),
-            "ai_model" to (prefs[AI_MODEL] ?: "deepseek-v4-flash"),
+            "ai_api_url" to (active?.apiBaseUrl ?: DEFAULT_AI_API_URL),
+            "ai_api_key" to (active?.apiKey ?: ""),
+            "ai_model" to (active?.model ?: DEFAULT_AI_MODEL),
+            "ai_providers" to (prefs[AI_PROVIDERS] ?: aiProvidersToJson(listOf(legacyProvider(prefs)))),
+            "ai_active_provider" to (active?.id ?: ""),
             "translate_target_lang" to (prefs[TRANSLATE_TARGET_LANG] ?: "Chinese"),
             "font_size" to (prefs[FONT_SIZE]?.toString() ?: "100"),
             "rss_font_size" to (prefs[RSS_FONT_SIZE]?.toString() ?: "17"),
@@ -394,9 +489,17 @@ class SettingsManager(private val context: Context) {
             "reading_time_seconds" to (prefs[READING_TIME_SECONDS]?.toString() ?: "0")
         )    }
 
-    /** Settings that are safe to write to an export file: the AI key is deliberately excluded. */
-    suspend fun getExportableSettings(): Map<String, String> =
-        getAllSettings().filterKeys { it != "ai_api_key" }
+    /** Settings that are safe to write to an export file: API keys are deliberately excluded. */
+    suspend fun getExportableSettings(): Map<String, String> {
+        val all = getAllSettings()
+        // Export the provider list (so multi-provider setups survive a backup) but strip every key.
+        val redacted = all["ai_providers"]?.let { json ->
+            aiProvidersToJson(parseAiProviders(json).map { it.copy(apiKey = "") })
+        }
+        val result = all.filterKeys { it != "ai_api_key" && it != "ai_providers" }.toMutableMap()
+        if (redacted != null) result["ai_providers"] = redacted
+        return result
+    }
 
     suspend fun importSettings(settings: Map<String, String>) {        context.dataStore.edit { prefs ->
             settings["dictionaries"]?.let { prefs[DICTIONARIES] = it }
@@ -408,6 +511,46 @@ class SettingsManager(private val context: Context) {
             settings["rss_font_size"]?.let { prefs[RSS_FONT_SIZE] = it }
             settings["theme_mode"]?.let { prefs[THEME_MODE] = it }
             settings["reading_time_seconds"]?.let { prefs[READING_TIME_SECONDS] = it }
+
+            val importedProviders = settings["ai_providers"]?.let { parseAiProviders(it) }
+            if (importedProviders != null) {
+                val local = storedProviders(prefs) ?: listOf(legacyProvider(prefs))
+                // Exports carry no keys: keep whatever key this device already has for the same id.
+                val merged = importedProviders.map { imported ->
+                    imported.copy(apiKey = imported.apiKey.ifBlank {
+                        local.firstOrNull { it.id == imported.id }?.apiKey.orEmpty()
+                    })
+                }
+                prefs[AI_PROVIDERS] = aiProvidersToJson(merged)
+            } else {
+                val current = storedProviders(prefs)
+                if (current != null && current.isNotEmpty()) {
+                    // Older backups only carry the legacy single-provider keys; apply them to the
+                    // selected provider so importing still switches the active configuration.
+                    val activeId = prefs[AI_ACTIVE_PROVIDER]
+                    val index = current.indexOfFirst { it.id == activeId }.coerceAtLeast(0)
+                    prefs[AI_PROVIDERS] = aiProvidersToJson(current.toMutableList().apply {
+                        val provider = this[index]
+                        this[index] = provider.copy(
+                            apiBaseUrl = settings["ai_api_url"] ?: provider.apiBaseUrl,
+                            apiKey = settings["ai_api_key"]?.takeIf { key -> key.isNotBlank() } ?: provider.apiKey,
+                            model = settings["ai_model"] ?: provider.model
+                        )
+                    })
+                }
+            }
+
+            settings["ai_active_provider"]?.takeIf { it.isNotBlank() }?.let {
+                prefs[AI_ACTIVE_PROVIDER] = it
+            }
+            // Keep the selection valid after the import.
+            storedProviders(prefs)?.let { list ->
+                if (list.isEmpty()) {
+                    prefs.remove(AI_ACTIVE_PROVIDER)
+                } else if (list.none { it.id == prefs[AI_ACTIVE_PROVIDER] }) {
+                    prefs[AI_ACTIVE_PROVIDER] = list.first().id
+                }
+            }
         }
     }
 }

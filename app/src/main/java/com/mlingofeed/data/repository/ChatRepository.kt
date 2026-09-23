@@ -27,6 +27,16 @@ class ChatRepository {
 
     private val api = retrofit.create(TranslationApi::class.java)
 
+    /**
+     * The user may enter either the full `.../chat/completions` path or just the API base
+     * (e.g. `https://api.example.com/v1`); normalise before POSTing so both work.
+     * Mirrors the base -> `/models` derivation in [fetchModels].
+     */
+    private fun chatUrl(apiUrl: String): String {
+        val trimmed = apiUrl.trim().trimEnd('/')
+        return if (trimmed.endsWith("/chat/completions")) trimmed else "$trimmed/chat/completions"
+    }
+
     suspend fun translate(text: String, targetLang: String, apiUrl: String, apiKey: String, model: String): String {
         val messages = listOf(
             ChatMessage(
@@ -46,7 +56,7 @@ class ChatRepository {
         )
 
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "No translation available"
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -73,7 +83,7 @@ class ChatRepository {
         )
 
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "No response"
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -100,7 +110,7 @@ class ChatRepository {
     ): String {
         val request = ChatRequest(model = model, messages = messages, stream = true)
         return try {
-            val body = api.chatStream(apiUrl, request, "Bearer $apiKey")
+            val body = api.chatStream(chatUrl(apiUrl), request, "Bearer $apiKey")
             val source = body.source()
             val full = StringBuilder()
             val reasoning = StringBuilder()
@@ -154,10 +164,11 @@ class ChatRepository {
     }
 
     suspend fun fetchModels(baseApiUrl: String, apiKey: String): List<String> {
-        val modelsUrl = if (baseApiUrl.contains("/chat/completions")) {
-            baseApiUrl.replace("/chat/completions", "/models")
+        val base = baseApiUrl.trim().trimEnd('/')
+        val modelsUrl = if (base.contains("/chat/completions")) {
+            base.replace("/chat/completions", "/models")
         } else {
-            "${baseApiUrl.trimEnd('/')}/models"
+            "$base/models"
         }
         return try {
             val response = api.getModels(modelsUrl, "Bearer $apiKey")
@@ -208,7 +219,7 @@ Return ONLY the JSON object, no other text."""
         )
 
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "{}"
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -257,7 +268,7 @@ Find 5-10 items. Return ONLY the JSON array, no other text."""
         )
 
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: "[]"
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -300,7 +311,7 @@ Keep the whole reply under 80 words. No markdown headings."""
         )
 
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: ""
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -331,7 +342,7 @@ Keep the whole reply under 80 words. No markdown headings."""
         )
         val request = ChatRequest(model = model, messages = messages, stream = false, temperature = 0.3)
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: ""
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()
@@ -362,7 +373,7 @@ Keep the whole reply under 80 words. No markdown headings."""
         )
         val request = ChatRequest(model = model, messages = messages, stream = false, temperature = 0.5)
         return try {
-            val response = api.chat(apiUrl, request, "Bearer $apiKey")
+            val response = api.chat(chatUrl(apiUrl), request, "Bearer $apiKey")
             response.choices?.firstOrNull()?.message?.content ?: ""
         } catch (e: HttpException) {
             val errorBody = e.response()?.errorBody()?.string() ?: e.message()

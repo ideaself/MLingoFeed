@@ -31,6 +31,7 @@ import androidx.compose.material.icons.filled.ContentCopy
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.FileDownload
 import androidx.compose.material.icons.filled.FileUpload
+import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.KeyboardArrowDown
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Refresh
@@ -83,6 +84,7 @@ import com.mlingofeed.AppViewModelFactory
 import com.mlingofeed.BuildConfig
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportManager
+import com.mlingofeed.data.settings.AiProviderConfig
 import com.mlingofeed.data.settings.DictionaryConfig
 import com.mlingofeed.ui.theme.AccentPalettes
 import androidx.compose.ui.res.stringResource
@@ -94,9 +96,10 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
     val context = LocalContext.current
     val app = context.applicationContext as WebReaderApp
     val vm: SettingsViewModel = viewModel(factory = remember { AppViewModelFactory(app) })
-    val clipboardManager = LocalClipboardManager.current
 
     val dictionaries by vm.dictionaries.collectAsStateWithLifecycle()
+    val aiProviders by vm.aiProviders.collectAsStateWithLifecycle()
+    val activeAiProviderId by vm.activeAiProviderId.collectAsStateWithLifecycle()
     val fontSize by vm.fontSize.collectAsStateWithLifecycle()
     val rssFontSize by vm.rssFontSize.collectAsStateWithLifecycle()
     val themeMode by vm.themeMode.collectAsStateWithLifecycle()
@@ -514,73 +517,32 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
                 title = stringResource(R.string.ai_translation),
                 imageVector = Icons.Default.Language,
                 expanded = vm.expandedSection == "ai",
-                onToggle = { vm.toggleSection("ai") }
+                onToggle = { vm.toggleSection("ai") },
+                summary = aiProviders.firstOrNull { it.id == activeAiProviderId }?.let { active ->
+                    stringResource(R.string.current_ai_provider, active.name)
+                }
             ) {
-                OutlinedTextField(
-                    value = vm.aiUrlInput,
-                    onValueChange = { vm.onAiUrlInputChange(it) },
-                    label = { Text(stringResource(R.string.ai_api_url)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    supportingText = { Text(stringResource(R.string.deepseek_https_api_deepseek_com_chat_completions)) }
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = vm.aiKeyInput,
-                    onValueChange = { vm.onAiKeyInputChange(it) },
-                    label = { Text(stringResource(R.string.api_key)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    trailingIcon = {
-                        IconButton(onClick = { clipboardManager.setText(AnnotatedString(vm.aiKeyInput)) }) {
-                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy))
-                        }
+                aiProviders.forEachIndexed { index, provider ->
+                    AiProviderItem(
+                        provider = provider,
+                        selected = provider.id == activeAiProviderId,
+                        onSelect = { vm.selectAiProvider(provider.id) },
+                        onEdit = { vm.openEditProvider(provider) },
+                        onDelete = { vm.deleteProvider(provider) }
+                    )
+                    if (index < aiProviders.size - 1) {
+                        Spacer(modifier = Modifier.height(8.dp))
                     }
-                )
+                }
                 Spacer(modifier = Modifier.height(8.dp))
-                OutlinedTextField(
-                    value = vm.aiModelInput,
-                    onValueChange = { vm.onAiModelInputChange(it) },
-                    label = { Text(stringResource(R.string.model)) },
+                Row(
                     modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    readOnly = vm.showModelDropdown && vm.modelList.isNotEmpty(),
-                    supportingText = { Text(stringResource(R.string.click_to_auto_fetch_models)) },
-                    trailingIcon = {
-                        if (vm.isLoadingModels) {
-                            androidx.compose.material3.CircularProgressIndicator(
-                                modifier = Modifier.size(20.dp),
-                                strokeWidth = 2.dp
-                            )
-                        } else {
-                            IconButton(onClick = { vm.fetchModels() }) {
-                                    Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.fetch_models))
-                            }
-                        }
-                    }
-                )
-                if (vm.showModelDropdown && vm.modelList.isNotEmpty()) {
-                    Spacer(modifier = Modifier.height(4.dp))
-                    Card(
-                        modifier = Modifier.fillMaxWidth(),
-                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
-                    ) {
-                        Column(modifier = Modifier.padding(4.dp)) {
-                            vm.modelList.take(10).forEach { model ->
-                                Row(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable { vm.selectModel(model) }
-                                        .padding(horizontal = 12.dp, vertical = 10.dp),
-                                    verticalAlignment = Alignment.CenterVertically
-                                ) {
-                                    Text(
-                                        text = model,
-                                        style = MaterialTheme.typography.bodyMedium
-                                    )
-                                }
-                            }
-                        }
+                    horizontalArrangement = Arrangement.Center
+                ) {
+                    TextButton(onClick = { vm.openAddProvider() }) {
+                        Icon(Icons.Default.Add, contentDescription = null)
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Text(stringResource(R.string.add_ai_provider))
                     }
                 }
                 Spacer(modifier = Modifier.height(8.dp))
@@ -650,6 +612,27 @@ fun SettingsScreen(onBack: () -> Unit = {}, onNavigateToReadingStats: () -> Unit
 
             Spacer(modifier = Modifier.height(80.dp))
         }
+    }
+
+    if (vm.showProviderDialog) {
+        EditAiProviderDialog(
+            isEdit = vm.editingProviderId != null,
+            name = vm.providerNameInput,
+            onNameChange = { vm.onProviderNameInputChange(it) },
+            url = vm.providerUrlInput,
+            onUrlChange = { vm.onProviderUrlInputChange(it) },
+            apiKey = vm.providerKeyInput,
+            onApiKeyChange = { vm.onProviderKeyInputChange(it) },
+            model = vm.providerModelInput,
+            onModelChange = { vm.onProviderModelInputChange(it) },
+            modelList = vm.modelList,
+            isLoadingModels = vm.isLoadingModels,
+            showModelDropdown = vm.showModelDropdown,
+            onFetchModels = { vm.fetchModels() },
+            onSelectModel = { vm.selectModel(it) },
+            onConfirm = { vm.saveProvider() },
+            onDismiss = { vm.dismissProviderDialog() }
+        )
     }
 
     if (vm.editingDict != null) {
@@ -767,6 +750,60 @@ private fun DictionaryItem(
 }
 
 @Composable
+private fun AiProviderItem(
+    provider: AiProviderConfig,
+    selected: Boolean,
+    onSelect: () -> Unit,
+    onEdit: () -> Unit,
+    onDelete: () -> Unit
+) {
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        RadioButton(
+            selected = selected,
+            onClick = onSelect,
+            modifier = Modifier.selectable(
+                selected = selected,
+                onClick = onSelect,
+                role = Role.RadioButton
+            )
+        )
+        Spacer(modifier = Modifier.width(4.dp))
+        Column(
+            modifier = Modifier
+                .weight(1f)
+                .clickable(onClick = onSelect)
+        ) {
+            Text(
+                text = provider.name.ifEmpty { stringResource(R.string.unnamed) },
+                style = MaterialTheme.typography.titleSmall
+            )
+            val detail = listOf(
+                provider.model.ifEmpty { null },
+                provider.apiBaseUrl
+            ).filterNotNull().joinToString(" · ")
+            Text(
+                text = detail.take(60) + if (detail.length > 60) "..." else "",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+        }
+        IconButton(onClick = onEdit) {
+            Icon(Icons.Default.Edit, contentDescription = stringResource(R.string.edit))
+        }
+        IconButton(onClick = onDelete) {
+            Icon(
+                Icons.Default.Delete,
+                contentDescription = stringResource(R.string.delete),
+                tint = MaterialTheme.colorScheme.error
+            )
+        }
+    }
+}
+
+@Composable
 private fun SettingsSection(
     title: String,
     imageVector: androidx.compose.ui.graphics.vector.ImageVector,
@@ -869,6 +906,130 @@ private fun isToday(timestampMillis: Long): Boolean {
     val now = System.currentTimeMillis()
     val dayMillis = 24L * 60 * 60 * 1000
     return (now - timestampMillis) < dayMillis && (now - timestampMillis) >= 0
+}
+
+@Composable
+private fun EditAiProviderDialog(
+    isEdit: Boolean,
+    name: String,
+    onNameChange: (String) -> Unit,
+    url: String,
+    onUrlChange: (String) -> Unit,
+    apiKey: String,
+    onApiKeyChange: (String) -> Unit,
+    model: String,
+    onModelChange: (String) -> Unit,
+    modelList: List<String>,
+    isLoadingModels: Boolean,
+    showModelDropdown: Boolean,
+    onFetchModels: () -> Unit,
+    onSelectModel: (String) -> Unit,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit
+) {
+    val clipboardManager = LocalClipboardManager.current
+    val canSave = name.isNotBlank() && url.isNotBlank()
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (isEdit) R.string.edit_ai_provider else R.string.add_ai_provider
+                )
+            )
+        },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = onNameChange,
+                    label = { Text(stringResource(R.string.name)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    placeholder = { Text(stringResource(R.string.e_g_deepseek_openai)) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = url,
+                    onValueChange = onUrlChange,
+                    label = { Text(stringResource(R.string.ai_api_url)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    supportingText = { Text(stringResource(R.string.deepseek_https_api_deepseek_com_chat_completions)) }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = apiKey,
+                    onValueChange = onApiKeyChange,
+                    label = { Text(stringResource(R.string.api_key)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    trailingIcon = {
+                        IconButton(onClick = { clipboardManager.setText(AnnotatedString(apiKey)) }) {
+                            Icon(Icons.Default.ContentCopy, contentDescription = stringResource(R.string.copy))
+                        }
+                    }
+                )
+                Spacer(modifier = Modifier.height(8.dp))
+                OutlinedTextField(
+                    value = model,
+                    onValueChange = onModelChange,
+                    label = { Text(stringResource(R.string.model)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    readOnly = showModelDropdown && modelList.isNotEmpty(),
+                    supportingText = { Text(stringResource(R.string.click_to_auto_fetch_models)) },
+                    trailingIcon = {
+                        if (isLoadingModels) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(20.dp),
+                                strokeWidth = 2.dp
+                            )
+                        } else {
+                            IconButton(onClick = onFetchModels) {
+                                Icon(Icons.Default.Refresh, contentDescription = stringResource(R.string.fetch_models))
+                            }
+                        }
+                    }
+                )
+                if (showModelDropdown && modelList.isNotEmpty()) {
+                    Spacer(modifier = Modifier.height(4.dp))
+                    Card(
+                        modifier = Modifier.fillMaxWidth(),
+                        elevation = CardDefaults.cardElevation(defaultElevation = 4.dp)
+                    ) {
+                        Column(modifier = Modifier.padding(4.dp)) {
+                            modelList.take(10).forEach { suggested ->
+                                Row(
+                                    modifier = Modifier
+                                        .fillMaxWidth()
+                                        .clickable { onSelectModel(suggested) }
+                                        .padding(horizontal = 12.dp, vertical = 10.dp),
+                                    verticalAlignment = Alignment.CenterVertically
+                                ) {
+                                    Text(
+                                        text = suggested,
+                                        style = MaterialTheme.typography.bodyMedium
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onConfirm, enabled = canSave) {
+                Text(stringResource(R.string.save))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        }
+    )
 }
 
 @Composable

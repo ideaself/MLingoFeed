@@ -10,6 +10,7 @@ import androidx.lifecycle.viewModelScope
 import com.mlingofeed.WebReaderApp
 import com.mlingofeed.data.export.ExportData
 import com.mlingofeed.data.export.ExportManager
+import com.mlingofeed.data.settings.AiProviderConfig
 import com.mlingofeed.data.settings.DictionaryConfig
 import com.mlingofeed.data.work.WordReviewWorker
 import kotlinx.coroutines.CancellationException
@@ -37,13 +38,24 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     val readerTtsSpeed = app.settingsManager.readerTtsSpeed.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 1.0f)
     val readerTtsVoice = app.settingsManager.readerTtsVoice.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "us")
 
-    var aiUrlInput by mutableStateOf("")
-        private set
-    var aiKeyInput by mutableStateOf("")
-        private set
-    var aiModelInput by mutableStateOf("")
-        private set
     var targetLangInput by mutableStateOf("")
+        private set
+
+    val aiProviders = app.settingsManager.aiProviders.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
+    val activeAiProviderId = app.settingsManager.aiActiveProviderId.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), "")
+
+    // Draft of the provider currently being added/edited in the dialog (null id = adding).
+    var showProviderDialog by mutableStateOf(false)
+        private set
+    var editingProviderId by mutableStateOf<String?>(null)
+        private set
+    var providerNameInput by mutableStateOf("")
+        private set
+    var providerUrlInput by mutableStateOf("")
+        private set
+    var providerKeyInput by mutableStateOf("")
+        private set
+    var providerModelInput by mutableStateOf("")
         private set
 
     var modelList by mutableStateOf<List<String>>(emptyList())
@@ -71,48 +83,122 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     init {
         viewModelScope.launch {
             val settings = app.settingsManager.getAllSettings()
-            aiUrlInput = settings["ai_api_url"] ?: ""
-            aiKeyInput = settings["ai_api_key"] ?: ""
-            aiModelInput = settings["ai_model"] ?: ""
             targetLangInput = settings["translate_target_lang"] ?: "Chinese"
         }
-    }
-
-    fun onAiUrlInputChange(value: String) {
-        aiUrlInput = value
-    }
-
-    fun onAiKeyInputChange(value: String) {
-        aiKeyInput = value
-    }
-
-    fun onAiModelInputChange(value: String) {
-        aiModelInput = value
     }
 
     fun onTargetLangInputChange(value: String) {
         targetLangInput = value
     }
 
+    fun onProviderNameInputChange(value: String) {
+        providerNameInput = value
+    }
+
+    fun onProviderUrlInputChange(value: String) {
+        providerUrlInput = value
+    }
+
+    fun onProviderKeyInputChange(value: String) {
+        providerKeyInput = value
+    }
+
+    fun onProviderModelInputChange(value: String) {
+        providerModelInput = value
+    }
+
+    fun openAddProvider() {
+        editingProviderId = null
+        providerNameInput = ""
+        providerUrlInput = ""
+        providerKeyInput = ""
+        providerModelInput = ""
+        resetModelSuggestions()
+        showProviderDialog = true
+    }
+
+    fun openEditProvider(provider: AiProviderConfig) {
+        editingProviderId = provider.id
+        providerNameInput = provider.name
+        providerUrlInput = provider.apiBaseUrl
+        providerKeyInput = provider.apiKey
+        providerModelInput = provider.model
+        resetModelSuggestions()
+        showProviderDialog = true
+    }
+
+    fun dismissProviderDialog() {
+        showProviderDialog = false
+        editingProviderId = null
+    }
+
+    /** Saves the dialog draft; a newly added provider becomes the active one immediately. */
+    fun saveProvider() {
+        val name = providerNameInput.trim()
+        val url = providerUrlInput.trim()
+        if (name.isEmpty() || url.isEmpty()) return
+        val editingId = editingProviderId
+        val key = providerKeyInput.trim()
+        val model = providerModelInput.trim()
+        viewModelScope.launch {
+            if (editingId == null) {
+                val newProvider = AiProviderConfig(
+                    id = java.util.UUID.randomUUID().toString(),
+                    name = name,
+                    apiBaseUrl = url,
+                    apiKey = key,
+                    model = model
+                )
+                app.settingsManager.updateAiProviders { it + newProvider }
+                app.settingsManager.setActiveAiProvider(newProvider.id)
+            } else {
+                app.settingsManager.updateAiProviders { providers ->
+                    providers.map {
+                        if (it.id == editingId) {
+                            it.copy(name = name, apiBaseUrl = url, apiKey = key, model = model)
+                        } else {
+                            it
+                        }
+                    }
+                }
+            }
+            dismissProviderDialog()
+        }
+    }
+
+    fun deleteProvider(provider: AiProviderConfig) {
+        viewModelScope.launch {
+            app.settingsManager.updateAiProviders { providers ->
+                providers.filterNot { it.id == provider.id }
+            }
+        }
+    }
+
+    fun selectAiProvider(id: String) {
+        viewModelScope.launch { app.settingsManager.setActiveAiProvider(id) }
+    }
+
     fun saveSettings() {
         viewModelScope.launch {
-            app.settingsManager.setAiApiUrl(aiUrlInput)
-            app.settingsManager.setAiApiKey(aiKeyInput)
-            app.settingsManager.setAiModel(aiModelInput)
             app.settingsManager.setTranslateTargetLang(targetLangInput)
             Toast.makeText(app, app.getString(R.string.settings_saved), Toast.LENGTH_SHORT).show()
         }
     }
 
+    private fun resetModelSuggestions() {
+        modelList = emptyList()
+        showModelDropdown = false
+    }
+
     fun fetchModels() {
-        if (aiKeyInput.isBlank()) {
+        if (providerKeyInput.isBlank()) {
             Toast.makeText(app, app.getString(R.string.please_enter_api_key_first), Toast.LENGTH_SHORT).show()
             return
         }
         isLoadingModels = true
         viewModelScope.launch {
             try {
-                val models = app.chatRepository.fetchModels(aiUrlInput, aiKeyInput)
+                val models = app.chatRepository.fetchModels(providerUrlInput, providerKeyInput)
                 modelList = models
                 showModelDropdown = models.isNotEmpty()
             } catch (e: CancellationException) {
@@ -125,7 +211,7 @@ class SettingsViewModel(private val app: WebReaderApp) : ViewModel() {
     }
 
     fun selectModel(model: String) {
-        aiModelInput = model
+        providerModelInput = model
         showModelDropdown = false
     }
 
